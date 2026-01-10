@@ -337,6 +337,150 @@ PARALLEL=$(grep -A10 "^---" "$PLAN_PATH" | grep "^parallel:" | awk '{print $2}')
 ```
 </parallelization_config>
 
+<step name="spawn_parallel_agents">
+**Spawn multiple background agents for independent plans.**
+
+Triggered when analyze_plan_dependencies finds multiple independent plans.
+
+**1. Pre-spawn git state:**
+
+```bash
+# Record current HEAD commit hash
+PARALLEL_START_COMMIT=$(git rev-parse HEAD)
+echo "All parallel agents starting from commit: $PARALLEL_START_COMMIT"
+
+# Ensure working directory is clean
+git status --porcelain
+# If dirty, warn user and ask to commit/stash first
+```
+
+All parallel agents start from the same git state. Changes are held until all complete.
+
+**2. Generate parallel group ID:**
+
+```bash
+# Unique identifier for this batch of parallel agents
+PARALLEL_GROUP="phase-${PHASE}-batch-$(date +%s)"
+echo "Parallel group: $PARALLEL_GROUP"
+```
+
+This enables batch resume if session is interrupted.
+
+**3. Initialize tracking:**
+
+```bash
+# Create/verify agent-history.json
+if [ ! -f .planning/agent-history.json ]; then
+  echo '{"version":"1.1","max_entries":50,"entries":[]}' > .planning/agent-history.json
+fi
+```
+
+**4. Spawn each independent plan:**
+
+For each independent plan (up to max_concurrent_agents):
+
+```
+Task(
+  description: "Execute plan {phase}-{plan}",
+  prompt: "Execute plan at {plan_path}.
+
+    **Execution context:**
+    - You are running as a PARALLEL agent in group {parallel_group}
+    - Other plans from this phase are executing simultaneously
+    - Starting from git commit: {start_commit}
+
+    **Your responsibilities:**
+    - Read the full plan for objective, context, and deviation rules
+    - Execute all tasks in the plan
+    - Create SUMMARY.md in the phase directory
+    - DO NOT commit changes - orchestrator will handle commits after all complete
+    - Track all files you create or modify
+
+    **Checkpoint handling (background mode):**
+    - checkpoint:human-verify → Skip and log 'skipped - background mode'
+    - checkpoint:decision → Use first option and log choice
+    - checkpoint:human-action → Skip and log warning
+
+    **Report when complete:**
+    - Tasks completed (count)
+    - Files modified (list with paths)
+    - Deviations encountered
+    - Checkpoints skipped (count and types)
+    - Any errors or blockers",
+  subagent_type: "general-purpose",
+  run_in_background: true
+)
+```
+
+**5. Record each spawn:**
+
+After Task tool returns with agent_id and output_file:
+
+```json
+{
+  "agent_id": "[from response]",
+  "task_description": "Execute plan {phase}-{plan} (parallel)",
+  "phase": "{phase}",
+  "plan": "{plan}",
+  "segment": null,
+  "timestamp": "[ISO timestamp]",
+  "status": "spawned",
+  "completion_timestamp": null,
+  "execution_mode": "parallel",
+  "output_file": "[from response]",
+  "background_status": "running",
+  "parallel_group": "{parallel_group}",
+  "depends_on": null,
+  "checkpoints_skipped": null,
+  "files_modified": null
+}
+```
+
+**6. Queue dependent plans:**
+
+For plans that depend on others in this phase:
+
+```json
+{
+  "agent_id": null,
+  "task_description": "Execute plan {phase}-{plan} (queued)",
+  "phase": "{phase}",
+  "plan": "{plan}",
+  "status": "queued",
+  "execution_mode": "parallel",
+  "parallel_group": "{parallel_group}",
+  "depends_on": ["11-01", "11-03"]
+}
+```
+
+**7. Report spawn status:**
+
+```
+Parallel Execution Started
+════════════════════════════════════════
+
+Group: {parallel_group}
+Git state: {start_commit}
+
+Spawned ({N} agents):
+  → {phase}-{plan}: agent_{id} (output: {file})
+  → {phase}-{plan}: agent_{id} (output: {file})
+  → {phase}-{plan}: agent_{id} (output: {file})
+
+Queued (waiting for dependencies):
+  ⏳ {phase}-{plan}: needs {dependency}
+
+════════════════════════════════════════
+Commits will be created after all plans complete.
+
+Monitoring progress...
+```
+
+**8. Continue to completion monitoring:**
+
+Do not return control to user yet. Continue to monitor_parallel_completion step.
+</step>
+
 <step name="record_start_time">
 Record execution start time for performance tracking:
 
