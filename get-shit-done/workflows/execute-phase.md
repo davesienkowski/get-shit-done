@@ -868,6 +868,261 @@ Wait for user confirmation.
 | User chose "sequential" | execute (normal flow) |
 </step>
 
+<step name="spawn_task_agents">
+**Spawn parallel agents for independent task groups within a single plan.**
+
+Triggered when analyze_task_dependencies finds independent task groups.
+
+**Concurrency management:**
+Task agents share the global `max_concurrent_agents` limit from config.
+- If plan-level parallelization is also active, task agents count toward the same pool
+- Example: max_concurrent=3, 2 plan agents running → only 1 task agent slot available
+- Check available slots before spawning: `available = max_concurrent - currently_running`
+
+**1. Check available concurrency:**
+
+```bash
+# Count currently running agents from agent-history.json
+RUNNING=$(jq '[.entries[] | select(.background_status == "running")] | length' .planning/agent-history.json 2>/dev/null || echo 0)
+
+# Get max from config (default: 3)
+MAX_CONCURRENT=$(jq -r '.parallelization.max_concurrent_agents // 3' .planning/config.json 2>/dev/null || echo 3)
+
+# Available slots
+AVAILABLE=$((MAX_CONCURRENT - RUNNING))
+```
+
+**2. Generate task parallel group ID:**
+
+```bash
+# Unique identifier for this batch of task agents
+TASK_PARALLEL_GROUP="plan-${PHASE}-${PLAN}-tasks-batch-$(date +%s)"
+echo "Task parallel group: $TASK_PARALLEL_GROUP"
+```
+
+**3. For each independent task group (respecting concurrency):**
+
+```
+Task(
+  description: "Execute tasks {task-ids} from plan {plan}",
+  prompt: "Execute ONLY these tasks from plan at {path}: [task list with names]
+
+           **Context:**
+           - Read the full plan for objective, context files, and deviation rules
+           - You are executing a SUBSET of tasks (not the full plan)
+           - Other tasks will be executed by other agents or sequentially
+
+           **Your responsibilities:**
+           - Execute ONLY the assigned tasks: [task numbers/names]
+           - Follow all deviation rules and authentication gate protocols
+           - Track deviations for later aggregation
+           - DO NOT create SUMMARY.md (orchestrator will merge results)
+           - DO NOT commit changes (orchestrator handles commits)
+
+           **Checkpoint handling (background mode):**
+           - checkpoint:human-verify → Skip and log 'skipped - background mode'
+           - checkpoint:decision → Use first option and log choice
+           - checkpoint:human-action → Skip and log 'skipped - background mode'
+
+           **Report back:**
+           - Tasks completed (list each with status)
+           - Files modified (list full paths)
+           - Deviations encountered (if any)
+           - Checkpoints skipped (count and types)
+           - Any errors or blockers",
+  subagent_type: "general-purpose",
+  run_in_background: true
+)
+```
+
+**4. Track task-level agents with unique identifiers:**
+
+After Task tool returns with agent_id and output_file:
+
+```json
+{
+  "agent_id": "[from response]",
+  "task_description": "Execute tasks [1, 3] from plan 11-02",
+  "phase": "{phase}",
+  "plan": "{plan}",
+  "segment": null,
+  "timestamp": "[ISO timestamp]",
+  "status": "spawned",
+  "completion_timestamp": null,
+  "execution_mode": "parallel",
+  "output_file": "[from response]",
+  "background_status": "running",
+  "parallel_group": "{task_parallel_group}",
+  "granularity": "task_group",
+  "task_group": ["Task 1", "Task 3"],
+  "depends_on": null,
+  "checkpoints_skipped": null,
+  "files_modified": null,
+  "task_results": null
+}
+```
+
+**5. Queue task groups that exceed concurrency:**
+
+If spawned agents would exceed max_concurrent:
+- First groups up to available slots: spawn immediately
+- Remaining groups: queue with depends_on tracking
+
+```json
+{
+  "agent_id": null,
+  "task_description": "Execute tasks [4, 5] from plan 11-02 (queued)",
+  "phase": "{phase}",
+  "plan": "{plan}",
+  "status": "queued",
+  "execution_mode": "parallel",
+  "parallel_group": "{task_parallel_group}",
+  "granularity": "task_group",
+  "task_group": ["Task 4", "Task 5"],
+  "depends_on": ["task-group-1"]
+}
+```
+
+**6. Report spawn status:**
+
+```
+Plan 11-02 Task Parallel Execution
+════════════════════════════════════════
+
+Group: {task_parallel_group}
+Concurrency: {available}/{max} slots
+
+Spawned (Group 1):
+  → Tasks 1, 3: agent_{id}
+
+Sequential (after Group 1):
+  ⏳ Task 2: waiting for Task 1 (file conflict)
+
+Queued (Group 2):
+  ⏳ Tasks 4, 5: waiting for concurrency slot
+  ⚠️ Task 4 has checkpoint (will be skipped)
+
+Sequential (after Group 2):
+  ⏳ Task 6: waiting for Task 5 (file conflict)
+
+════════════════════════════════════════
+Monitoring task completion...
+```
+
+**7. Handle slot exhaustion:**
+
+If no concurrent slots available (all used by plan-level agents):
+- Queue all task groups
+- Poll for available slots during completion monitoring
+- Spawn queued groups as slots become available
+
+**8. Continue to task completion monitoring:**
+
+Do not return control yet. Continue to monitor_task_completion step.
+</step>
+
+<step name="monitor_task_completion">
+**Monitor task-level parallel agents and handle completion.**
+
+After spawning task agents, orchestrator monitors until all complete.
+
+**1. Polling loop (similar to plan-level but for tasks):**
+
+```
+Initialize:
+  running_task_agents = [agents with granularity === "task_group" AND background_status === "running"]
+  queued_task_groups = [entries with granularity === "task_group" AND status === "queued"]
+  sequential_tasks = [tasks that must run in main context]
+  completed_task_results = []
+
+while (running_task_agents.length > 0 OR queued_task_groups.length > 0):
+
+  # Check each running agent
+  for agent in running_task_agents:
+    result = TaskOutput(
+      task_id: agent.agent_id,
+      block: false,
+      timeout: 5000
+    )
+
+    if result.completed:
+      process_task_completion(agent, result)
+      running_task_agents.remove(agent)
+
+    elif result.failed:
+      process_task_failure(agent, result)
+      running_task_agents.remove(agent)
+
+  # Check if queued groups can now start
+  for queued in queued_task_groups:
+    if dependencies_satisfied(queued) AND running_count < max_concurrent:
+      new_agent = spawn_task_agent(queued.task_group)
+      queued_task_groups.remove(queued)
+      running_task_agents.add(new_agent)
+
+  # Progress update
+  show_task_progress(running_task_agents, completed_task_results, queued_task_groups)
+
+  # Brief pause between checks (5 seconds for tasks, faster than plan-level)
+  sleep(5)
+```
+
+**2. Process task completion:**
+
+When TaskOutput indicates agent completed:
+
+```bash
+# Read agent's output for task results
+cat [agent.output_file]
+
+# Parse task-level results:
+# - Per-task status (success/failure)
+# - Files modified per task
+# - Checkpoints skipped (count)
+# - Deviations per task
+```
+
+Update agent-history.json with task_results:
+```json
+{
+  "status": "completed",
+  "completion_timestamp": "[ISO timestamp]",
+  "background_status": "completed",
+  "checkpoints_skipped": [count from output],
+  "files_modified": [aggregated list from output],
+  "task_results": {
+    "Task 1": {
+      "status": "completed",
+      "files": ["src/auth.ts"],
+      "deviations": []
+    },
+    "Task 3": {
+      "status": "completed",
+      "files": ["src/utils.ts"],
+      "deviations": []
+    }
+  }
+}
+```
+
+**3. Execute sequential tasks in order:**
+
+After parallel group completes, run any dependent sequential tasks in main context:
+
+```
+# Task 2 depends on Task 1 (now complete)
+Execute Task 2 in main context
+Track results for aggregation
+
+# Continue with next parallel group or sequential task
+```
+
+**4. After all tasks complete:**
+
+When all task agents, queued groups, and sequential tasks are done:
+- Proceed to merge_task_results step
+</step>
+
 <step name="parse_segments">
 **Intelligent segmentation: Parse plan into execution segments.**
 
