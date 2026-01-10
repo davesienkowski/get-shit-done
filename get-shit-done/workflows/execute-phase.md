@@ -481,6 +481,217 @@ Monitoring progress...
 Do not return control to user yet. Continue to monitor_parallel_completion step.
 </step>
 
+<step name="monitor_parallel_completion">
+**Monitor parallel agents and handle completion with orchestrator commits.**
+
+After spawning parallel agents, orchestrator monitors until all complete.
+
+**1. Polling loop:**
+
+```
+Initialize:
+  running_agents = [agents with background_status === "running"]
+  queued_agents = [agents with status === "queued"]
+  completed_results = []
+
+while (running_agents.length > 0 OR queued_agents.length > 0):
+
+  # Check each running agent
+  for agent in running_agents:
+    result = TaskOutput(
+      task_id: agent.agent_id,
+      block: false,
+      timeout: 5000
+    )
+
+    if result.completed:
+      process_completion(agent, result)
+      running_agents.remove(agent)
+
+    elif result.failed:
+      process_failure(agent, result)
+      running_agents.remove(agent)
+
+  # Check if dependents can now start
+  for queued in queued_agents:
+    if dependencies_satisfied(queued) AND running_count < max_concurrent:
+      new_agent = spawn_agent(queued.plan_path)
+      queued_agents.remove(queued)
+      running_agents.add(new_agent)
+
+  # Progress update
+  show_progress(running_agents, completed_results, queued_agents)
+
+  # Brief pause between checks (10 seconds)
+  sleep(10)
+```
+
+**2. Process completion:**
+
+When TaskOutput indicates agent completed:
+
+```bash
+# Read agent's output for results
+cat [agent.output_file]
+
+# Check if SUMMARY.md was created
+ls .planning/phases/XX-name/{phase}-{plan}-SUMMARY.md
+
+# Parse results from agent output:
+# - Files modified (list)
+# - Deviations encountered
+# - Checkpoints skipped (count)
+# - Task completion count
+```
+
+Update agent-history.json:
+```json
+{
+  "status": "completed",
+  "completion_timestamp": "[ISO timestamp]",
+  "background_status": "completed",
+  "checkpoints_skipped": [count from output],
+  "files_modified": [list from output]
+}
+```
+
+Add to completed_results for final aggregation.
+
+**3. Process failure:**
+
+When TaskOutput indicates agent failed:
+
+```json
+{
+  "status": "failed",
+  "completion_timestamp": "[ISO timestamp]",
+  "background_status": "failed"
+}
+```
+
+Do NOT kill other running agents on single failure.
+Continue monitoring others.
+
+**4. Spawn dependents when ready:**
+
+For each queued plan, check if dependencies are satisfied:
+
+```
+dependencies_satisfied(queued):
+  for dep in queued.depends_on:
+    if not completed_results.has(dep):
+      return false
+  return true
+```
+
+If satisfied AND running_count < max_concurrent:
+- Spawn the dependent plan (same as step 4 in spawn_parallel_agents)
+- Move from queued_agents to running_agents
+
+**5. Orchestrator commit handling (after ALL plans complete):**
+
+When running_agents and queued_agents are both empty:
+
+```bash
+# All agents complete - now create commits
+echo "All parallel agents complete. Creating commits..."
+
+# For each completed plan in execution order:
+for plan in completed_plans_ordered:
+
+  # Get files modified by this plan
+  FILES=$(cat agent-history.json | jq -r ".entries[] | select(.plan == \"$plan\") | .files_modified[]")
+
+  # Stage files from this plan
+  for file in $FILES; do
+    git add "$file"
+  done
+
+  # Check if SUMMARY exists and stage it
+  git add ".planning/phases/XX-name/${plan}-SUMMARY.md" 2>/dev/null
+
+  # Commit with standard format
+  git commit -m "feat(${plan}): execute plan via parallel orchestrator
+
+- Tasks completed: [count]
+- Files modified: [count]
+- Checkpoints skipped: [count if any]
+- Part of parallel group: [parallel_group]"
+
+done
+
+# Final metadata commit for phase completion
+git add .planning/STATE.md .planning/ROADMAP.md
+git commit -m "docs(${PHASE}): complete phase via parallel execution
+
+Parallel group: ${parallel_group}
+Plans completed: ${plan_count}
+Total time: ${total_duration} (parallel)
+Sequential estimate: ${sequential_estimate}"
+```
+
+**6. Final aggregation and report:**
+
+```
+Parallel Execution Complete
+════════════════════════════════════════
+
+All {N} plans completed:
+
+| Plan | Duration | Files | Checkpoints |
+|------|----------|-------|-------------|
+| 11-01 | 2m 34s | 3 | 0 |
+| 11-02 | 1m 45s | 2 | 0 |
+| 11-03 | 3m 12s | 4 | 2 skipped |
+| 11-04 | 2m 01s | 1 | 0 |
+
+Commits created:
+  abc123f feat(11-01): execute plan via parallel orchestrator
+  def456g feat(11-02): execute plan via parallel orchestrator
+  ghi789h feat(11-03): execute plan via parallel orchestrator
+  jkl012i feat(11-04): execute plan via parallel orchestrator
+  mno345j docs(11): complete phase via parallel execution
+
+════════════════════════════════════════
+Phase 11 complete!
+
+Total time: 3m 45s (parallel execution)
+Sequential estimate: 9m 32s
+Time saved: 5m 47s (60%)
+════════════════════════════════════════
+```
+
+**7. Error handling:**
+
+If any agent failed:
+
+```
+Parallel Execution Partial Complete
+════════════════════════════════════════
+
+✓ Completed ({N}):
+  - 11-01: 2m 34s
+  - 11-03: 3m 12s
+
+✗ Failed ({N}):
+  - 11-02: Build error in task 2
+
+⏳ Not started (blocked by failure):
+  - 11-04: depends on 11-02
+
+════════════════════════════════════════
+Options:
+1. /gsd:status 11-02 - View error details
+2. /gsd:execute-plan 11-02 - Retry in foreground
+3. /gsd:resume-task [agent-id] - Resume from failure
+4. Continue - Commit successful plans only
+════════════════════════════════════════
+```
+
+Commits are only created for successful plans.
+Failed plans can be retried individually.
+</step>
+
 <step name="record_start_time">
 Record execution start time for performance tracking:
 
