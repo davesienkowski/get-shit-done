@@ -1,7 +1,7 @@
 ---
 name: gsd:status
 description: Check status of background agents and running tasks
-argument-hint: "[agent-id] [--wait]"
+argument-hint: "[agent-id] [--wait] [--resume]"
 allowed-tools:
   - Read
   - Write
@@ -9,15 +9,18 @@ allowed-tools:
   - Bash
   - Glob
   - TaskOutput
+  - Task
 ---
 
 <objective>
 Monitor background agent status and retrieve execution results.
 
 Shows all running/recent background agents from agent-history.json.
+Groups agents by parallel_group for coordinated display.
 Uses TaskOutput tool to check status of background tasks.
 With agent-id argument, shows detailed output from specific agent.
 With --wait flag, blocks until all background agents complete.
+With --resume flag, resumes all incomplete agents in most recent parallel group.
 </objective>
 
 <execution_context>
@@ -62,7 +65,46 @@ Arguments: $ARGUMENTS
    **If TaskOutput returns error:** Agent failed
    - Update agent-history.json: background_status → "failed"
 
-4. **Display summary table (grouped by phase):**
+4. **Display summary table (grouped by parallel_group):**
+
+   **If parallel groups exist:**
+   ```
+   Background Tasks
+   ════════════════════════════════════════
+
+   Parallel Group: phase-11-batch-1736502345
+   ───────────────────────────────────────
+
+   Running (2):
+     → 11-01: agent_01HXXX (1m 23s elapsed)
+     → 11-03: agent_01HYYY (1m 23s elapsed)
+       ⚠️ 2 checkpoints will be skipped
+
+   Queued (1):
+     ⏳ 11-02: waiting for 11-01
+
+   Completed (1):
+     ✓ 11-04: 45s (3 files modified)
+
+   ───────────────────────────────────────
+   Progress: 1/4 plans complete (25%)
+   Commits: Pending (created after all complete)
+
+   ════════════════════════════════════════
+
+   Other Background Agents
+   ───────────────────────────────────────
+   | Plan | Status | Duration | Agent ID |
+   |------|--------|----------|----------|
+   | 10-01 | ✓ Complete | 2m 00s | agent_01G... |
+
+   ════════════════════════════════════════
+   View details: /gsd:status <agent-id>
+   Wait for all: /gsd:status --wait
+   Resume group: /gsd:status --resume
+   ```
+
+   **If no parallel groups (single agents only):**
    ```
    Background Tasks
    ════════════════════════════════════════
@@ -73,15 +115,8 @@ Arguments: $ARGUMENTS
    |------|--------|----------|----------|
    | 11-01 | ✓ Complete | 2m 15s | agent_01H... |
    | 11-02 | ⏳ Running | 1m 30s | agent_01H... |
-   | 11-03 | ⌛ Queued | - | - |
 
-   Progress: 1/3 complete (33%)
-
-   Phase 10: Subagent Resume
-   ───────────────────────────────────
-   | Plan | Status | Duration | Agent ID |
-   |------|--------|----------|----------|
-   | 10-01 | ✓ Complete | 2m 00s | agent_01G... |
+   Progress: 1/2 complete (50%)
 
    ════════════════════════════════════════
    View details: /gsd:status <agent-id>
@@ -91,8 +126,8 @@ Arguments: $ARGUMENTS
 5. **Show queue positions for waiting plans:**
    For plans with status "queued":
    - Show queue position
-   - Show what they're waiting for
-   - Estimate when they might start
+   - Show what they're waiting for (from depends_on field)
+   - Show checkpoint warnings if plan has checkpoints
 
 ## With agent-id argument
 
@@ -157,6 +192,58 @@ Arguments: $ARGUMENTS
 
 </process>
 
+## With --resume flag
+
+1. **Find most recent parallel group:**
+   ```bash
+   # Get most recent parallel_group with incomplete agents
+   jq -r '[.entries[] | select(.parallel_group != null and .status != "completed")] | sort_by(.timestamp) | reverse | .[0].parallel_group' .planning/agent-history.json
+   ```
+
+2. **Find all incomplete agents in group:**
+   ```bash
+   # Get all agents in this group that aren't completed
+   jq '.entries[] | select(.parallel_group == "GROUP_ID" and .status != "completed")' .planning/agent-history.json
+   ```
+
+3. **Resume each incomplete agent:**
+   For each agent with status "spawned", "running", or "interrupted":
+
+   Use Task tool with resume parameter:
+   ```
+   Task(
+     resume: [agent_id],
+     description: "Resume plan execution"
+   )
+   ```
+
+   For each agent with status "queued":
+   - Check if dependencies are now satisfied
+   - If yes, spawn new agent
+   - If no, keep in queue
+
+4. **Report resume status:**
+   ```
+   Resuming Parallel Group: phase-11-batch-1736502345
+   ════════════════════════════════════════
+
+   Resuming (2):
+     → 11-01: agent_01HXXX (was running)
+     → 11-03: agent_01HYYY (was interrupted)
+
+   Spawning (1):
+     → 11-02: dependencies satisfied, starting now
+
+   Already complete (1):
+     ✓ 11-04
+
+   ════════════════════════════════════════
+   Monitoring progress...
+   ```
+
+5. **Continue with monitoring:**
+   After resuming, enter monitor_parallel_completion loop from execute-phase workflow.
+
 <status_icons>
 | Status | Icon | Meaning |
 |--------|------|---------|
@@ -164,14 +251,17 @@ Arguments: $ARGUMENTS
 | completed | ✓ | Agent finished successfully |
 | failed | ✗ | Agent encountered error |
 | spawned | ○ | Just spawned, not yet checked |
-| queued | ⌛ | Waiting for slot (parallel execution) |
+| queued | ⌛ | Waiting for dependency or slot |
+| interrupted | ⊘ | Session ended before completion |
 </status_icons>
 
 <success_criteria>
 - [ ] Reads agent-history.json for background agents
+- [ ] Groups agents by parallel_group when displaying
 - [ ] Uses TaskOutput to check running agent status
 - [ ] Updates history with current status
-- [ ] Shows summary table for all agents
+- [ ] Shows summary table with parallel group context
 - [ ] Shows detailed output for specific agent
 - [ ] --wait flag blocks until all complete
+- [ ] --resume flag resumes incomplete agents in parallel group
 </success_criteria>
