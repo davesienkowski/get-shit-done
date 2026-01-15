@@ -42,6 +42,14 @@ Phase number: $ARGUMENTS (required)
 **Load roadmap:**
 @.planning/ROADMAP.md
 
+**Load requirements:**
+@.planning/REQUIREMENTS.md
+
+Extract phase requirements before research:
+1. Find the phase in ROADMAP.md, get its `Requirements:` list
+2. Look up each REQ-ID in REQUIREMENTS.md for full description
+3. Use concrete requirements to focus research domains
+
 **Load phase context if exists:**
 Check for `.planning/phases/XX-name/{phase}-CONTEXT.md` - bonus context from discuss-phase.
 </context>
@@ -60,23 +68,6 @@ Check for `.planning/phases/XX-name/{phase}-CONTEXT.md` - bonus context from dis
 6. Offer next steps (plan the phase)
 </process>
 
-<when_to_use>
-**Use research-phase for:**
-- 3D graphics (Three.js, WebGL, procedural generation)
-- Game development (physics, collision, AI, procedural content)
-- Audio/music (Web Audio API, DSP, synthesis)
-- Shaders (GLSL, Metal, ISF)
-- ML/AI integration (model serving, inference, pipelines)
-- Real-time systems (WebSockets, WebRTC, sync)
-- Specialized frameworks with active ecosystems
-- Any domain where "how do experts do this" matters
-
-**Skip research-phase for:**
-- Standard web dev (auth, CRUD, REST APIs)
-- Well-known patterns (forms, validation, testing)
-- Simple integrations (Stripe, SendGrid with clear docs)
-- Commodity features Claude handles well
-</when_to_use>
 
 <success_criteria>
 - [ ] Phase validated against roadmap

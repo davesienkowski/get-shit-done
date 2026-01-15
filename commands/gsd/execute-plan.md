@@ -13,16 +13,15 @@ allowed-tools:
 ---
 
 <objective>
-Execute a single PLAN.md file by spawning a subagent.
+Execute a single PLAN.md file by spawning the `gsd-executor` subagent.
 
-Orchestrator stays lean: validate plan, spawn subagent, handle checkpoints, report completion. Subagent loads full execute-plan workflow and handles all execution details.
+Orchestrator stays lean: validate plan, spawn subagent, handle checkpoints, report completion. The `gsd-executor` has all execution logic baked in.
 
 Context budget: ~15% orchestrator, 100% fresh for subagent.
 </objective>
 
 <execution_context>
 @~/.claude/get-shit-done/references/principles.md
-@~/.claude/get-shit-done/templates/subagent-task-prompt.md
 </execution_context>
 
 <context>
@@ -78,9 +77,26 @@ Plan path: $ARGUMENTS
    ⚡ Executing {phase_number}-{plan_number}: {objective one-liner}
    ```
 
-5. **Fill and spawn subagent**
-   - Fill subagent-task-prompt template with extracted values
-   - Spawn: `Task(prompt=filled_template, subagent_type="general-purpose")`
+5. **Spawn gsd-executor subagent**
+
+   ```
+   Task(
+     prompt="Execute plan at {plan_path}
+
+Plan: @{plan_path}
+Project state: @.planning/STATE.md
+Config: @.planning/config.json (if exists)",
+     subagent_type="gsd-executor",
+     description="Execute {phase}-{plan}"
+   )
+   ```
+
+   The `gsd-executor` subagent has all execution logic baked in:
+   - Deviation rules (auto-fix bugs, critical gaps, blockers; ask for architectural)
+   - Checkpoint protocols (human-verify, decision, human-action)
+   - Commit formatting (per-task atomic commits)
+   - Summary creation
+   - State updates
 
 6. **Handle subagent return**
    - If contains "## CHECKPOINT REACHED": Execute checkpoint_handling
@@ -108,9 +124,34 @@ ls -1 .planning/phases/[phase-dir]/*-SUMMARY.md 2>/dev/null | wc -l
 | Condition | Action |
 |-----------|--------|
 | summaries < plans | More plans remain → Route A |
-| summaries = plans | Phase complete → Update requirements, then Step 3 |
+| summaries = plans | Phase complete → Step 2.5 (verify phase goal) |
 
-**Step 2.5: Update requirements (only when phase complete)**
+**Step 2.5: Verify phase goal (only when phase complete)**
+
+When summaries = plans, verify the phase achieved its GOAL before proceeding:
+
+```
+Task(
+  prompt="Verify phase {phase_number} goal achievement
+
+Phase: {phase_number} - {phase_name}
+Phase goal: {phase_goal_from_roadmap}
+Phase directory: @.planning/phases/{phase_dir}/
+
+Project context:
+@.planning/ROADMAP.md
+@.planning/REQUIREMENTS.md (if exists)",
+  subagent_type="gsd-verifier",
+  description="Verify phase {phase_number}"
+)
+```
+
+Handle verification result:
+- **If passed:** Continue to Step 2.6 (update requirements)
+- **If gaps_found:** Create fix plans, execute them, re-verify (max 3 cycles)
+- **If human_needed:** Present items to user, collect response
+
+**Step 2.6: Update requirements (only when verification passes)**
 
 When summaries = plans, update REQUIREMENTS.md before presenting completion:
 
@@ -205,9 +246,11 @@ All {N} phases finished.
 </offer_next>
 
 <checkpoint_handling>
-When subagent returns with checkpoint:
+When `gsd-executor` returns with checkpoint:
 
 **1. Parse return:**
+
+The subagent returns a structured checkpoint:
 ```
 ## CHECKPOINT REACHED
 
@@ -238,64 +281,70 @@ Display rich formatted checkpoint based on type:
 
 **For human-verify:**
 ```
-════════════════════════════════════════
-CHECKPOINT: Verification Required
-════════════════════════════════════════
+╔═══════════════════════════════════════════════════════╗
+║  CHECKPOINT: Verification Required                    ║
+╚═══════════════════════════════════════════════════════╝
 
-Task {X} of {Y}: {task name}
+Progress: {X}/{Y} tasks complete
+Task: {task name}
 
-I built: {what-built from checkpoint details}
+Built: {what-built from checkpoint details}
 
 How to verify:
-{numbered verification steps}
+  {numbered verification steps}
 
-Type "approved" to continue, or describe issues.
-════════════════════════════════════════
+────────────────────────────────────────────────────────
+→ YOUR ACTION: Type "approved" or describe issues
+────────────────────────────────────────────────────────
 ```
 
 **For human-action (auth gate):**
 ```
-════════════════════════════════════════
-CHECKPOINT: Authentication Required
-════════════════════════════════════════
+╔═══════════════════════════════════════════════════════╗
+║  CHECKPOINT: Action Required                          ║
+╚═══════════════════════════════════════════════════════╝
 
-Task {X} of {Y}: {task name}
+Progress: {X}/{Y} tasks complete
+Task: {task name}
 
-I tried: {automation attempted}
+Attempted: {automation attempted}
 Error: {error encountered}
 
 What you need to do:
-{numbered instructions}
+  {numbered instructions}
 
-I'll verify after: {verification}
+I'll verify: {verification}
 
-Type "done" when complete.
-════════════════════════════════════════
+────────────────────────────────────────────────────────
+→ YOUR ACTION: Type "done" when complete
+────────────────────────────────────────────────────────
 ```
 
 **For decision:**
 ```
-════════════════════════════════════════
-CHECKPOINT: Decision Required
-════════════════════════════════════════
+╔═══════════════════════════════════════════════════════╗
+║  CHECKPOINT: Decision Required                        ║
+╚═══════════════════════════════════════════════════════╝
 
-Task {X} of {Y}: {task name}
+Progress: {X}/{Y} tasks complete
+Task: {task name}
 
 Decision: {what's being decided}
 
 Context: {why this matters}
 
 Options:
-1. {option-a}: {name}
-   Pros: {benefits}
-   Cons: {tradeoffs}
+  1. {option-a} - {name}
+     Pros: {benefits}
+     Cons: {tradeoffs}
 
-2. {option-b}: {name}
-   Pros: {benefits}
-   Cons: {tradeoffs}
+  2. {option-b} - {name}
+     Pros: {benefits}
+     Cons: {tradeoffs}
 
-Select: {option-a | option-b | ...}
-════════════════════════════════════════
+────────────────────────────────────────────────────────
+→ YOUR ACTION: Select option-a or option-b
+────────────────────────────────────────────────────────
 ```
 
 **3. Collect response:**
@@ -306,35 +355,42 @@ Wait for user input:
 
 **4. Spawn fresh continuation agent:**
 
-Fill continuation-prompt template with:
-- completed_tasks_table: From checkpoint return
-- resume_task_number: Current task number
-- resume_task_name: Current task name
-- resume_status: Derived from checkpoint type and user response
-- user_response: What user provided
-- resume_instructions: Type-specific guidance (see template)
+Spawn fresh `gsd-executor` with continuation context:
 
 ```
-Task(prompt=filled_continuation_template, subagent_type="general-purpose")
+Task(
+  prompt="Continue executing plan at {plan_path}
+
+<completed_tasks>
+{completed_tasks_table from checkpoint return}
+</completed_tasks>
+
+<resume_point>
+Resume from: Task {N} - {task_name}
+User response: {user_response}
+{resume_instructions based on checkpoint type}
+</resume_point>
+
+Plan: @{plan_path}
+Project state: @.planning/STATE.md",
+  subagent_type="gsd-executor",
+  description="Continue {phase}-{plan}"
+)
 ```
+
+The `gsd-executor` has continuation handling baked in — it will verify previous commits and resume correctly.
 
 **Why fresh agent, not resume:**
-Task tool resume fails after multiple tool calls (presenting to user, waiting for response). Fresh agent with state handoff via continuation-prompt.md is the correct pattern.
+Task tool resume fails after multiple tool calls (presenting to user, waiting for response). Fresh agent with state handoff is the correct pattern.
 
 **5. Repeat:**
 Continue handling returns until "## PLAN COMPLETE" or user stops.
 </checkpoint_handling>
 
-<checkpoint_templates>
-Templates for checkpoint handling:
-
-- `@~/.claude/get-shit-done/templates/checkpoint-return.md` - Subagent return format
-- `@~/.claude/get-shit-done/templates/continuation-prompt.md` - Fresh agent spawn template
-</checkpoint_templates>
-
 <success_criteria>
 - [ ] Plan executed (SUMMARY.md created)
 - [ ] All checkpoints handled
+- [ ] If phase complete: Phase goal verified (gsd-verifier spawned, VERIFICATION.md created)
 - [ ] If phase complete: REQUIREMENTS.md updated (phase requirements marked Complete)
 - [ ] User informed of completion and next steps
 </success_criteria>

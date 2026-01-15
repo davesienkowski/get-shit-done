@@ -92,61 +92,9 @@ Proceeding with research-informed phase identification...
 
 **If NO_RESEARCH:**
 
-Continue without research context. Phase identification will rely on PROJECT.md and domain expertise only.
+Continue without research context. Phase identification will rely on PROJECT.md only.
 
 **Note:** Research is optional. Roadmap can be created without it, but research-informed roadmaps tend to have better phase structure and fewer surprises.
-</step>
-
-<step name="detect_domain">
-Scan for available domain expertise:
-
-```bash
-ls ~/.claude/skills/expertise/ 2>/dev/null
-```
-
-**Inference:** Based on the brief/user request, infer applicable domains:
-
-| Keywords                                 | Domain                   |
-| ---------------------------------------- | ------------------------ |
-| "macOS", "Mac app", "menu bar", "AppKit" | expertise/macos-apps     |
-| "iPhone", "iOS", "iPad", "mobile app"    | expertise/iphone-apps    |
-| "Unity", "game", "C#", "3D game"         | expertise/unity-games    |
-| "MIDI", "sequencer", "music app"         | expertise/midi           |
-| "ISF", "shader", "GLSL", "visual effect" | expertise/isf-shaders    |
-| "UI", "design", "frontend", "Tailwind"   | expertise/ui-design      |
-| "Agent SDK", "Claude SDK", "agentic"     | expertise/with-agent-sdk |
-
-**If domain inferred:**
-
-```
-Detected: [domain] project → expertise/[name]
-Include this domain expertise? (Y / see options / none)
-```
-
-**If multiple domains apply** (e.g., ISF shaders for a macOS app):
-
-```
-Detected multiple domains:
-- expertise/isf-shaders (shader development)
-- expertise/macos-apps (native app)
-
-Include both? (Y / select one / none)
-```
-
-**If no domain obvious:**
-
-```
-Available domain expertise:
-1. macos-apps
-2. iphone-apps
-[... others found ...]
-
-N. None - proceed without domain expertise
-
-Select (comma-separate for multiple):
-```
-
-**Store selected paths** for inclusion in ROADMAP.md.
 </step>
 
 <step name="identify_phases">
@@ -159,7 +107,6 @@ Derive phases from requirements. Each phase covers a coherent set of requirement
 
 **Secondary inputs:**
 - Research SUMMARY.md (if exists): suggested phases, architecture patterns
-- Domain expertise: established patterns for this type of project
 
 **Phase identification process:**
 
@@ -207,6 +154,17 @@ For quick depth:
 
 **Phase Numbering System:**
 
+**Calculate starting phase number:**
+
+```bash
+# Find highest existing phase number from phases/ directory
+ls -d .planning/phases/[0-9]*-* 2>/dev/null | sort -V | tail -1 | grep -oE '[0-9]+' | head -1
+```
+
+- If phases/ is empty or doesn't exist: start at Phase 1
+- If phases exist from previous milestone: continue from last + 1
+- Example: v1.0 had phases 1-4, v1.1 starts at Phase 5
+
 Use integer phases (1, 2, 3) for planned milestone work.
 
 Use decimal phases (2.1, 2.2) for urgent insertions:
@@ -247,6 +205,97 @@ Common phase patterns:
 - Setup → MVP → Iteration → Launch
 - Infrastructure → Backend → Frontend → Integration
   </step>
+
+<step name="derive_phase_success_criteria">
+**For each phase, derive what must be TRUE when it completes.**
+
+This catches scope gaps before planning begins. Requirements tell us what to build; success criteria tell us what users can do.
+
+**Process for each phase:**
+
+1. **State the phase goal** (from identify_phases)
+
+2. **Ask: "What must be TRUE for users when this phase completes?"**
+   - Think from user's perspective, not implementation
+   - 2-5 observable behaviors per phase
+   - Each should be testable/verifiable
+
+3. **Cross-check against mapped requirements:**
+   - Does each success criterion have at least one requirement supporting it?
+   - Does each requirement contribute to at least one success criterion?
+
+4. **Flag gaps:**
+   - Success criterion with no supporting requirement → Add requirement or mark as out of scope
+   - Requirement that supports no criterion → Question if it belongs in this phase
+
+**Example:**
+
+```
+Phase 2: Authentication
+Goal: Users can securely access their accounts
+
+Success Criteria (what must be TRUE):
+1. User can create account with email/password
+2. User can log in and stay logged in across browser sessions
+3. User can log out from any page
+4. User can reset forgotten password
+
+Requirements mapped: AUTH-01, AUTH-02, AUTH-03
+
+Cross-check:
+✓ Criterion 1 ← AUTH-01 (create account)
+✓ Criterion 2 ← AUTH-02 (log in) — but "stay logged in" needs session persistence
+✓ Criterion 3 ← AUTH-03 (log out)
+✗ Criterion 4 ← No requirement covers password reset
+
+Gap found: Password reset not in requirements.
+→ Add AUTH-04: User can reset password via email
+   OR mark "Password reset" as v2 scope
+```
+
+**Present to user:**
+
+```
+Phase success criteria derived:
+
+Phase 1: Foundation
+Goal: Project scaffolding and configuration
+Success criteria:
+  1. Project builds without errors
+  2. Development server runs locally
+  3. CI pipeline passes
+Requirements: SETUP-01, SETUP-02 ✓ (all criteria covered)
+
+Phase 2: Authentication
+Goal: Users can securely access their accounts
+Success criteria:
+  1. User can create account with email/password
+  2. User can log in and stay logged in across sessions
+  3. User can log out from any page
+  4. User can reset forgotten password ⚠️
+Requirements: AUTH-01, AUTH-02, AUTH-03
+Gap: Criterion 4 (password reset) has no requirement
+
+Phase 3: User Profile
+...
+
+---
+
+⚠️ 1 gap found in Phase 2
+
+Options:
+1. Add AUTH-04 for password reset
+2. Mark password reset as v2 scope
+3. Adjust success criteria
+```
+
+**Resolve all gaps before proceeding.**
+
+Success criteria flow downstream:
+- Written to ROADMAP.md (high-level, user-observable)
+- Inform `must_haves` derivation in plan-phase (concrete artifacts/wiring)
+- Verified by verify-phase after execution
+</step>
 
 <step name="validate_coverage">
 **Verify all v1 requirements are mapped to exactly one phase.**
@@ -426,7 +475,6 @@ Decimal phases added later via /gsd:insert-phase command (if it exists).
 
 Write to `.planning/ROADMAP.md` with:
 
-- Domain Expertise section (paths from detect_domain step, or "None" if skipped)
 - Phase list with names and one-line descriptions
 - Dependencies (what must complete before what)
 - **Requirement mappings** (which REQ-IDs each phase covers):
@@ -480,9 +528,14 @@ Write updated REQUIREMENTS.md.
 
 <step name="initialize_project_state">
 
-Create STATE.md — the project's living memory.
+Create or update STATE.md — the project's living memory.
 
-Use template from `~/.claude/get-shit-done/templates/state.md`.
+```bash
+[ -f .planning/STATE.md ] && echo "STATE_EXISTS" || echo "NEW_STATE"
+```
+
+**If STATE_EXISTS:** Update Current Position and keep Accumulated Context.
+**If NEW_STATE:** Create fresh using template from `~/.claude/get-shit-done/templates/state.md`.
 
 Write to `.planning/STATE.md`:
 
@@ -634,7 +687,9 @@ Phases are buckets of work, not project management artifacts.
 Roadmap is complete when:
 - [ ] REQUIREMENTS.md loaded and parsed
 - [ ] All v1 requirements mapped to exactly one phase (100% coverage)
-- [ ] `.planning/ROADMAP.md` exists with requirement mappings
+- [ ] **Success criteria derived** for each phase (2-5 observable behaviors)
+- [ ] **Success criteria cross-checked** against requirements (no gaps)
+- [ ] `.planning/ROADMAP.md` exists with requirement mappings and success criteria
 - [ ] `.planning/STATE.md` exists (project memory initialized)
 - [ ] REQUIREMENTS.md traceability section updated
 - [ ] Phases defined with clear names (count derived from requirements, not imposed)

@@ -22,6 +22,7 @@ Run after `/gsd:define-requirements`.
 @~/.claude/get-shit-done/workflows/create-roadmap.md
 @~/.claude/get-shit-done/templates/roadmap.md
 @~/.claude/get-shit-done/templates/state.md
+@~/.claude/get-shit-done/references/goal-backward.md
 </execution_context>
 
 <context>
@@ -65,11 +66,10 @@ If "Replace": Continue with workflow
 </step>
 
 <step name="create_roadmap">
-Follow the create-roadmap.md workflow starting from detect_domain step.
+Follow the create-roadmap.md workflow starting from identify_phases step.
 
 The workflow handles:
 - Loading requirements
-- Domain expertise detection
 - Phase identification mapped to requirements
 - Requirement coverage validation (no orphaned requirements)
 - Research flags for each phase
@@ -121,7 +121,9 @@ Roadmap created:
 - [ ] PROJECT.md validated
 - [ ] REQUIREMENTS.md validated
 - [ ] All v1 requirements mapped to phases (no orphans)
-- [ ] ROADMAP.md created with phases and requirement mappings
+- [ ] Success criteria derived for each phase (2-5 observable behaviors)
+- [ ] Success criteria cross-checked against requirements (gaps resolved)
+- [ ] ROADMAP.md created with phases, requirement mappings, and success criteria
 - [ ] STATE.md initialized
 - [ ] REQUIREMENTS.md traceability section updated
 - [ ] Phase directories created
