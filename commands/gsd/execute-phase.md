@@ -158,11 +158,12 @@ All three run in parallel. Task tool blocks until all complete.
 </wave_execution>
 
 <checkpoint_handling>
-Plans with `autonomous: false` in frontmatter have checkpoints:
-- Run in their assigned wave (can be parallel with other plans)
-- Pause at checkpoint, return to orchestrator
-- Orchestrator presents checkpoint to user
-- User responds, orchestrator resumes agent
+Plans with `autonomous: false` have checkpoints. The execute-phase.md workflow handles the full checkpoint flow:
+- Subagent pauses at checkpoint, returns structured state
+- Orchestrator presents to user, collects response
+- Spawns fresh continuation agent (not resume)
+
+See `@~/.claude/get-shit-done/workflows/execute-phase.md` step `checkpoint_handling` for complete details.
 </checkpoint_handling>
 
 <deviation_rules>
