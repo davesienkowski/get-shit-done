@@ -23,6 +23,7 @@ Context budget: ~15% orchestrator, 100% fresh per subagent.
 </objective>
 
 <execution_context>
+@~/.claude/get-shit-done/references/principles.md
 @~/.claude/get-shit-done/workflows/execute-phase.md
 @~/.claude/get-shit-done/templates/subagent-task-prompt.md
 </execution_context>
@@ -63,7 +64,16 @@ Phase: $ARGUMENTS
    - Report phase completion status
    - Update ROADMAP.md
 
-6. **Offer next steps**
+6. **Update requirements**
+   Phase is complete, so mark its requirements as Complete:
+   - Read ROADMAP.md, find this phase's `Requirements:` line (e.g., "AUTH-01, AUTH-02")
+   - Read REQUIREMENTS.md traceability table
+   - For each REQ-ID in this phase: change Status from "Pending" to "Complete"
+   - Write updated REQUIREMENTS.md
+   - Stage for commit: `git add .planning/REQUIREMENTS.md`
+   - Skip if: REQUIREMENTS.md doesn't exist, or phase has no Requirements line
+
+7. **Offer next steps**
    - Route to next action (see `<offer_next>`)
 </process>
 
@@ -206,5 +216,6 @@ After all tasks complete:
 - [ ] Each plan has SUMMARY.md
 - [ ] STATE.md reflects phase completion
 - [ ] ROADMAP.md updated
+- [ ] REQUIREMENTS.md updated (phase requirements marked Complete)
 - [ ] User informed of next steps
 </success_criteria>

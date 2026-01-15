@@ -12,7 +12,7 @@ allowed-tools:
 
 Initialize a new project through comprehensive context gathering.
 
-This is the most leveraged moment in any project. Deep questioning here means better plans, better execution, better outcomes.
+This is the most leveraged moment in any project. Deep questioning here means better plans, better execution, better outcomes. The quality of PROJECT.md determines the quality of everything downstream.
 
 Creates `.planning/` with PROJECT.md and config.json.
 
@@ -90,52 +90,48 @@ Exit command.
 
 <step name="question">
 
-**1. Open (FREEFORM — do NOT use AskUserQuestion):**
+**Open the conversation:**
 
-Ask inline: "What do you want to build?"
+Ask inline (freeform, NOT AskUserQuestion):
 
-Wait for their freeform response. This gives you the context needed to ask intelligent follow-up questions.
+"What do you want to build?"
 
-**2. Follow the thread (NOW use AskUserQuestion):**
+Wait for their response. This gives you the context needed to ask intelligent follow-up questions.
 
-Based on their response, use AskUserQuestion with options that probe what they mentioned:
-- header: "[Topic they mentioned]"
-- question: "You mentioned [X] — what would that look like?"
-- options: 2-3 interpretations + "Something else"
+**Follow the thread:**
 
-**3. Sharpen the core:**
+Based on what they said, ask follow-up questions that dig into their response. Use AskUserQuestion with options that probe what they mentioned — interpretations, clarifications, concrete examples.
 
-Use AskUserQuestion:
-- header: "Core"
-- question: "If you could only nail one thing, what would it be?"
-- options: Key aspects they've mentioned + "All equally important" + "Something else"
+Keep following threads. Each answer opens new threads to explore. Ask about:
+- What excited them
+- What problem sparked this
+- What they mean by vague terms
+- What it would actually look like
+- What's already decided
 
-**4. Find boundaries:**
+Consult `questioning.md` for techniques:
+- Challenge vagueness
+- Make abstract concrete
+- Surface assumptions
+- Find edges
+- Reveal motivation
 
-Use AskUserQuestion:
-- header: "Scope"
-- question: "What's explicitly NOT in v1?"
-- options: Things that might be tempting + "Nothing specific" + "Let me list them"
+**Check context (background, not out loud):**
 
-**5. Ground in reality:**
+As you go, mentally check the context checklist from `questioning.md`. If gaps remain, weave questions naturally. Don't suddenly switch to checklist mode.
 
-Use AskUserQuestion:
-- header: "Constraints"
-- question: "Any hard constraints?"
-- options: Relevant constraint types + "None" + "Yes, let me explain"
+**Decision gate:**
 
-**6. Decision gate:**
+When you could write a clear PROJECT.md, use AskUserQuestion:
 
-Use AskUserQuestion:
 - header: "Ready?"
-- question: "Ready to create PROJECT.md, or explore more?"
-- options (ALL THREE REQUIRED):
-  - "Create PROJECT.md" — Finalize and continue
-  - "Ask more questions" — I'll dig deeper
-  - "Let me add context" — You have more to share
+- question: "I think I understand what you're after. Ready to create PROJECT.md?"
+- options:
+  - "Create PROJECT.md" — Let's move forward
+  - "Keep exploring" — I want to share more / ask me more
 
-If "Ask more questions" → check coverage gaps from `questioning.md` → return to step 2.
-If "Let me add context" → receive input via their response → return to step 2.
+If "Keep exploring" — ask what they want to add, or identify gaps and probe naturally.
+
 Loop until "Create PROJECT.md" selected.
 
 </step>
@@ -219,50 +215,49 @@ Do not compress. Capture everything gathered.
 
 </step>
 
-<step name="mode">
+<step name="workflow_preferences">
 
-Ask workflow mode preference:
+Ask all workflow preferences in a single AskUserQuestion call (3 questions):
 
-Use AskUserQuestion:
+Use AskUserQuestion with questions array:
 
-- header: "Mode"
-- question: "How do you want to work?"
-- options:
-  - "YOLO" — Auto-approve, just execute (Recommended)
-  - "Interactive" — Confirm at each step
+```
+questions: [
+  {
+    header: "Mode",
+    question: "How do you want to work?",
+    multiSelect: false,
+    options: [
+      { label: "YOLO (Recommended)", description: "Auto-approve, just execute" },
+      { label: "Interactive", description: "Confirm at each step" }
+    ]
+  },
+  {
+    header: "Depth",
+    question: "How thorough should planning be?",
+    multiSelect: false,
+    options: [
+      { label: "Quick", description: "Ship fast (3-5 phases, 1-3 plans each)" },
+      { label: "Standard", description: "Balanced scope and speed (5-8 phases, 3-5 plans each)" },
+      { label: "Comprehensive", description: "Thorough coverage (8-12 phases, 5-10 plans each)" }
+    ]
+  },
+  {
+    header: "Execution",
+    question: "Run plans in parallel?",
+    multiSelect: false,
+    options: [
+      { label: "Parallel (Recommended)", description: "Independent plans run simultaneously" },
+      { label: "Sequential", description: "One plan at a time" }
+    ]
+  }
+]
+```
 
-</step>
-
-<step name="depth">
-
-Ask planning depth preference:
-
-Use AskUserQuestion:
-
-- header: "Depth"
-- question: "How thorough should planning be?"
-- options:
-  - "Quick" — Ship fast, minimal phases/plans (3-5 phases, 1-3 plans each)
-  - "Standard" — Balanced scope and speed (5-8 phases, 3-5 plans each)
-  - "Comprehensive" — Thorough coverage, more phases/plans (8-12 phases, 5-10 plans each)
-
-**Depth controls compression tolerance, not artificial inflation.** All depths use 2-3 tasks per plan. Comprehensive means "don't compress complex work"—it doesn't mean "pad simple work to hit a number."
-
-</step>
-
-<step name="parallelization">
-
-Ask parallel execution preference:
-
-Use AskUserQuestion:
-
-- header: "Parallelization"
-- question: "Enable parallel phase execution?"
-- options:
-  - "Enabled" — Run independent plans in parallel (Recommended)
-  - "Disabled" — Execute plans sequentially
-
-**Parallelization** spawns multiple agents for independent plans within a phase. Wave-based execution handles dependencies automatically. Can be changed later in config.json.
+**Notes:**
+- Depth controls compression tolerance, not artificial inflation
+- Parallelization spawns multiple agents for independent plans
+- All settings can be changed later in config.json
 
 </step>
 
@@ -303,7 +298,15 @@ Project initialized:
 
 ## ▶ Next Up
 
-**[Project Name]** — create roadmap
+Choose your path:
+
+**Option A: Research first** (recommended for new domains)
+Research the ecosystem before creating roadmap. Discovers standard stacks, expected features, architecture patterns, and common pitfalls.
+
+`/gsd:research-project`
+
+**Option B: Create roadmap directly** (for familiar domains)
+Skip research if you know this domain well or have a clear spec.
 
 `/gsd:create-roadmap`
 
@@ -325,7 +328,7 @@ Project initialized:
 
 <success_criteria>
 
-- [ ] Deep questioning completed (not rushed)
+- [ ] Deep questioning completed (not rushed, threads followed)
 - [ ] PROJECT.md captures full context with evolutionary structure
 - [ ] Requirements initialized as hypotheses (greenfield) or with inferred Validated (brownfield)
 - [ ] Key Decisions table initialized

@@ -21,6 +21,7 @@ Output: One or more PLAN.md files in the phase directory (.planning/phases/XX-na
 </objective>
 
 <execution_context>
+@~/.claude/get-shit-done/references/principles.md
 @~/.claude/get-shit-done/workflows/plan-phase.md
 @~/.claude/get-shit-done/templates/phase-prompt.md
 @~/.claude/get-shit-done/references/plan-format.md
@@ -37,6 +38,20 @@ Phase number: $ARGUMENTS (optional - auto-detects next unplanned phase if not pr
 
 **Load roadmap:**
 @.planning/ROADMAP.md
+
+**Load requirements:**
+@.planning/REQUIREMENTS.md
+
+After loading, extract the requirements for the current phase:
+1. Find the phase in ROADMAP.md, get its `Requirements:` list (e.g., "PROF-01, PROF-02, PROF-03")
+2. Look up each REQ-ID in REQUIREMENTS.md to get the full description
+3. Present the requirements this phase must satisfy:
+   ```
+   Phase [N] Requirements:
+   - PROF-01: User can create profile with display name
+   - PROF-02: User can upload avatar image
+   - PROF-03: User can write bio (max 500 chars)
+   ```
 
 **Load phase context if exists (created by /gsd:discuss-phase):**
 Check for and read `.planning/phases/XX-name/{phase}-CONTEXT.md` - contains research findings, clarifications, and decisions from phase discussion.

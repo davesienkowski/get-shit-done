@@ -1491,7 +1491,7 @@ ROADMAP_FILE=".planning/ROADMAP.md"
 
 - Mark phase complete: status → "Complete"
 - Add completion date
-  </step>
+</step>
 
 <step name="git_commit_metadata">
 Commit execution metadata (SUMMARY + STATE + ROADMAP):
@@ -1506,7 +1506,7 @@ git add .planning/phases/XX-name/{phase}-{plan}-SUMMARY.md
 git add .planning/STATE.md
 ```
 
-**2. Stage roadmap file:**
+**2. Stage roadmap:**
 
 ```bash
 git add .planning/ROADMAP.md
