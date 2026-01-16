@@ -6,6 +6,67 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.5.27] - 2026-01-16
+
+### Fixed
+- Orchestrator corrections between executor completions are now committed (previously left uncommitted when orchestrator made small fixes between waves)
+
+## [1.5.26] - 2026-01-16
+
+### Fixed
+- Revised plans now get committed after checker feedback (previously only initial plans were committed, leaving revisions uncommitted)
+
+## [1.5.25] - 2026-01-16
+
+### Fixed
+- Stop notification hook no longer shows stale project state (now uses session-scoped todos only)
+- Researcher agent now reliably loads CONTEXT.md from discuss-phase
+
+## [1.5.24] - 2026-01-16
+
+### Fixed
+- Stop notification hook now correctly parses STATE.md fields (was always showing "Ready for input")
+- Planner agent now reliably loads CONTEXT.md and RESEARCH.md files
+
+## [1.5.23] - 2025-01-16
+
+### Added
+- Cross-platform completion notification hook (Mac/Linux/Windows alerts when Claude stops)
+- Phase researcher now loads CONTEXT.md from discuss-phase to focus research on user decisions
+
+### Fixed
+- Consistent zero-padding for phase directories (01-name, not 1-name)
+- Plan file naming: `{phase}-{plan}-PLAN.md` pattern restored across all agents
+- Double-path bug in researcher git add command
+- Removed `/gsd:research-phase` from next-step suggestions (use `/gsd:plan-phase` instead)
+
+## [1.5.22] - 2025-01-16
+
+### Added
+- Statusline update indicator — shows `⬆ /gsd:update` when a new version is available
+
+### Fixed
+- Planner now updates ROADMAP.md placeholders after planning completes
+
+## [1.5.21] - 2026-01-16
+
+### Added
+- GSD brand system for consistent UI (checkpoint boxes, stage banners, status symbols)
+- Research synthesizer agent that consolidates parallel research into SUMMARY.md
+
+### Changed
+- **Unified `/gsd:new-project` flow** — Single command now handles questions → research → requirements → roadmap (~10 min)
+- Simplified README to reflect streamlined workflow: new-project → plan-phase → execute-phase
+- Added optional `/gsd:discuss-phase` documentation for UI/UX/behavior decisions before planning
+
+### Fixed
+- verify-work now shows clear checkpoint box with action prompt ("Type 'pass' or describe what's wrong")
+- Planner uses correct `{phase}-{plan}-PLAN.md` naming convention
+- Planner no longer surfaces internal `user_setup` in output
+- Research synthesizer commits all research files together (not individually)
+- Project researcher agent can no longer commit (orchestrator handles commits)
+- Roadmap requires explicit user approval before committing
+
 ## [1.5.20] - 2026-01-16
 
 ### Fixed
@@ -795,7 +856,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - YOLO mode for autonomous execution
 - Interactive mode with checkpoints
 
-[Unreleased]: https://github.com/glittercowboy/get-shit-done/compare/v1.5.20...HEAD
+[Unreleased]: https://github.com/glittercowboy/get-shit-done/compare/v1.5.27...HEAD
+[1.5.27]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.5.27
+[1.5.26]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.5.26
+[1.5.25]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.5.25
+[1.5.24]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.5.24
+[1.5.23]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.5.23
+[1.5.22]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.5.22
+[1.5.21]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.5.21
 [1.5.20]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.5.20
 [1.5.19]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.5.19
 [1.5.18]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.5.18

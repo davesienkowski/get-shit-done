@@ -226,6 +226,8 @@ For each external service, determine:
 
 Record in `user_setup` frontmatter. Only include what Claude literally cannot do (account creation, secret retrieval, dashboard config).
 
+**Important:** User setup info goes in frontmatter ONLY. Do NOT surface it in your planning output or show setup tables to users. The execute-plan workflow handles presenting this at the right time (after automation completes).
+
 </task_breakdown>
 
 <dependency_graph>
@@ -947,7 +949,14 @@ After making edits, self-check:
 - [ ] Dependencies still correct
 - [ ] Files on disk updated (use Write tool)
 
-### Step 6: Return Revision Summary
+### Step 6: Commit Revised Plans
+
+```bash
+git add .planning/phases/${PHASE}-*/${PHASE}-*-PLAN.md
+git commit -m "fix(${PHASE}): revise plans based on checker feedback"
+```
+
+### Step 7: Return Revision Summary
 
 ```markdown
 ## REVISION COMPLETE
@@ -1063,13 +1072,25 @@ Understand:
 - Phase goal (from roadmap)
 - What exists already (scan codebase if mid-project)
 - Dependencies met (previous phases complete?)
-- Any {phase}-RESEARCH.md (from /gsd:research-phase)
-- Any DISCOVERY.md (from mandatory discovery)
-- Any {phase}-CONTEXT.md (from /gsd:discuss-phase)
 
-**If RESEARCH.md exists:** Use standard_stack, architecture_patterns, dont_hand_roll, common_pitfalls.
+**Load phase-specific context files (MANDATORY):**
 
-**If CONTEXT.md exists:** Honor vision, prioritize essential, respect boundaries.
+```bash
+PHASE_DIR=$(ls -d .planning/phases/${PHASE}-* 2>/dev/null | head -1)
+
+# Read CONTEXT.md if exists (from /gsd:discuss-phase)
+cat "${PHASE_DIR}"/*-CONTEXT.md 2>/dev/null
+
+# Read RESEARCH.md if exists (from /gsd:research-phase)
+cat "${PHASE_DIR}"/*-RESEARCH.md 2>/dev/null
+
+# Read DISCOVERY.md if exists (from mandatory discovery)
+cat "${PHASE_DIR}"/*-DISCOVERY.md 2>/dev/null
+```
+
+**If CONTEXT.md exists:** Honor user's vision, prioritize their essential features, respect stated boundaries. These are locked decisions - do not revisit.
+
+**If RESEARCH.md exists:** Use standard_stack, architecture_patterns, dont_hand_roll, common_pitfalls. Research has already identified the right tools.
 </step>
 
 <step name="break_into_tasks">
@@ -1149,16 +1170,43 @@ Wait for confirmation in interactive mode. Auto-approve in yolo mode.
 <step name="write_phase_prompt">
 Use template structure for each PLAN.md.
 
-Write to `.planning/phases/XX-name/{phase}-NN-PLAN.md`
+Write to `.planning/phases/XX-name/{phase}-{NN}-PLAN.md` (e.g., `01-02-PLAN.md` for Phase 1, Plan 2)
 
 Include frontmatter (phase, plan, type, wave, depends_on, files_modified, autonomous, must_haves).
 </step>
 
+<step name="update_roadmap">
+Update ROADMAP.md to finalize phase placeholders created by add-phase or insert-phase.
+
+1. Read `.planning/ROADMAP.md`
+2. Find the phase entry (`### Phase {N}:`)
+3. Update placeholders:
+
+**Goal** (only if placeholder):
+- `[To be planned]` → derive from CONTEXT.md > RESEARCH.md > phase description
+- `[Urgent work - to be planned]` → derive from same sources
+- If Goal already has real content → leave it alone
+
+**Plans** (always update):
+- `**Plans:** 0 plans` → `**Plans:** {N} plans`
+- `**Plans:** (created by /gsd:plan-phase)` → `**Plans:** {N} plans`
+
+**Plan list** (always update):
+- Replace `Plans:\n- [ ] TBD ...` with actual plan checkboxes:
+  ```
+  Plans:
+  - [ ] {phase}-01-PLAN.md — {brief objective}
+  - [ ] {phase}-02-PLAN.md — {brief objective}
+  ```
+
+4. Write updated ROADMAP.md
+</step>
+
 <step name="git_commit">
-Commit phase plan(s):
+Commit phase plan(s) and updated roadmap:
 
 ```bash
-git add .planning/phases/${PHASE}-*/${PHASE}-*-PLAN.md
+git add .planning/phases/${PHASE}-*/${PHASE}-*-PLAN.md .planning/ROADMAP.md
 git commit -m "docs(${PHASE}): create phase plan
 
 Phase ${PHASE}: ${PHASE_NAME}
@@ -1262,7 +1310,7 @@ Execute: `/gsd:execute-phase {phase}`
 
 ### Files Updated
 
-- .planning/phases/{phase_dir}/{plan}-PLAN.md
+- .planning/phases/{phase_dir}/{phase}-{plan}-PLAN.md
 
 {If any issues NOT addressed:}
 

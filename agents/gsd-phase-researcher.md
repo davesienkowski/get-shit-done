@@ -23,6 +23,18 @@ Your job: Answer "What do I need to know to PLAN this phase well?" Produce a sin
 - Return structured result to orchestrator
 </role>
 
+<upstream_input>
+**CONTEXT.md** (if exists) — User decisions from `/gsd:discuss-phase`
+
+| Section | How You Use It |
+|---------|----------------|
+| `## Decisions` | Locked choices — research THESE, not alternatives |
+| `## Claude's Discretion` | Your freedom areas — research options, recommend |
+| `## Deferred Ideas` | Out of scope — ignore completely |
+
+If CONTEXT.md exists, it constrains your research scope. Don't explore alternatives to locked decisions.
+</upstream_input>
+
 <downstream_consumer>
 Your RESEARCH.md is consumed by `gsd-planner` which uses specific sections:
 
@@ -420,7 +432,7 @@ Things that couldn't be fully resolved:
 
 <execution_flow>
 
-## Step 1: Receive Research Scope
+## Step 1: Receive Research Scope and Load Context
 
 Orchestrator provides:
 - Phase number and name
@@ -429,7 +441,29 @@ Orchestrator provides:
 - Prior decisions/constraints
 - Output file path
 
-Parse and confirm understanding before proceeding.
+**Load phase context (MANDATORY):**
+
+```bash
+PHASE_DIR=$(ls -d .planning/phases/${PHASE}-* 2>/dev/null | head -1)
+
+# Read CONTEXT.md if exists (from /gsd:discuss-phase)
+cat "${PHASE_DIR}"/*-CONTEXT.md 2>/dev/null
+```
+
+**If CONTEXT.md exists**, it contains user decisions that MUST constrain your research:
+
+| Section | How It Constrains Research |
+|---------|---------------------------|
+| **Decisions** | Locked choices — research THESE deeply, don't explore alternatives |
+| **Claude's Discretion** | Your freedom areas — research options, make recommendations |
+| **Deferred Ideas** | Out of scope — ignore completely |
+
+**Examples:**
+- User decided "use library X" → research X deeply, don't explore alternatives
+- User decided "simple UI, no animations" → don't research animation libraries
+- Marked as Claude's discretion → research options and recommend
+
+Parse CONTEXT.md content before proceeding to research.
 
 ## Step 2: Identify Research Domains
 
@@ -484,12 +518,14 @@ Run through verification protocol checklist:
 
 Use the output format template. Populate all sections with verified findings.
 
-Write to: `.planning/phases/{phase_dir}/{phase}-RESEARCH.md`
+Write to: `${PHASE_DIR}/${PHASE}-RESEARCH.md`
+
+Where `PHASE_DIR` is the full path (e.g., `.planning/phases/01-foundation`)
 
 ## Step 6: Commit Research
 
 ```bash
-git add .planning/phases/${PHASE_DIR}/${PHASE}-RESEARCH.md
+git add "${PHASE_DIR}/${PHASE}-RESEARCH.md"
 git commit -m "docs(${PHASE}): research phase domain
 
 Phase ${PHASE}: ${PHASE_NAME}
@@ -522,7 +558,7 @@ When research finishes successfully:
 
 ### File Created
 
-`.planning/phases/{phase_dir}/{phase}-RESEARCH.md`
+`${PHASE_DIR}/${PHASE}-RESEARCH.md`
 
 ### Confidence Assessment
 
