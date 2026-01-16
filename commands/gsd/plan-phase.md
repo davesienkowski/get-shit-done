@@ -1,102 +1,310 @@
 ---
 name: gsd:plan-phase
-description: Create detailed execution plan for a phase (PLAN.md)
-argument-hint: "[phase] [--gaps]"
+description: Create detailed execution plan for a phase (PLAN.md) with verification loop
+argument-hint: "[phase] [--gaps] [--skip-verify]"
+agent: gsd-planner
 allowed-tools:
   - Read
-  - Bash
   - Write
+  - Bash
   - Glob
   - Grep
-  - AskUserQuestion
+  - Task
   - WebFetch
   - mcp__context7__*
 ---
 
 <objective>
-Create executable phase prompt with discovery, context injection, and task breakdown.
+Create executable phase prompts (PLAN.md files) for a roadmap phase with optional verification loop.
 
-Purpose: Break down roadmap phases into concrete, executable PLAN.md files that Claude can execute.
-Output: One or more PLAN.md files in the phase directory (.planning/phases/XX-name/{phase}-{plan}-PLAN.md)
+**Orchestrator role:** Parse arguments, validate phase, gather context paths, spawn gsd-planner agent, verify plans with gsd-plan-checker, iterate until plans pass or max iterations reached, present results.
 
-**Gap closure mode (`--gaps` flag):**
-When invoked with `--gaps`, plans address gaps identified by the verifier. Load VERIFICATION.md, create plans to close specific gaps.
+**Why subagent:** Planning burns context fast. Verification uses fresh context. User sees the ping-pong between planner and checker in main context.
 </objective>
-
-<execution_context>
-@~/.claude/get-shit-done/references/principles.md
-@~/.claude/get-shit-done/workflows/plan-phase.md
-@~/.claude/get-shit-done/templates/phase-prompt.md
-@~/.claude/get-shit-done/references/plan-format.md
-@~/.claude/get-shit-done/references/scope-estimation.md
-@~/.claude/get-shit-done/references/checkpoints.md
-@~/.claude/get-shit-done/references/tdd.md
-@~/.claude/get-shit-done/references/goal-backward.md
-</execution_context>
 
 <context>
 Phase number: $ARGUMENTS (optional - auto-detects next unplanned phase if not provided)
 Gap closure mode: `--gaps` flag triggers gap closure workflow
+Skip verification: `--skip-verify` flag bypasses planner → checker loop
 
-**Load project state first:**
-@.planning/STATE.md
+Check for existing plans:
 
-**Load roadmap:**
-@.planning/ROADMAP.md
+```bash
+ls .planning/phases/${PHASE}-*/*-PLAN.md 2>/dev/null
+```
 
-**Load requirements:**
-@.planning/REQUIREMENTS.md
-
-After loading, extract the requirements for the current phase:
-1. Find the phase in ROADMAP.md, get its `Requirements:` list (e.g., "PROF-01, PROF-02, PROF-03")
-2. Look up each REQ-ID in REQUIREMENTS.md to get the full description
-3. Present the requirements this phase must satisfy:
-   ```
-   Phase [N] Requirements:
-   - PROF-01: User can create profile with display name
-   - PROF-02: User can upload avatar image
-   - PROF-03: User can write bio (max 500 chars)
-   ```
-
-**Load phase context if exists (created by /gsd:discuss-phase):**
-Check for and read `.planning/phases/XX-name/{phase}-CONTEXT.md` - contains research findings, clarifications, and decisions from phase discussion.
-
-**Load codebase context if exists:**
-Check for `.planning/codebase/` and load relevant documents based on phase type.
-
-**If --gaps flag present, also load:**
-@.planning/phases/XX-name/{phase}-VERIFICATION.md — contains structured gaps in YAML frontmatter
 </context>
 
 <process>
-1. Check .planning/ directory exists (error if not - user should run /gsd:new-project)
-2. Parse arguments: extract phase number and check for `--gaps` flag
-3. If phase number provided, validate it exists in roadmap
-4. If no phase number, detect next unplanned phase from roadmap
 
-**Standard mode (no --gaps flag):**
-5. Follow plan-phase.md workflow:
-   - Load project state and accumulated decisions
-   - Perform mandatory discovery (Level 0-3 as appropriate)
-   - Read project history (prior decisions, issues, concerns)
-   - Break phase into tasks
-   - Estimate scope and split into multiple plans if needed
-   - Create PLAN.md file(s) with executable structure
+## 1. Validate Environment
 
-**Gap closure mode (--gaps flag):**
-5. Follow plan-phase.md workflow with gap_closure_mode:
-   - Load VERIFICATION.md and parse `gaps:` YAML from frontmatter
-   - Read existing SUMMARYs to understand what's already built
-   - Create tasks from gaps (each gap.missing item → task candidates)
-   - Number plans sequentially after existing (if 01-03 exist, create 04, 05...)
-   - Create PLAN.md file(s) focused on closing specific gaps
+```bash
+ls .planning/ 2>/dev/null
+```
+
+**If not found:** Error - user should run `/gsd:new-project` first.
+
+## 2. Parse Arguments
+
+Extract from $ARGUMENTS:
+
+- Phase number (integer or decimal like `2.1`)
+- `--gaps` flag for gap closure mode
+- `--skip-verify` flag to bypass verification loop
+
+**If no phase number:** Detect next unplanned phase from roadmap.
+
+## 3. Validate Phase
+
+```bash
+grep -A5 "Phase ${PHASE}:" .planning/ROADMAP.md 2>/dev/null
+```
+
+**If not found:** Error with available phases. **If found:** Extract phase number, name, description.
+
+## 4. Check Existing Plans
+
+```bash
+ls .planning/phases/${PHASE}-*/*-PLAN.md 2>/dev/null
+```
+
+**If exists:** Offer: 1) Continue planning, 2) View existing, 3) Replan. Wait for response.
+
+## 5. Gather Context Paths
+
+Identify context files for the agent:
+
+```bash
+# Required
+STATE=.planning/STATE.md
+ROADMAP=.planning/ROADMAP.md
+REQUIREMENTS=.planning/REQUIREMENTS.md
+
+# Optional
+PHASE_DIR=$(ls -d .planning/phases/${PHASE}-* 2>/dev/null | head -1)
+CONTEXT="${PHASE_DIR}/${PHASE}-CONTEXT.md"
+RESEARCH="${PHASE_DIR}/${PHASE}-RESEARCH.md"
+VERIFICATION="${PHASE_DIR}/${PHASE}-VERIFICATION.md"
+UAT="${PHASE_DIR}/${PHASE}-UAT.md"
+```
+
+## 6. Spawn gsd-planner Agent
+
+Display: `Phase {X}: {Name} — launching planner...`
+
+Fill prompt and spawn:
+
+```markdown
+<planning_context>
+
+**Phase:** {phase_number}
+**Mode:** {standard | gap_closure}
+
+**Project State:**
+@.planning/STATE.md
+
+**Roadmap:**
+@.planning/ROADMAP.md
+
+**Requirements (if exists):**
+@.planning/REQUIREMENTS.md
+
+**Phase Context (if exists):**
+@.planning/phases/{phase_dir}/{phase}-CONTEXT.md
+
+**Research (if exists):**
+@.planning/phases/{phase_dir}/{phase}-RESEARCH.md
+
+**Gap Closure (if --gaps mode):**
+@.planning/phases/{phase_dir}/{phase}-VERIFICATION.md
+@.planning/phases/{phase_dir}/{phase}-UAT.md
+
+</planning_context>
+
+<downstream_consumer>
+Output consumed by /gsd:execute-phase or /gsd:execute-plan
+Plans must be executable prompts with:
+
+- Frontmatter (wave, depends_on, files_modified, autonomous)
+- Tasks in XML format
+- Verification criteria
+- must_haves for goal-backward verification
+</downstream_consumer>
+
+<quality_gate>
+Before returning PLANNING COMPLETE:
+
+- [ ] PLAN.md files created in phase directory
+- [ ] Each plan has valid frontmatter
+- [ ] Tasks are specific and actionable
+- [ ] Dependencies correctly identified
+- [ ] Waves assigned for parallel execution
+- [ ] must_haves derived from phase goal
+</quality_gate>
+```
+
+```
+Task(
+  prompt=filled_prompt,
+  subagent_type="gsd-planner",
+  description="Plan Phase {phase}"
+)
+```
+
+## 7. Handle Planner Return
+
+Parse planner output:
+
+**`## PLANNING COMPLETE`:**
+- Display: `Planner created {N} plan(s). Files on disk.`
+- If `--skip-verify`: Skip to step 11
+- Otherwise: Proceed to step 8
+
+**`## CHECKPOINT REACHED`:**
+- Present to user, get response, spawn continuation (see step 10)
+
+**`## PLANNING INCONCLUSIVE`:**
+- Show what was attempted
+- Offer: Add context, Retry, Manual
+- Wait for user response
+
+## 8. Spawn gsd-plan-checker Agent
+
+Display: `Launching plan checker...`
+
+Fill checker prompt and spawn:
+
+```markdown
+<verification_context>
+
+**Phase:** {phase_number}
+**Phase Goal:** {goal from ROADMAP}
+
+**Plans to verify:**
+@.planning/phases/{phase_dir}/*-PLAN.md
+
+**Requirements (if exists):**
+@.planning/REQUIREMENTS.md
+
+</verification_context>
+
+<expected_output>
+Return one of:
+- ## VERIFICATION PASSED — all checks pass
+- ## ISSUES FOUND — structured issue list
+</expected_output>
+```
+
+```
+Task(
+  prompt=checker_prompt,
+  subagent_type="gsd-plan-checker",
+  description="Verify Phase {phase} plans"
+)
+```
+
+## 9. Handle Checker Return
+
+**If `## VERIFICATION PASSED`:**
+- Display: `Plans verified. Ready for execution.`
+- Proceed to step 11
+
+**If `## ISSUES FOUND`:**
+- Display: `Checker found issues:`
+- List issues from checker output
+- Check iteration count
+- Proceed to step 10
+
+## 10. Revision Loop (Max 3 Iterations)
+
+Track: `iteration_count` (starts at 1 after initial plan + check)
+
+**If iteration_count < 3:**
+
+Display: `Sending back to planner for revision... (iteration {N}/3)`
+
+Spawn gsd-planner with revision prompt:
+
+```markdown
+<revision_context>
+
+**Phase:** {phase_number}
+**Mode:** revision
+
+**Existing plans:**
+@.planning/phases/{phase_dir}/*-PLAN.md
+
+**Checker issues:**
+{structured_issues_from_checker}
+
+</revision_context>
+
+<instructions>
+Read existing PLAN.md files. Make targeted updates to address checker issues.
+Do NOT replan from scratch unless issues are fundamental.
+Return what changed.
+</instructions>
+```
+
+```
+Task(
+  prompt=revision_prompt,
+  subagent_type="gsd-planner",
+  description="Revise Phase {phase} plans"
+)
+```
+
+- After planner returns → spawn checker again (step 8)
+- Increment iteration_count
+
+**If iteration_count >= 3:**
+
+Display: `Max iterations reached. {N} issues remain:`
+- List remaining issues
+
+Offer options:
+1. Force proceed (execute despite issues)
+2. Provide guidance (user gives direction, retry)
+3. Abandon (exit planning)
+
+Wait for user response.
+
+## 11. Present Final Status
+
+```markdown
+Phase {X} planned: {N} plan(s) in {M} wave(s)
+
+## Wave Structure
+Wave 1 (parallel): {plan-01}, {plan-02}
+Wave 2: {plan-03}
+
+## Verification
+{Passed | Passed with user override | Skipped (--skip-verify)}
+
+---
+
+## Next Up
+
+**Phase {X}: [Phase Name]** - {N} plan(s)
+
+`/gsd:execute-phase {X}`
+
+<sub>`/clear` first - fresh context window</sub>
+
+---
+```
+
 </process>
 
 <success_criteria>
-
-- One or more PLAN.md files created in .planning/phases/XX-name/
-- Each plan has: objective, execution_context, context, tasks, verification, success_criteria, output
-- must_haves derived from phase goal and documented in frontmatter (truths, artifacts, key_links)
-- Tasks are specific enough for Claude to execute
-- User knows next steps (execute plan or review/adjust)
-  </success_criteria>
+- [ ] .planning/ directory validated
+- [ ] Phase validated against roadmap
+- [ ] Existing plans checked
+- [ ] gsd-planner spawned with context
+- [ ] Plans created (PLANNING COMPLETE or CHECKPOINT handled)
+- [ ] gsd-plan-checker spawned (unless --skip-verify)
+- [ ] Verification passed OR user override OR max iterations with user decision
+- [ ] User sees status between agent spawns
+- [ ] User knows next steps (execute or review)
+</success_criteria>

@@ -16,7 +16,7 @@ Validate built features through conversational testing with persistent state.
 
 Purpose: Confirm what Claude built actually works from user's perspective. One test at a time, plain text responses, no interrogation.
 
-Output: {phase}-UAT.md tracking all test results, issues logged for /gsd:plan-fix
+Output: {phase}-UAT.md tracking all test results, gaps logged for /gsd:plan-phase --gaps
 </objective>
 
 <execution_context>
@@ -51,7 +51,7 @@ Phase: $ARGUMENTS (optional)
 - Don't ask severity — infer from description
 - Don't present full checklist upfront — one test at a time
 - Don't run automated tests — this is manual user validation
-- Don't fix issues during testing — log for /gsd:plan-fix
+- Don't fix issues during testing — log as gaps for /gsd:plan-phase --gaps
 </anti_patterns>
 
 <success_criteria>
@@ -59,7 +59,7 @@ Phase: $ARGUMENTS (optional)
 - [ ] Tests presented one at a time with expected behavior
 - [ ] Plain text responses (no structured forms)
 - [ ] Severity inferred, never asked
-- [ ] File updated after each response (survives /clear)
+- [ ] Batched writes: on issue, every 5 passes, or completion
 - [ ] Committed on completion
 - [ ] Clear next steps based on results
 </success_criteria>
