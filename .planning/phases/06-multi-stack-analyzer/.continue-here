@@ -1,0 +1,91 @@
+# Continue Here - Multi-Stack Analyzer
+
+**Last session:** 2026-01-20
+**Status:** Planning complete, ready for implementation
+
+## Context
+
+You're implementing multi-stack support for `/gsd:analyze-codebase` as a PR to upstream GSD.
+
+**GitHub Issue:** https://github.com/glittercowboy/get-shit-done/issues/202
+**Branch:** `feature/multi-stack-analyzer-impl` on `myfork`
+
+## What Happened Last Session
+
+1. Created GitHub issue #202 for multi-stack analyzer
+2. Attempted naive implementation (all patterns inline in markdown) - WRONG
+3. Re-read proposal docs and discovered correct architecture
+4. Reverted incorrect implementation
+5. Created proper planning documents
+
+## Critical Insight
+
+**DO NOT** put stack detection patterns inline in analyze-codebase.md.
+
+This violates GSD philosophy: "Burn subagent context freely, preserve orchestrator context religiously."
+
+**Correct architecture:**
+- `hooks/lib/detect-stacks.js` - Detection logic (called via Bash)
+- `hooks/lib/stack-profiles.yaml` - Lazy-loaded profiles
+- `agents/gsd-intel-stack-analyzer.md` - Per-stack subagent
+- `commands/gsd/analyze-codebase.md` - Lightweight orchestrator update
+
+## Resume Instructions
+
+```bash
+# You should already be on the right branch
+git status
+
+# Read the plan
+cat .planning/phases/06-multi-stack-analyzer/PLAN.md
+
+# Read key decisions
+cat .planning/phases/06-multi-stack-analyzer/DECISIONS.md
+
+# Access proposal reference docs
+git show feature/multi-stack-analyzer:proposals/multi-stack-analyzer/implementation/detect-stacks.js | head -150
+git show feature/multi-stack-analyzer:proposals/multi-stack-analyzer/implementation/stack-profiles.yaml | head -200
+```
+
+## Next Actions
+
+**Wave 1 (do in parallel):**
+1. Create `hooks/lib/detect-stacks.js` - Reference: proposal's detect-stacks.js
+2. Create `hooks/lib/stack-profiles.yaml` - Reference: proposal's stack-profiles.yaml
+
+**Then Wave 2:**
+3. Create `agents/gsd-intel-stack-analyzer.md`
+
+**Then Wave 3 (parallel):**
+4. Update `commands/gsd/analyze-codebase.md` (lightweight, ~100 lines added)
+5. Update `get-shit-done/templates/entity.md` (add stack fields)
+
+**Finally Wave 4:**
+6. Test and create PR
+
+## Files to Create
+
+| File | Purpose | Reference |
+|------|---------|-----------|
+| `hooks/lib/detect-stacks.js` | Stack detection module | `proposals/.../detect-stacks.js` |
+| `hooks/lib/stack-profiles.yaml` | Stack configurations | `proposals/.../stack-profiles.yaml` |
+| `agents/gsd-intel-stack-analyzer.md` | Per-stack analyzer subagent | New |
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `commands/gsd/analyze-codebase.md` | Add Step 0, 0.5 (~100 lines) |
+| `get-shit-done/templates/entity.md` | Add stack/language/framework fields |
+
+## Token Budget Target
+
+- Orchestrator: ~50 tokens (not 500+)
+- Per-stack subagent: ~800 tokens each
+- Total (2 stacks): ~2,850 tokens (same as single-stack baseline)
+
+## Don't Forget
+
+- Remove any mention of Claude Code from PR/commits
+- Test backward compatibility with JS/TS-only projects
+- Keep orchestrator lightweight - delegate to subagents

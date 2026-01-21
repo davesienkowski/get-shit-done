@@ -1,0 +1,11 @@
+{
+  "mode": "interactive",
+  "parallelization": {
+    "plan_level": true,
+    "task_level": true,
+    "skip_checkpoints": true,
+    "max_concurrent_agents": 3,
+    "min_plans_for_parallel": 2,
+    "min_tasks_for_parallel": 3
+  }
+}
