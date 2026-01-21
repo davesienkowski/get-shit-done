@@ -1,0 +1,1176 @@
+# Stack Profiles Configuration for GSD Analyze-Codebase
+# Version: 1.0.0
+# Purpose: Multi-stack support for semantic analysis, export detection, and naming conventions
+# Usage: Referenced by .planning/intel/analyze-codebase for stack-aware semantic indexing
+
+# =============================================================================
+# JAVASCRIPT / TYPESCRIPT ECOSYSTEM
+# =============================================================================
+
+javascript:
+  display_name: "JavaScript"
+  marker_files: ["package.json", "yarn.lock", "npm-shrinkwrap.json"]
+  globs: ["**/*.js", "**/*.mjs", "**/*.cjs"]
+  excludes: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.next/**"]
+  export_patterns:
+    - pattern: 'export\s+(?:default\s+)?(?:async\s+)?function\s+(\w+)'
+      type: function
+      scope: public
+    - pattern: 'export\s+(?:default\s+)?class\s+(\w+)'
+      type: class
+      scope: public
+    - pattern: 'export\s+const\s+(\w+)\s*='
+      type: constant
+      scope: public
+    - pattern: 'module\.exports\.(\w+)'
+      type: commonjs_export
+      scope: public
+    - pattern: 'exports\.(\w+)\s*='
+      type: commonjs_export
+      scope: public
+  import_patterns:
+    - pattern: 'import\s+.*from\s+["\']([^"\']+)["\']'
+      type: es6
+    - pattern: 'require\(["\']([^"\']+)["\']\)'
+      type: commonjs
+    - pattern: 'import\(["\']([^"\']+)["\']\)'
+      type: dynamic
+  naming:
+    functions: camelCase
+    classes: PascalCase
+    constants: SCREAMING_SNAKE_CASE
+    variables: camelCase
+    files: kebab-case
+  directories:
+    src: "Source code"
+    lib: "Library code"
+    tests: "Test files"
+    __tests__: "Jest tests"
+    spec: "Spec files"
+    dist: "Distribution build"
+    build: "Build output"
+  frameworks:
+    react:
+      markers: ["**/*.jsx"]
+      package_deps: ["react", "react-dom"]
+      directories:
+        components: "React components"
+        hooks: "Custom hooks"
+        pages: "Page components"
+    express:
+      markers: ["app.js", "server.js"]
+      package_deps: ["express"]
+      directories:
+        routes: "Route handlers"
+        middleware: "Middleware functions"
+        controllers: "Controllers"
+
+typescript:
+  display_name: "TypeScript"
+  marker_files: ["tsconfig.json", "package.json"]
+  globs: ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"]
+  excludes: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.next/**"]
+  export_patterns:
+    - pattern: 'export\s+(?:default\s+)?(?:async\s+)?function\s+(\w+)'
+      type: function
+      scope: public
+    - pattern: 'export\s+(?:default\s+)?class\s+(\w+)'
+      type: class
+      scope: public
+    - pattern: 'export\s+(?:default\s+)?interface\s+(\w+)'
+      type: interface
+      scope: public
+    - pattern: 'export\s+(?:default\s+)?type\s+(\w+)'
+      type: type
+      scope: public
+    - pattern: 'export\s+(?:default\s+)?enum\s+(\w+)'
+      type: enum
+      scope: public
+    - pattern: 'export\s+const\s+(\w+)\s*:'
+      type: constant
+      scope: public
+  import_patterns:
+    - pattern: 'import\s+.*from\s+["\']([^"\']+)["\']'
+      type: es6
+    - pattern: 'import\s+type\s+.*from\s+["\']([^"\']+)["\']'
+      type: type_import
+    - pattern: 'require\(["\']([^"\']+)["\']\)'
+      type: commonjs
+  naming:
+    functions: camelCase
+    classes: PascalCase
+    interfaces: PascalCase
+    types: PascalCase
+    enums: PascalCase
+    constants: SCREAMING_SNAKE_CASE
+    variables: camelCase
+    files: kebab-case
+  directories:
+    src: "Source code"
+    lib: "Library code"
+    types: "Type definitions"
+    tests: "Test files"
+    __tests__: "Jest tests"
+    dist: "Distribution build"
+  frameworks:
+    react:
+      markers: ["**/*.tsx"]
+      package_deps: ["react", "@types/react"]
+      directories:
+        components: "React components"
+        hooks: "Custom hooks"
+    nextjs:
+      markers: ["next.config.js", "next.config.ts"]
+      package_deps: ["next"]
+      directories:
+        pages: "Next.js pages"
+        app: "App router"
+        api: "API routes"
+    nestjs:
+      markers: ["nest-cli.json"]
+      package_deps: ["@nestjs/core"]
+      directories:
+        modules: "NestJS modules"
+        controllers: "Controllers"
+        services: "Services"
+    angular:
+      markers: ["angular.json"]
+      package_deps: ["@angular/core"]
+      directories:
+        app: "Application code"
+        services: "Services"
+        components: "Components"
+
+# =============================================================================
+# PYTHON ECOSYSTEM
+# =============================================================================
+
+python:
+  display_name: "Python"
+  marker_files: ["requirements.txt", "setup.py", "pyproject.toml", "Pipfile"]
+  globs: ["**/*.py", "**/*.pyi"]
+  excludes: ["**/__pycache__/**", "**/venv/**", "**/env/**", "**/.venv/**", "**/dist/**", "**/*.egg-info/**"]
+  export_patterns:
+    - pattern: '^def\s+(\w+)\s*\('
+      type: function
+      scope: public
+    - pattern: '^class\s+(\w+)'
+      type: class
+      scope: public
+    - pattern: '^async\s+def\s+(\w+)\s*\('
+      type: async_function
+      scope: public
+    - pattern: '^(\w+)\s*=\s*\w+\s*#.*constant'
+      type: constant
+      scope: public
+    - pattern: '__all__\s*=\s*\[(.*?)\]'
+      type: public_api
+      scope: public
+  import_patterns:
+    - pattern: 'from\s+([\w.]+)\s+import'
+      type: from_import
+    - pattern: 'import\s+([\w.]+)'
+      type: import
+  naming:
+    functions: snake_case
+    classes: PascalCase
+    constants: SCREAMING_SNAKE_CASE
+    variables: snake_case
+    modules: snake_case
+    files: snake_case
+  directories:
+    src: "Source code"
+    lib: "Library code"
+    tests: "Test files"
+    test: "Test files"
+    docs: "Documentation"
+    scripts: "Utility scripts"
+  frameworks:
+    django:
+      markers: ["manage.py", "settings.py"]
+      package_deps: ["django"]
+      directories:
+        models: "Django models"
+        views: "Django views"
+        templates: "Templates"
+        migrations: "Database migrations"
+    flask:
+      markers: ["app.py", "wsgi.py"]
+      package_deps: ["flask"]
+      directories:
+        routes: "Route handlers"
+        blueprints: "Flask blueprints"
+        templates: "Templates"
+    fastapi:
+      markers: ["main.py"]
+      package_deps: ["fastapi"]
+      directories:
+        routers: "API routers"
+        models: "Pydantic models"
+        schemas: "Schemas"
+
+# =============================================================================
+# .NET ECOSYSTEM
+# =============================================================================
+
+csharp:
+  display_name: "C#"
+  marker_files: ["*.csproj", "*.sln", "global.json"]
+  globs: ["**/*.cs", "**/*.csx"]
+  excludes: ["**/bin/**", "**/obj/**", "**/packages/**", "**/.vs/**"]
+  export_patterns:
+    - pattern: 'public\s+(?:static\s+)?(?:async\s+)?class\s+(\w+)'
+      type: class
+      scope: public
+    - pattern: 'public\s+interface\s+(\w+)'
+      type: interface
+      scope: public
+    - pattern: 'public\s+enum\s+(\w+)'
+      type: enum
+      scope: public
+    - pattern: 'public\s+(?:static\s+)?(?:async\s+)?[\w<>]+\s+(\w+)\s*\('
+      type: method
+      scope: public
+    - pattern: 'public\s+(?:static\s+)?(?:readonly\s+)?[\w<>]+\s+(\w+)\s*[{;]'
+      type: property
+      scope: public
+  import_patterns:
+    - pattern: 'using\s+([\w.]+);'
+      type: using
+    - pattern: 'using\s+(\w+)\s*='
+      type: using_alias
+  naming:
+    classes: PascalCase
+    interfaces: IPascalCase
+    methods: PascalCase
+    properties: PascalCase
+    fields: _camelCase
+    constants: PascalCase
+    variables: camelCase
+    files: PascalCase
+  directories:
+    Controllers: "MVC/API Controllers"
+    Models: "Data models"
+    Services: "Business logic services"
+    Data: "Data access layer"
+    Tests: "Test projects"
+    Views: "Razor views"
+    Pages: "Razor pages"
+    Components: "Blazor components"
+    Shared: "Shared components"
+    wwwroot: "Static web files"
+  frameworks:
+    aspnetcore:
+      markers: ["Startup.cs", "Program.cs"]
+      package_deps: ["Microsoft.AspNetCore"]
+      directories:
+        Controllers: "API/MVC controllers"
+        Middleware: "Middleware components"
+    blazor:
+      markers: ["**/*.razor"]
+      package_deps: ["Microsoft.AspNetCore.Components"]
+      directories:
+        Pages: "Blazor pages"
+        Components: "Blazor components"
+        Shared: "Shared components"
+    entityframework:
+      markers: ["*DbContext.cs"]
+      package_deps: ["Microsoft.EntityFrameworkCore"]
+      directories:
+        Migrations: "EF migrations"
+        Data: "DbContext and repositories"
+
+fsharp:
+  display_name: "F#"
+  marker_files: ["*.fsproj", "*.sln"]
+  globs: ["**/*.fs", "**/*.fsi", "**/*.fsx"]
+  excludes: ["**/bin/**", "**/obj/**", "**/packages/**"]
+  export_patterns:
+    - pattern: '(?:^|\s)let\s+(\w+)'
+      type: function
+      scope: public
+    - pattern: '(?:^|\s)type\s+(\w+)'
+      type: type
+      scope: public
+    - pattern: '(?:^|\s)module\s+(\w+)'
+      type: module
+      scope: public
+  import_patterns:
+    - pattern: 'open\s+([\w.]+)'
+      type: open
+  naming:
+    functions: camelCase
+    types: PascalCase
+    modules: PascalCase
+    values: camelCase
+    files: PascalCase
+  directories:
+    src: "Source code"
+    tests: "Test files"
+    scripts: "F# scripts"
+
+# =============================================================================
+# POWERSHELL
+# =============================================================================
+
+powershell:
+  display_name: "PowerShell"
+  marker_files: ["*.psd1", "*.psm1"]
+  globs: ["**/*.ps1", "**/*.psm1", "**/*.psd1"]
+  excludes: ["**/Modules/**", "**/.git/**"]
+  export_patterns:
+    - pattern: 'function\s+([\w-]+)'
+      type: function
+      scope: public
+    - pattern: 'Export-ModuleMember\s+-Function\s+([\w-,\s]+)'
+      type: exported_function
+      scope: public
+    - pattern: 'FunctionsToExport\s*=\s*@\((.*?)\)'
+      type: manifest_export
+      scope: public
+  import_patterns:
+    - pattern: 'Import-Module\s+([\w.-]+)'
+      type: module_import
+    - pattern: '\.\s+["\']([^"\']+\.ps1)["\']'
+      type: dot_source
+  naming:
+    functions: Verb-PascalCase
+    variables: camelCase
+    parameters: PascalCase
+    constants: SCREAMING_SNAKE_CASE
+    files: Verb-PascalCase
+  directories:
+    Public: "Exported functions"
+    Private: "Internal functions"
+    Classes: "PowerShell classes"
+    Config: "Configuration files"
+    Resources: "Resource files"
+    Tests: "Pester tests"
+    lib: "External libraries"
+  frameworks:
+    pester:
+      markers: ["**/*.Tests.ps1"]
+      package_deps: ["Pester"]
+      directories:
+        Tests: "Pester test files"
+        Unit: "Unit tests"
+        Integration: "Integration tests"
+
+# =============================================================================
+# GO
+# =============================================================================
+
+go:
+  display_name: "Go"
+  marker_files: ["go.mod", "go.sum"]
+  globs: ["**/*.go"]
+  excludes: ["**/vendor/**", "**/_test/**"]
+  export_patterns:
+    - pattern: 'func\s+(\w+)\s*\('
+      type: function
+      scope: public
+    - pattern: 'func\s+\(\w+\s+\*?\w+\)\s+(\w+)\s*\('
+      type: method
+      scope: public
+    - pattern: 'type\s+(\w+)\s+struct'
+      type: struct
+      scope: public
+    - pattern: 'type\s+(\w+)\s+interface'
+      type: interface
+      scope: public
+    - pattern: 'const\s+(\w+)'
+      type: constant
+      scope: public
+    - pattern: 'var\s+(\w+)'
+      type: variable
+      scope: public
+  import_patterns:
+    - pattern: 'import\s+"([^"]+)"'
+      type: import
+    - pattern: 'import\s+\w+\s+"([^"]+)"'
+      type: named_import
+  naming:
+    functions: PascalCase
+    methods: PascalCase
+    types: PascalCase
+    interfaces: PascalCase
+    constants: PascalCase
+    variables: camelCase
+    files: snake_case
+  directories:
+    cmd: "Command entry points"
+    pkg: "Public packages"
+    internal: "Private packages"
+    api: "API definitions"
+    test: "Test files"
+    vendor: "Vendored dependencies"
+
+# =============================================================================
+# RUST
+# =============================================================================
+
+rust:
+  display_name: "Rust"
+  marker_files: ["Cargo.toml", "Cargo.lock"]
+  globs: ["**/*.rs"]
+  excludes: ["**/target/**"]
+  export_patterns:
+    - pattern: 'pub\s+fn\s+(\w+)'
+      type: function
+      scope: public
+    - pattern: 'pub\s+struct\s+(\w+)'
+      type: struct
+      scope: public
+    - pattern: 'pub\s+enum\s+(\w+)'
+      type: enum
+      scope: public
+    - pattern: 'pub\s+trait\s+(\w+)'
+      type: trait
+      scope: public
+    - pattern: 'pub\s+const\s+(\w+)'
+      type: constant
+      scope: public
+    - pattern: 'pub\s+mod\s+(\w+)'
+      type: module
+      scope: public
+  import_patterns:
+    - pattern: 'use\s+([\w:]+)'
+      type: use
+    - pattern: 'extern\s+crate\s+(\w+)'
+      type: extern_crate
+  naming:
+    functions: snake_case
+    structs: PascalCase
+    enums: PascalCase
+    traits: PascalCase
+    constants: SCREAMING_SNAKE_CASE
+    modules: snake_case
+    files: snake_case
+  directories:
+    src: "Source code"
+    tests: "Integration tests"
+    benches: "Benchmarks"
+    examples: "Example code"
+    target: "Build output"
+
+# =============================================================================
+# JAVA / KOTLIN
+# =============================================================================
+
+java:
+  display_name: "Java"
+  marker_files: ["pom.xml", "build.gradle", "build.gradle.kts"]
+  globs: ["**/*.java"]
+  excludes: ["**/target/**", "**/build/**", "**/.gradle/**"]
+  export_patterns:
+    - pattern: 'public\s+class\s+(\w+)'
+      type: class
+      scope: public
+    - pattern: 'public\s+interface\s+(\w+)'
+      type: interface
+      scope: public
+    - pattern: 'public\s+enum\s+(\w+)'
+      type: enum
+      scope: public
+    - pattern: 'public\s+(?:static\s+)?[\w<>]+\s+(\w+)\s*\('
+      type: method
+      scope: public
+  import_patterns:
+    - pattern: 'import\s+([\w.]+);'
+      type: import
+    - pattern: 'import\s+static\s+([\w.]+);'
+      type: static_import
+  naming:
+    classes: PascalCase
+    interfaces: PascalCase
+    methods: camelCase
+    constants: SCREAMING_SNAKE_CASE
+    variables: camelCase
+    packages: lowercase
+    files: PascalCase
+  directories:
+    src/main/java: "Java source"
+    src/main/resources: "Resources"
+    src/test/java: "Test files"
+    target: "Build output"
+    build: "Build output"
+  frameworks:
+    spring:
+      markers: ["application.properties", "application.yml"]
+      package_deps: ["spring-boot"]
+      directories:
+        controller: "Controllers"
+        service: "Services"
+        repository: "Repositories"
+        model: "Domain models"
+
+kotlin:
+  display_name: "Kotlin"
+  marker_files: ["build.gradle.kts", "settings.gradle.kts"]
+  globs: ["**/*.kt", "**/*.kts"]
+  excludes: ["**/build/**", "**/.gradle/**"]
+  export_patterns:
+    - pattern: '(?:open\s+)?class\s+(\w+)'
+      type: class
+      scope: public
+    - pattern: 'interface\s+(\w+)'
+      type: interface
+      scope: public
+    - pattern: 'object\s+(\w+)'
+      type: object
+      scope: public
+    - pattern: 'fun\s+(\w+)\s*\('
+      type: function
+      scope: public
+    - pattern: 'val\s+(\w+)'
+      type: property
+      scope: public
+  import_patterns:
+    - pattern: 'import\s+([\w.]+)'
+      type: import
+  naming:
+    classes: PascalCase
+    interfaces: PascalCase
+    objects: PascalCase
+    functions: camelCase
+    properties: camelCase
+    constants: SCREAMING_SNAKE_CASE
+    files: PascalCase
+  directories:
+    src/main/kotlin: "Kotlin source"
+    src/test/kotlin: "Test files"
+    build: "Build output"
+
+# =============================================================================
+# RUBY / PHP
+# =============================================================================
+
+ruby:
+  display_name: "Ruby"
+  marker_files: ["Gemfile", "Rakefile", "config.ru"]
+  globs: ["**/*.rb", "**/*.rake"]
+  excludes: ["**/vendor/**", "**/tmp/**"]
+  export_patterns:
+    - pattern: 'class\s+(\w+)'
+      type: class
+      scope: public
+    - pattern: 'module\s+(\w+)'
+      type: module
+      scope: public
+    - pattern: 'def\s+(\w+)'
+      type: method
+      scope: public
+    - pattern: 'def\s+self\.(\w+)'
+      type: class_method
+      scope: public
+  import_patterns:
+    - pattern: 'require\s+["\']([^"\']+)["\']'
+      type: require
+    - pattern: 'require_relative\s+["\']([^"\']+)["\']'
+      type: require_relative
+  naming:
+    classes: PascalCase
+    modules: PascalCase
+    methods: snake_case
+    constants: SCREAMING_SNAKE_CASE
+    variables: snake_case
+    files: snake_case
+  directories:
+    app: "Application code"
+    lib: "Library code"
+    config: "Configuration"
+    test: "Test files"
+    spec: "RSpec tests"
+  frameworks:
+    rails:
+      markers: ["config/application.rb"]
+      package_deps: ["rails"]
+      directories:
+        app/models: "ActiveRecord models"
+        app/controllers: "Controllers"
+        app/views: "Views"
+        db/migrate: "Migrations"
+
+php:
+  display_name: "PHP"
+  marker_files: ["composer.json", "composer.lock"]
+  globs: ["**/*.php"]
+  excludes: ["**/vendor/**", "**/storage/**"]
+  export_patterns:
+    - pattern: 'class\s+(\w+)'
+      type: class
+      scope: public
+    - pattern: 'interface\s+(\w+)'
+      type: interface
+      scope: public
+    - pattern: 'trait\s+(\w+)'
+      type: trait
+      scope: public
+    - pattern: 'function\s+(\w+)\s*\('
+      type: function
+      scope: public
+  import_patterns:
+    - pattern: 'use\s+([\w\\]+);'
+      type: use
+    - pattern: 'require\s+["\']([^"\']+)["\']'
+      type: require
+    - pattern: 'include\s+["\']([^"\']+)["\']'
+      type: include
+  naming:
+    classes: PascalCase
+    interfaces: PascalCase
+    traits: PascalCase
+    methods: camelCase
+    functions: snake_case
+    constants: SCREAMING_SNAKE_CASE
+    files: PascalCase
+  directories:
+    app: "Application code"
+    src: "Source code"
+    tests: "Test files"
+    vendor: "Dependencies"
+  frameworks:
+    laravel:
+      markers: ["artisan"]
+      package_deps: ["laravel/framework"]
+      directories:
+        app/Models: "Eloquent models"
+        app/Http/Controllers: "Controllers"
+        routes: "Route definitions"
+        database/migrations: "Migrations"
+
+# =============================================================================
+# SWIFT / DART
+# =============================================================================
+
+swift:
+  display_name: "Swift"
+  marker_files: ["Package.swift", "*.xcodeproj"]
+  globs: ["**/*.swift"]
+  excludes: ["**/.build/**", "**/DerivedData/**"]
+  export_patterns:
+    - pattern: 'public\s+class\s+(\w+)'
+      type: class
+      scope: public
+    - pattern: 'public\s+struct\s+(\w+)'
+      type: struct
+      scope: public
+    - pattern: 'public\s+enum\s+(\w+)'
+      type: enum
+      scope: public
+    - pattern: 'public\s+protocol\s+(\w+)'
+      type: protocol
+      scope: public
+    - pattern: 'public\s+func\s+(\w+)'
+      type: function
+      scope: public
+  import_patterns:
+    - pattern: 'import\s+(\w+)'
+      type: import
+  naming:
+    classes: PascalCase
+    structs: PascalCase
+    enums: PascalCase
+    protocols: PascalCase
+    functions: camelCase
+    properties: camelCase
+    constants: camelCase
+    files: PascalCase
+  directories:
+    Sources: "Source code"
+    Tests: "Test files"
+    Resources: "Resources"
+
+dart:
+  display_name: "Dart"
+  marker_files: ["pubspec.yaml", "pubspec.lock"]
+  globs: ["**/*.dart"]
+  excludes: ["**/.dart_tool/**", "**/build/**"]
+  export_patterns:
+    - pattern: 'class\s+(\w+)'
+      type: class
+      scope: public
+    - pattern: 'abstract\s+class\s+(\w+)'
+      type: abstract_class
+      scope: public
+    - pattern: 'enum\s+(\w+)'
+      type: enum
+      scope: public
+    - pattern: '[\w<>]+\s+(\w+)\s*\('
+      type: function
+      scope: public
+  import_patterns:
+    - pattern: 'import\s+["\']([^"\']+)["\']'
+      type: import
+    - pattern: 'export\s+["\']([^"\']+)["\']'
+      type: export
+  naming:
+    classes: PascalCase
+    functions: camelCase
+    variables: camelCase
+    constants: lowerCamelCase
+    files: snake_case
+  directories:
+    lib: "Library code"
+    test: "Test files"
+    bin: "Executables"
+  frameworks:
+    flutter:
+      markers: ["android/", "ios/"]
+      package_deps: ["flutter"]
+      directories:
+        lib/screens: "Screens"
+        lib/widgets: "Widgets"
+        lib/models: "Models"
+
+# =============================================================================
+# FUNCTIONAL LANGUAGES
+# =============================================================================
+
+elixir:
+  display_name: "Elixir"
+  marker_files: ["mix.exs"]
+  globs: ["**/*.ex", "**/*.exs"]
+  excludes: ["**/_build/**", "**/deps/**"]
+  export_patterns:
+    - pattern: 'defmodule\s+([\w.]+)'
+      type: module
+      scope: public
+    - pattern: 'def\s+(\w+)'
+      type: function
+      scope: public
+    - pattern: 'defp\s+(\w+)'
+      type: private_function
+      scope: private
+  import_patterns:
+    - pattern: 'import\s+([\w.]+)'
+      type: import
+    - pattern: 'alias\s+([\w.]+)'
+      type: alias
+  naming:
+    modules: PascalCase
+    functions: snake_case
+    variables: snake_case
+    files: snake_case
+  directories:
+    lib: "Library code"
+    test: "Test files"
+    priv: "Private resources"
+
+scala:
+  display_name: "Scala"
+  marker_files: ["build.sbt", "build.sc"]
+  globs: ["**/*.scala", "**/*.sc"]
+  excludes: ["**/target/**", "**/.bloop/**"]
+  export_patterns:
+    - pattern: 'class\s+(\w+)'
+      type: class
+      scope: public
+    - pattern: 'trait\s+(\w+)'
+      type: trait
+      scope: public
+    - pattern: 'object\s+(\w+)'
+      type: object
+      scope: public
+    - pattern: 'def\s+(\w+)'
+      type: method
+      scope: public
+  import_patterns:
+    - pattern: 'import\s+([\w.]+)'
+      type: import
+  naming:
+    classes: PascalCase
+    traits: PascalCase
+    objects: PascalCase
+    methods: camelCase
+    constants: PascalCase
+    files: PascalCase
+  directories:
+    src/main/scala: "Scala source"
+    src/test/scala: "Test files"
+    target: "Build output"
+
+clojure:
+  display_name: "Clojure"
+  marker_files: ["project.clj", "deps.edn"]
+  globs: ["**/*.clj", "**/*.cljs", "**/*.cljc"]
+  excludes: ["**/target/**", "**/.cpcache/**"]
+  export_patterns:
+    - pattern: '\(defn\s+(\S+)'
+      type: function
+      scope: public
+    - pattern: '\(defn-\s+(\S+)'
+      type: private_function
+      scope: private
+    - pattern: '\(defmacro\s+(\S+)'
+      type: macro
+      scope: public
+  import_patterns:
+    - pattern: '\(:require\s+\[([\w.-]+)'
+      type: require
+  naming:
+    functions: kebab-case
+    macros: kebab-case
+    vars: kebab-case
+    files: snake_case
+  directories:
+    src: "Source code"
+    test: "Test files"
+    resources: "Resources"
+
+haskell:
+  display_name: "Haskell"
+  marker_files: ["*.cabal", "stack.yaml", "package.yaml"]
+  globs: ["**/*.hs", "**/*.lhs"]
+  excludes: ["**/.stack-work/**", "**/dist/**"]
+  export_patterns:
+    - pattern: '^(\w+)\s*::'
+      type: function
+      scope: public
+    - pattern: 'data\s+(\w+)'
+      type: data
+      scope: public
+    - pattern: 'type\s+(\w+)'
+      type: type_alias
+      scope: public
+    - pattern: 'class\s+(\w+)'
+      type: typeclass
+      scope: public
+  import_patterns:
+    - pattern: 'import\s+(\S+)'
+      type: import
+    - pattern: 'import\s+qualified\s+(\S+)'
+      type: qualified_import
+  naming:
+    functions: camelCase
+    types: PascalCase
+    typeclasses: PascalCase
+    modules: PascalCase
+    files: PascalCase
+  directories:
+    src: "Source code"
+    test: "Test files"
+    app: "Application code"
+
+# =============================================================================
+# SYSTEMS LANGUAGES
+# =============================================================================
+
+cpp:
+  display_name: "C++"
+  marker_files: ["CMakeLists.txt", "Makefile", "*.vcxproj"]
+  globs: ["**/*.cpp", "**/*.cc", "**/*.cxx", "**/*.h", "**/*.hpp", "**/*.hxx"]
+  excludes: ["**/build/**", "**/cmake-build-*/**"]
+  export_patterns:
+    - pattern: 'class\s+(\w+)'
+      type: class
+      scope: public
+    - pattern: 'struct\s+(\w+)'
+      type: struct
+      scope: public
+    - pattern: 'namespace\s+(\w+)'
+      type: namespace
+      scope: public
+    - pattern: '[\w<>:]+\s+(\w+)\s*\([^)]*\)\s*(?:const\s*)?[{;]'
+      type: function
+      scope: public
+  import_patterns:
+    - pattern: '#include\s+[<"]([^>"]+)[>"]'
+      type: include
+  naming:
+    classes: PascalCase
+    functions: camelCase
+    variables: snake_case
+    constants: SCREAMING_SNAKE_CASE
+    namespaces: snake_case
+    files: snake_case
+  directories:
+    src: "Source files"
+    include: "Header files"
+    test: "Test files"
+    build: "Build output"
+    lib: "Libraries"
+
+c:
+  display_name: "C"
+  marker_files: ["Makefile", "CMakeLists.txt"]
+  globs: ["**/*.c", "**/*.h"]
+  excludes: ["**/build/**"]
+  export_patterns:
+    - pattern: 'struct\s+(\w+)'
+      type: struct
+      scope: public
+    - pattern: 'typedef\s+struct\s+(\w+)'
+      type: typedef
+      scope: public
+    - pattern: '[\w]+\s+(\w+)\s*\([^)]*\)\s*[{;]'
+      type: function
+      scope: public
+  import_patterns:
+    - pattern: '#include\s+[<"]([^>"]+)[>"]'
+      type: include
+  naming:
+    functions: snake_case
+    variables: snake_case
+    constants: SCREAMING_SNAKE_CASE
+    types: snake_case_t
+    files: snake_case
+  directories:
+    src: "Source files"
+    include: "Header files"
+    test: "Test files"
+    build: "Build output"
+
+# =============================================================================
+# INFRASTRUCTURE AS CODE
+# =============================================================================
+
+terraform:
+  display_name: "Terraform"
+  marker_files: ["*.tf", "terraform.tfvars"]
+  globs: ["**/*.tf", "**/*.tfvars"]
+  excludes: ["**/.terraform/**"]
+  export_patterns:
+    - pattern: 'resource\s+"(\w+)"\s+"(\w+)"'
+      type: resource
+      scope: public
+    - pattern: 'module\s+"(\w+)"'
+      type: module
+      scope: public
+    - pattern: 'variable\s+"(\w+)"'
+      type: variable
+      scope: public
+    - pattern: 'output\s+"(\w+)"'
+      type: output
+      scope: public
+    - pattern: 'data\s+"(\w+)"\s+"(\w+)"'
+      type: data_source
+      scope: public
+  import_patterns:
+    - pattern: 'source\s+=\s+"([^"]+)"'
+      type: module_source
+  naming:
+    resources: snake_case
+    modules: snake_case
+    variables: snake_case
+    outputs: snake_case
+    files: snake_case
+  directories:
+    modules: "Terraform modules"
+    environments: "Environment configs"
+    .terraform: "Terraform cache"
+
+docker:
+  display_name: "Docker"
+  marker_files: ["Dockerfile", "docker-compose.yml", ".dockerignore"]
+  globs: ["**/Dockerfile*", "**/*.dockerfile", "**/docker-compose*.yml"]
+  excludes: []
+  export_patterns:
+    - pattern: 'FROM\s+(\S+)'
+      type: base_image
+      scope: public
+    - pattern: 'ENV\s+(\w+)'
+      type: environment
+      scope: public
+    - pattern: 'ARG\s+(\w+)'
+      type: build_arg
+      scope: public
+  import_patterns:
+    - pattern: 'COPY\s+--from=(\S+)'
+      type: copy_from
+  naming:
+    services: snake_case
+    images: kebab-case
+    files: Dockerfile
+  directories:
+    docker: "Docker files"
+    .docker: "Docker configs"
+
+kubernetes:
+  display_name: "Kubernetes"
+  marker_files: ["kustomization.yaml"]
+  globs: ["**/*.yaml", "**/*.yml"]
+  excludes: ["**/node_modules/**"]
+  export_patterns:
+    - pattern: 'kind:\s+(\w+)'
+      type: resource_kind
+      scope: public
+    - pattern: 'name:\s+(\S+)'
+      type: resource_name
+      scope: public
+  import_patterns:
+    - pattern: 'image:\s+(\S+)'
+      type: container_image
+  naming:
+    resources: kebab-case
+    labels: kebab-case
+    files: kebab-case
+  directories:
+    base: "Base manifests"
+    overlays: "Kustomize overlays"
+    charts: "Helm charts"
+
+ansible:
+  display_name: "Ansible"
+  marker_files: ["ansible.cfg", "playbook.yml", "site.yml"]
+  globs: ["**/*.yml", "**/*.yaml"]
+  excludes: ["**/group_vars/**", "**/host_vars/**"]
+  export_patterns:
+    - pattern: 'name:\s+(.+)'
+      type: task
+      scope: public
+    - pattern: '- role:\s+(\S+)'
+      type: role
+      scope: public
+  import_patterns:
+    - pattern: 'include_tasks:\s+(\S+)'
+      type: include_tasks
+    - pattern: 'import_playbook:\s+(\S+)'
+      type: import_playbook
+  naming:
+    roles: snake_case
+    tasks: snake_case
+    variables: snake_case
+    files: snake_case
+  directories:
+    roles: "Ansible roles"
+    tasks: "Task files"
+    handlers: "Handlers"
+    templates: "Jinja2 templates"
+
+# =============================================================================
+# SCRIPTING & SHELL
+# =============================================================================
+
+shell:
+  display_name: "Shell Script"
+  marker_files: ["*.sh"]
+  globs: ["**/*.sh", "**/*.bash", "**/*.zsh"]
+  excludes: ["**/node_modules/**"]
+  export_patterns:
+    - pattern: 'function\s+(\w+)'
+      type: function
+      scope: public
+    - pattern: '(\w+)\s*\(\)\s*\{'
+      type: function
+      scope: public
+    - pattern: '(\w+)='
+      type: variable
+      scope: public
+  import_patterns:
+    - pattern: 'source\s+(\S+)'
+      type: source
+    - pattern: '\.\s+(\S+)'
+      type: dot_source
+  naming:
+    functions: snake_case
+    variables: SCREAMING_SNAKE_CASE
+    files: kebab-case
+  directories:
+    scripts: "Shell scripts"
+    bin: "Executable scripts"
+    lib: "Library scripts"
+
+# =============================================================================
+# DATABASE
+# =============================================================================
+
+sql:
+  display_name: "SQL"
+  marker_files: ["*.sql"]
+  globs: ["**/*.sql", "**/*.ddl"]
+  excludes: []
+  export_patterns:
+    - pattern: 'CREATE\s+(?:OR\s+REPLACE\s+)?(?:PROCEDURE|FUNCTION)\s+(\w+)'
+      type: procedure
+      scope: public
+    - pattern: 'CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+(\w+)'
+      type: view
+      scope: public
+    - pattern: 'CREATE\s+TABLE\s+(\w+)'
+      type: table
+      scope: public
+    - pattern: 'CREATE\s+INDEX\s+(\w+)'
+      type: index
+      scope: public
+  import_patterns:
+    - pattern: '@(\w+)'
+      type: script_reference
+  naming:
+    tables: SCREAMING_SNAKE_CASE
+    views: SCREAMING_SNAKE_CASE
+    procedures: SCREAMING_SNAKE_CASE
+    functions: SCREAMING_SNAKE_CASE
+    columns: SCREAMING_SNAKE_CASE
+    files: snake_case
+  directories:
+    migrations: "Database migrations"
+    procedures: "Stored procedures"
+    views: "Views"
+    functions: "Functions"
+    schema: "Schema definitions"
+
+# =============================================================================
+# META-CONFIGURATION
+# =============================================================================
+
+# Priority order when multiple stacks detected
+stack_detection_priority:
+  - typescript
+  - javascript
+  - python
+  - csharp
+  - java
+  - go
+  - rust
+  - kotlin
+  - swift
+  - dart
+  - ruby
+  - php
+  - powershell
+  - fsharp
+  - elixir
+  - scala
+  - clojure
+  - haskell
+  - cpp
+  - c
+  - terraform
+  - kubernetes
+  - docker
+  - ansible
+  - shell
+  - sql
+
+# Common patterns across all stacks
+universal_excludes:
+  - "**/.git/**"
+  - "**/.svn/**"
+  - "**/.hg/**"
+  - "**/node_modules/**"
+  - "**/__pycache__/**"
+  - "**/*.pyc"
+  - "**/bin/**"
+  - "**/obj/**"
+  - "**/target/**"
+  - "**/build/**"
+  - "**/dist/**"
+  - "**/.vs/**"
+  - "**/.idea/**"
+  - "**/.vscode/**"
+  - "**/vendor/**"
+  - "**/.terraform/**"
+
+# Naming convention patterns (regex)
+naming_patterns:
+  PascalCase: '^[A-Z][a-zA-Z0-9]*$'
+  camelCase: '^[a-z][a-zA-Z0-9]*$'
+  snake_case: '^[a-z][a-z0-9_]*$'
+  SCREAMING_SNAKE_CASE: '^[A-Z][A-Z0-9_]*$'
+  kebab-case: '^[a-z][a-z0-9-]*$'
+  IPascalCase: '^I[A-Z][a-zA-Z0-9]*$'
+  _camelCase: '^_[a-z][a-zA-Z0-9]*$'
+  Verb-PascalCase: '^[A-Z][a-z]+-[A-Z][a-zA-Z0-9]*$'
+  lowerCamelCase: '^[a-z][a-zA-Z0-9]*$'
+  snake_case_t: '^[a-z][a-z0-9_]*_t$'
