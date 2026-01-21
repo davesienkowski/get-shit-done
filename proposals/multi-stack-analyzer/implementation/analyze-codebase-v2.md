@@ -134,7 +134,7 @@ Create `.planning/intel/stacks.json`:
       "version": "8.0",
       "frameworks": ["ASP.NET Core", "Blazor Server", "Entity Framework Core"],
       "markers": [
-        "MSOW-Symplr-Dashboard/MSOW-Symplr-Dashboard.csproj",
+        "Provider-Symplr-Dashboard/Provider-Symplr-Dashboard.csproj",
         "SymplrExtract.sln"
       ]
     },
@@ -290,7 +290,7 @@ Collect results into `candidateFiles` array with metadata:
 
 ```json
 {
-  "path": "MSOW-Symplr-Dashboard/Services/IBaselineStorageService.cs",
+  "path": "Provider-Symplr-Dashboard/Services/IBaselineStorageService.cs",
   "stack": "dotnet",
   "extension": ".cs",
   "size": 2451,
@@ -319,14 +319,14 @@ Example extraction:
 {
   "file": "Services/BaselineStorageService.cs",
   "stack": "dotnet",
-  "namespace": "MSOW_Symplr_Dashboard.Services",
+  "namespace": "Provider_Symplr_Dashboard.Services",
   "exports": ["BaselineStorageService"],
   "type": "class",
   "implements": ["IBaselineStorageService"],
   "dependencies": [
     "Microsoft.EntityFrameworkCore",
-    "MSOW_Symplr_Dashboard.Data",
-    "MSOW_Symplr_Dashboard.Models"
+    "Provider_Symplr_Dashboard.Data",
+    "Provider_Symplr_Dashboard.Models"
   ],
   "methods": ["SaveBaselineAsync", "GetBaselinesAsync", "DeleteBaselineAsync"],
   "category": "service"
@@ -665,15 +665,15 @@ Write to `.planning/intel/file-index.json`:
   },
   "files": [
     {
-      "path": "MSOW-Symplr-Dashboard/Services/BaselineStorageService.cs",
+      "path": "Provider-Symplr-Dashboard/Services/BaselineStorageService.cs",
       "stack": "dotnet",
       "type": "service",
       "exports": ["BaselineStorageService"],
       "implements": ["IBaselineStorageService"],
       "dependencies": [
         "Microsoft.EntityFrameworkCore",
-        "MSOW_Symplr_Dashboard.Data.ApplicationDbContext",
-        "MSOW_Symplr_Dashboard.Models.ExtractBaseline"
+        "Provider_Symplr_Dashboard.Data.ApplicationDbContext",
+        "Provider_Symplr_Dashboard.Models.ExtractBaseline"
       ],
       "linesOfCode": 185,
       "lastModified": "2025-01-15T10:30:00Z",
@@ -1034,7 +1034,7 @@ Create human-readable summary in `.planning/intel/docs/analysis-summary.md`:
 
 ## Project Overview
 
-**Name**: Trinity Health MSOW Symplr Integration
+**Name**: Healthcare Corp Provider Symplr Integration
 **Type**: Healthcare provider data extraction and monitoring system
 **Complexity**: Medium-High (polyglot codebase, healthcare domain)
 
@@ -1055,7 +1055,7 @@ Create human-readable summary in `.planning/intel/docs/analysis-summary.md`:
 
 ## Architecture Summary
 
-### .NET Component (MSOW-Symplr-Dashboard)
+### .NET Component (Provider-Symplr-Dashboard)
 - **Type**: Blazor Server web application
 - **Purpose**: Monitoring dashboard for extract operations
 - **Key Features**:
@@ -1175,8 +1175,8 @@ Based on this analysis, AI assistants should:
 
 **Key Files for Context**:
 - Configuration: `SymplrExtract/Config/*.json`
-- Database Schema: `MSOW-Symplr-Dashboard/Data/ApplicationDbContext.cs`
-- Main Workflows: `SymplrExtract/Public/Invoke-SymplrExtract.ps1`, `MSOW-Symplr-Dashboard/Pages/Dashboard.razor`
+- Database Schema: `Provider-Symplr-Dashboard/Data/ApplicationDbContext.cs`
+- Main Workflows: `SymplrExtract/Public/Invoke-SymplrExtract.ps1`, `Provider-Symplr-Dashboard/Pages/Dashboard.razor`
 
 ---
 

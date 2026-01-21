@@ -494,8 +494,8 @@ Test with varying codebase sizes:
 ## 11. Key Files for Reference
 
 ### Research Documents
-- `/mnt/d/Repos-Work/msow/symplr/.planning/quick/001-gsd-analyzer-optimization/research-hooks.md` (detailed)
-- `/mnt/d/Repos-Work/msow/symplr/.planning/quick/001-gsd-analyzer-optimization/HOOKS-SUMMARY.md` (quick)
+- `/projects/healthcare-integration/.planning/quick/001-gsd-analyzer-optimization/research-hooks.md` (detailed)
+- `/projects/healthcare-integration/.planning/quick/001-gsd-analyzer-optimization/HOOKS-SUMMARY.md` (quick)
 
 ### Hook Implementation
 - `~/.claude/hooks/gsd-intel-session.js` (40 lines)

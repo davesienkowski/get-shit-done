@@ -3,7 +3,7 @@
 **Research Task**: GSD Analyze-Codebase Integration Analysis
 **Completion Date**: 2025-01-20
 **Total Research Files**: 10 documents, ~3,850 lines
-**Directory**: `/mnt/d/Repos-Work/msow/symplr/.planning/quick/001-gsd-analyzer-optimization/`
+**Directory**: `/projects/healthcare-integration/.planning/quick/001-gsd-analyzer-optimization/`
 
 ---
 

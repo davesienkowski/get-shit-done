@@ -1,6 +1,6 @@
 # Multi-Stack Adaptation for GSD Codebase Analyzer
 
-This document describes how the standard GSD `/gsd:analyze-codebase` command was adapted for a PowerShell + .NET + SQL codebase (Trinity Health MSOW Symplr integration).
+This document describes how the standard GSD `/gsd:analyze-codebase` command was adapted for a PowerShell + .NET + SQL codebase (Healthcare Corp Provider Symplr integration).
 
 ## Context
 
@@ -12,7 +12,7 @@ The standard GSD codebase analyzer is designed for JavaScript/TypeScript project
 
 This codebase required adaptation across all these dimensions to handle three distinct technology stacks:
 1. **PowerShell** - SymplrExtract module (v0.4.0)
-2. **.NET 8 / C# / Blazor** - MSOW-Symplr-Dashboard
+2. **.NET 8 / C# / Blazor** - Provider-Symplr-Dashboard
 3. **Oracle SQL** - Healthcare data extraction queries
 
 ---
@@ -96,7 +96,7 @@ The `node_modules/` exclusion was kept despite being irrelevant - it causes no h
 3. **Public method signatures**: `public async Task<List<Alert>> GetAlertsAsync()`
 
 **Import patterns**:
-1. **Using directives**: `using MSOW_Symplr_Dashboard.Services;`
+1. **Using directives**: `using Provider_Symplr_Dashboard.Services;`
 2. **DI registrations** in `Program.cs`: `builder.Services.AddScoped<IAlertService, AlertService>()`
 3. **NuGet packages** in `.csproj`: `<PackageReference Include="..." />`
 
@@ -169,7 +169,7 @@ None (SQL query template, not a function)
 |---------|---------|---------|
 | Tables | `SCREAMING_SNAKE_CASE` | `PRACTITIONER`, `PRACTITIONER_FACILITIES` |
 | Columns | `SCREAMING_SNAKE_CASE` | `PRACT_ID`, `CURRENT_STATUS` |
-| Views | `V_` prefix | `V_MSOW_SYMPLR_QUALIFIED_PRACT` |
+| Views | `V_` prefix | `V_PROVIDER_QUALIFIED_PRACT` |
 | Aliases | Short uppercase | `P`, `PF`, `PL` |
 
 ---
@@ -202,7 +202,7 @@ SymplrExtract/
 ### .NET Blazor Structure
 
 ```
-MSOW-Symplr-Dashboard/
+Provider-Symplr-Dashboard/
 ├── Services/            # Business logic (interfaces + implementations)
 ├── Models/              # EF Core entities and DTOs
 ├── Pages/               # Blazor page components
@@ -268,9 +268,9 @@ builder.Services.AddSingleton<IExtractStateManager, ExtractStateManager>();
 
 **Schema objects referenced**:
 - Tables: `PRACTITIONER`, `PRACTITIONER_FACILITIES`, `PRACTITIONER_LANGUAGES`, etc.
-- Views: `V_MSOW_SYMPLR_QUALIFIED_PRACT`
-- Schema: `MSOW`
-- Database: `PMSOW` (production), `TMSOW` (test)
+- Views: `V_PROVIDER_QUALIFIED_PRACT`
+- Schema: `PROV`
+- Database: `PPROV` (production), `TPROV` (test)
 
 ---
 
@@ -327,7 +327,7 @@ Entity files use `[[slug]]` format for cross-references:
 ## Dependencies
 
 - [[symplrextract-public-get-symplrconfiguration-ps1]] - Load environment config
-- [[msow-symplr-dashboard-data-extracthistorydbcontext-cs]] - Database persistence
+- [[provider-symplr-dashboard-data-extracthistorydbcontext-cs]] - Database persistence
 ```
 
 This enables the graph database to track relationships across technology boundaries.
@@ -382,13 +382,13 @@ The `index.json` file was enhanced to describe multiple entrypoints:
       "entrypoint": "SymplrExtract/SymplrExtract.psd1"
     },
     "dotnet": {
-      "description": "MSOW-Symplr-Dashboard - .NET 8 Blazor Server",
+      "description": "Provider-Symplr-Dashboard - .NET 8 Blazor Server",
       "framework": "net8.0",
-      "entrypoint": "MSOW-Symplr-Dashboard/Program.cs"
+      "entrypoint": "Provider-Symplr-Dashboard/Program.cs"
     },
     "sql": {
       "description": "Oracle SQL extraction queries",
-      "database": "Oracle PMSOW/TMSOW"
+      "database": "Oracle PPROV/TPROV"
     }
   },
   "dependencies": {
@@ -451,5 +451,5 @@ The `index.json` file was enhanced to describe multiple entrypoints:
 ---
 
 *Document created: 2026-01-20*
-*Codebase: Trinity Health MSOW Symplr Integration*
+*Codebase: Healthcare Corp Provider Symplr Integration*
 *GSD Version: Custom adaptation for multi-stack healthcare data system*

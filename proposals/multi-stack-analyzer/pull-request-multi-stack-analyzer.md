@@ -158,7 +158,7 @@ stacks:
 # - Conventions: CamelCase exports, interfaces with -er suffix
 ```
 
-#### 4. .NET Blazor Application (Trinity Health MSOW)
+#### 4. .NET Blazor Application (Healthcare Corp Provider)
 ```bash
 # C# Blazor Server with EF Core
 /gsd:analyze-codebase
@@ -371,7 +371,7 @@ myapp/
 - ✓ isort import ordering
 ```
 
-### Example 2: .NET Blazor Server (Trinity Health MSOW)
+### Example 2: .NET Blazor Server (Healthcare Corp Provider)
 
 **File: `.planning/intel/index.json`**
 ```json
@@ -379,7 +379,7 @@ myapp/
   "metadata": {
     "generatedAt": "2026-01-20T10:35:00Z",
     "analyzer": "gsd:analyze-codebase v2.0.0",
-    "projectRoot": "/mnt/d/Repos-Work/msow/symplr",
+    "projectRoot": "/projects/healthcare-integration",
     "primaryStack": {
       "language": "C#",
       "framework": "Blazor Server",
@@ -407,7 +407,7 @@ myapp/
   },
   "files": [
     {
-      "path": "MSOW-Symplr-Dashboard/Pages/Dashboard.razor",
+      "path": "Provider-Symplr-Dashboard/Pages/Dashboard.razor",
       "type": "component",
       "language": "C#",
       "framework": "Blazor",
@@ -416,7 +416,7 @@ myapp/
       "imports": ["Services.IBaselineService", "Models.ExtractBaseline"]
     },
     {
-      "path": "MSOW-Symplr-Dashboard/Services/IBaselineService.cs",
+      "path": "Provider-Symplr-Dashboard/Services/IBaselineService.cs",
       "type": "interface",
       "language": "C#",
       "size": 1024,
@@ -424,7 +424,7 @@ myapp/
       "paradigm": "async"
     },
     {
-      "path": "MSOW-Symplr-Dashboard/Data/ApplicationDbContext.cs",
+      "path": "Provider-Symplr-Dashboard/Data/ApplicationDbContext.cs",
       "type": "dbcontext",
       "language": "C#",
       "framework": "Entity Framework Core",

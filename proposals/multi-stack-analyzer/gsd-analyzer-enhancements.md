@@ -39,9 +39,9 @@ const webPatterns = ['components', 'hooks', 'services', 'utils', 'lib'];
 
 ### Impact on Polyglot Projects
 
-**Trinity Health MSOW Symplr Project Example:**
+**Healthcare Corp Provider Symplr Project Example:**
 - **PowerShell Module**: 12 cmdlets in `SymplrExtract/Public/*.ps1` - Not detected
-- **.NET Blazor**: 40 services in `MSOW-Symplr-Dashboard/Services/*.cs` - Not detected
+- **.NET Blazor**: 40 services in `Provider-Symplr-Dashboard/Services/*.cs` - Not detected
 - **Oracle SQL**: 4 optimized queries in `Resources/SQL/*.sql` - Not detected
 - **Pester Tests**: 432 tests in `Tests/Unit/*.Tests.ps1` - Not detected
 
@@ -780,7 +780,7 @@ function detectConvention(names, expected) {
 ```json
 {
   "project": {
-    "root": "/mnt/d/Repos-Work/msow/symplr",
+    "root": "/projects/healthcare-integration",
     "analyzed_at": "2025-01-20T10:30:00Z",
     "analyzer_version": "2.0.0"
   },
@@ -872,7 +872,7 @@ function detectConvention(names, expected) {
     "dotnet": {
       "file_index": [
         {
-          "path": "MSOW-Symplr-Dashboard/Services/BaselineStorageService.cs",
+          "path": "Provider-Symplr-Dashboard/Services/BaselineStorageService.cs",
           "size_bytes": 15672,
           "exports": [
             {
@@ -888,7 +888,7 @@ function detectConvention(names, expected) {
           ],
           "imports": [
             "Microsoft.EntityFrameworkCore",
-            "MSOW_Symplr_Dashboard.Data"
+            "Provider_Symplr_Dashboard.Data"
           ]
         }
       ],
@@ -920,12 +920,12 @@ function detectConvention(names, expected) {
       "directory_structure": {
         "semantic_patterns": [
           {
-            "path": "MSOW-Symplr-Dashboard/Services",
+            "path": "Provider-Symplr-Dashboard/Services",
             "purpose": "business_logic",
             "file_count": 40
           },
           {
-            "path": "MSOW-Symplr-Dashboard/Components",
+            "path": "Provider-Symplr-Dashboard/Components",
             "purpose": "ui_components",
             "file_count": 15
           }
@@ -939,7 +939,7 @@ function detectConvention(names, expected) {
           "size_bytes": 12543,
           "exports": [
             {
-              "name": "V_MSOW_SYMPLR_QUALIFIED_PRACT",
+              "name": "V_PROVIDER_QUALIFIED_PRACT",
               "type": "db_object",
               "line": 8
             }
@@ -953,7 +953,7 @@ function detectConvention(names, expected) {
       ],
       "exported_symbols": {
         "views": [
-          "V_MSOW_SYMPLR_QUALIFIED_PRACT"
+          "V_PROVIDER_QUALIFIED_PRACT"
         ]
       },
       "naming_conventions": {
@@ -1031,7 +1031,7 @@ const profile = await loadStackProfile('javascript');
 ### Stack Detection Overhead
 
 ```
-Benchmark: Trinity Health MSOW Symplr Project (1,589 files)
+Benchmark: Healthcare Corp Provider Symplr Project (1,589 files)
 
 Step 0: Stack Detection
   - Marker file scan: 15 glob patterns × 5ms = 75ms
@@ -1208,8 +1208,8 @@ describe('extractExportsForStack', () => {
 
 ```javascript
 describe('Full Pipeline - Polyglot Project', () => {
-  it('analyzes Trinity Health MSOW Symplr project', async () => {
-    const result = await analyzeCodebase('/mnt/d/Repos-Work/msow/symplr');
+  it('analyzes Healthcare Corp Provider Symplr project', async () => {
+    const result = await analyzeCodebase('/projects/healthcare-integration');
 
     // Verify all 3 stacks detected
     expect(result.stacks_detected).toHaveLength(3);
@@ -1227,7 +1227,7 @@ describe('Full Pipeline - Polyglot Project', () => {
 
     // Verify SQL exports
     const sqlIntel = result.intelligence_by_stack.sql;
-    expect(sqlIntel.exported_symbols.views).toContain('V_MSOW_SYMPLR_QUALIFIED_PRACT');
+    expect(sqlIntel.exported_symbols.views).toContain('V_PROVIDER_QUALIFIED_PRACT');
   });
 });
 ```
@@ -1456,7 +1456,7 @@ export_patterns:
 
 **Document Version**: 1.0
 **Last Updated**: 2025-01-20
-**Author**: Trinity Health - AI-Assisted Technical Specification
+**Author**: AI-Assisted Technical Specification
 **Status**: Draft for Review
 
 **Next Steps**:

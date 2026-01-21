@@ -1,7 +1,7 @@
 # Research Manifest - GSD Hooks System
 
 **Research Date:** 2026-01-20
-**Location:** `/mnt/d/Repos-Work/msow/symplr/.planning/quick/001-gsd-analyzer-optimization/`
+**Location:** `/projects/healthcare-integration/.planning/quick/001-gsd-analyzer-optimization/`
 **Status:** ✅ Complete and Verified
 
 ---
@@ -223,7 +223,7 @@ Graph (SQLite) → Dependency analysis
 
 ### Research Files Created
 ```
-/mnt/d/Repos-Work/msow/symplr/.planning/quick/001-gsd-analyzer-optimization/
+/projects/healthcare-integration/.planning/quick/001-gsd-analyzer-optimization/
 ├── 00-START-HERE.md                    ← Begin here!
 ├── HOOKS-SUMMARY.md                    ← 5-min reference
 ├── INDEX.md                            ← Navigation guide

@@ -6,7 +6,7 @@ This proposal extends `/gsd:analyze-codebase` to support **35+ programming langu
 
 ## Problem Statement
 
-The current analyzer is hardcoded for JS/TS with fixed globs (`**/*.{js,ts,jsx,tsx}`), export patterns (ES6/CommonJS), and naming conventions (camelCase). Real-world production systems—like Trinity Health MSOW Symplr (PowerShell + .NET + Oracle SQL)—cannot be indexed, blocking GSD's intelligence features.
+The current analyzer is hardcoded for JS/TS with fixed globs (`**/*.{js,ts,jsx,tsx}`), export patterns (ES6/CommonJS), and naming conventions (camelCase). Real-world production systems—like Healthcare Corp Provider Symplr (PowerShell + .NET + Oracle SQL)—cannot be indexed, blocking GSD's intelligence features.
 
 ## Solution: Multi-Stack Detection & Analysis
 
@@ -59,7 +59,7 @@ multi-stack-analyzer/
 Run the stack detection script to analyze a polyglot codebase:
 
 ```bash
-# Test on Trinity Health MSOW Symplr codebase (PowerShell + .NET + SQL)
+# Test on Healthcare Corp Provider Symplr codebase (PowerShell + .NET + SQL)
 node implementation/detect-stacks.js /path/to/symplr/
 
 # Run on any project
@@ -79,7 +79,7 @@ detected_stacks:
 
   - name: dotnet
     confidence: 95%
-    marker_files: [MSOW-Symplr-Dashboard.csproj]
+    marker_files: [Provider-Symplr-Dashboard.csproj]
     file_count: 160
 
   - name: sql
@@ -104,6 +104,6 @@ JavaScript/TypeScript, Python, Go, Rust, C#/.NET, Java, PHP, Ruby, Kotlin, Swift
 
 ## References
 
-- Trinity Health MSOW Symplr: Production system driving this enhancement
+- Healthcare Corp Provider Symplr: Production system driving this enhancement
 - GSD Analyzer: Current `/gsd:analyze-codebase` command
 - Research: `/research/` directory contains 15+ investigation documents

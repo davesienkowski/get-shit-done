@@ -650,7 +650,7 @@ return fmt.Errorf("failed to create user: %w", err)
 
 ```markdown
 ---
-path: /MSOW-Symplr-Dashboard/Pages/Dashboard/Dashboard.razor
+path: /Provider-Symplr-Dashboard/Pages/Dashboard/Dashboard.razor
 stack: csharp
 framework: blazor
 type: component
@@ -677,8 +677,8 @@ Real-time monitoring dashboard for Symplr extract operations. Displays live extr
 ### Component
 ```csharp
 @page "/dashboard"
-@using MSOW_Symplr_Dashboard.Services
-@using MSOW_Symplr_Dashboard.Models
+@using Provider_Symplr_Dashboard.Services
+@using Provider_Symplr_Dashboard.Models
 @using Microsoft.AspNetCore.SignalR.Client
 @inject IExtractService ExtractService
 @inject IFacilityService FacilityService
@@ -805,7 +805,7 @@ _hubConnection.On("AlertCreated", async () => {
 ```razor
 @page "/dashboard"
 
-<PageTitle>Dashboard - MSOW Symplr</PageTitle>
+<PageTitle>Dashboard - Provider Symplr</PageTitle>
 
 <div class="dashboard-container">
     @if (!string.IsNullOrEmpty(_errorMessage))
@@ -890,7 +890,7 @@ _hubConnection.On("AlertCreated", async () => {
 
 ```markdown
 ---
-path: /mnt/d/Repos-Work/msow/symplr/SymplrExtract/Public/Invoke-SymplrExtract.ps1
+path: /projects/healthcare-integration/SymplrExtract/Public/Invoke-SymplrExtract.ps1
 stack: powershell
 framework: none
 type: module
@@ -959,7 +959,7 @@ function Invoke-SymplrExtract {
         @{
             Type = 'Demographics'
             RowCount = 12845
-            FilePath = 'D:\Extracts\TrinityHealth_MSOW_SYMPLR_Demographics_20260120.txt'
+            FilePath = 'D:\Extracts\HealthcareCorp_Provider_Symplr_Demographics_20260120.txt'
             FileSize = 5242880 # bytes
             Success = $true
             Duration = [timespan]::FromSeconds(70)
@@ -996,9 +996,9 @@ function Invoke-SymplrExtract {
 - [[Public\Get-SymplrConfiguration.ps1]] - Loads JSON configuration for environment
 
 ### Cross-Stack
-- [csharp:MSOW-Symplr-Dashboard] - ConfigurationSync.ps1 syncs config changes to JSON files
+- [csharp:Provider-Symplr-Dashboard] - ConfigurationSync.ps1 syncs config changes to JSON files
 - [csharp:ExtractMonitoringHub] - Receives SignalR progress updates during extraction
-- [sql:V_MSOW_SYMPLR_QUALIFIED_PRACT] - Master Oracle view for all queries
+- [sql:V_PROVIDER_QUALIFIED_PRACT] - Master Oracle view for all queries
 
 ### External
 - Oracle.ManagedDataAccess.dll@23.26.0 - ODP.NET Managed Driver for Oracle connectivity
@@ -1072,7 +1072,7 @@ foreach ($extractType in $ExtractTypes) {
     2. Bind facility whitelist parameters
     3. Execute query via Invoke-OracleQuery (returns DataTable)
     4. Convert to pipe-delimited CSV via Export-OracleDataToCsv
-    5. Write to Extracts\TrinityHealth_MSOW_SYMPLR_$extractType_YYYYMMDD.txt
+    5. Write to Extracts\HealthcareCorp_Provider_Symplr_$extractType_YYYYMMDD.txt
     6. Log row count, file size, duration
     7. Publish SignalR progress update (25%, 50%, 75%, 100%)
 }
@@ -1208,7 +1208,7 @@ Send-HubMessage -Connection $hubConnection -Method 'ExtractCompleted' -Arguments
 
 ```markdown
 ---
-path: /mnt/d/Repos-Work/msow/symplr/SymplrExtract/Resources/SQL/Demographics.sql
+path: /projects/healthcare-integration/SymplrExtract/Resources/SQL/Demographics.sql
 stack: sql
 framework: oracle
 type: query
@@ -1219,10 +1219,10 @@ complexity: high
 ---
 
 ## Purpose
-Extracts comprehensive healthcare provider demographic data from Oracle PMSOW database for Symplr vendor integration. Joins 8 practitioner-related tables to produce flattened pipe-delimited output with NPI, names, credentials, languages, and facility assignments.
+Extracts comprehensive healthcare provider demographic data from Oracle PPROV database for Symplr vendor integration. Joins 8 practitioner-related tables to produce flattened pipe-delimited output with NPI, names, credentials, languages, and facility assignments.
 
 ## Core Responsibilities
-- Query master practitioner view V_MSOW_SYMPLR_QUALIFIED_PRACT for baseline demographic data
+- Query master practitioner view V_PROVIDER_QUALIFIED_PRACT for baseline demographic data
 - Join PRACTITIONER_LANGUAGES with `Q:%` prefix filter for specific language subset (per business requirements)
 - Join PRACTITIONER_ID_NUMBERS to extract NPI (National Provider Identifier) as primary key
 - Join PRACTITIONER_FACILITIES with configurable facility whitelist filter
@@ -1269,7 +1269,7 @@ ZIP                  VARCHAR2(10)     -- ZIP code (XXXXX or XXXXX-XXXX format)
 ## Dependencies
 
 ### Internal
-- [[V_MSOW_SYMPLR_QUALIFIED_PRACT]] - Master materialized view (refreshed nightly at 2 AM)
+- [[V_PROVIDER_QUALIFIED_PRACT]] - Master materialized view (refreshed nightly at 2 AM)
 - [[PRACTITIONER]] - Base practitioner demographic table
 - [[PRACTITIONER_LANGUAGES]] - Many-to-many language proficiency
 - [[PRACTITIONER_ID_NUMBERS]] - External identifiers (NPI, DEA, State License)
@@ -1317,7 +1317,7 @@ PractitionerBase AS (
         P.CITY,
         P.STATE,
         P.ZIP
-    FROM V_MSOW_SYMPLR_QUALIFIED_PRACT P
+    FROM V_PROVIDER_QUALIFIED_PRACT P
     WHERE P.CURRENT_STATUS = 'ACTIVE'
 ),
 
@@ -1399,7 +1399,7 @@ CREATE INDEX IDX_PF_PRACT_ID ON PRACTITIONER_FACILITIES(PRACT_ID);
 - **CTE Materialization**: Oracle materializes CTEs once, prevents re-execution
 - **Hash Joins**: Used for CTE joins (faster than nested loops for large datasets)
 - **Parallel Execution**: Query hints enable DOP=4 (Degree of Parallelism)
-- **Partition Pruning**: V_MSOW_SYMPLR_QUALIFIED_PRACT partitioned by year (only current year scanned)
+- **Partition Pruning**: V_PROVIDER_QUALIFIED_PRACT partitioned by year (only current year scanned)
 
 ### Bind Variable Handling
 ```powershell
@@ -1482,7 +1482,7 @@ Fields **NOT** sanitized (guaranteed clean by source system):
   - NPI, NAME, DATE_OF_BIRTH, ADDRESS constitute identifiable patient data
   - Output files must be encrypted at rest and in transit
   - SFTP delivery enforces TLS 1.2+ encryption
-- **Access Control**: Query execution requires MSOW_READ_ROLE Oracle role
+- **Access Control**: Query execution requires PROVIDER_READ_ROLE Oracle role
 - **Audit Logging**: All query executions logged to AUDIT_LOG table with user_id, timestamp, row_count
 - **Data Masking**: Development/Test environments use Oracle Data Masking for DOB/ADDRESS fields
 
@@ -1494,7 +1494,7 @@ Fields **NOT** sanitized (guaranteed clean by source system):
 
 ## Known Issues
 - **SQL-234**: LISTAGG overflow error when practitioner has >50 facility assignments (rare, affects 3 providers) - needs LISTAGG ON OVERFLOW TRUNCATE clause (Oracle 19c+)
-- **SQL-189**: V_MSOW_SYMPLR_QUALIFIED_PRACT materialized view refresh occasionally fails during weekend maintenance - needs automated retry logic
+- **SQL-189**: V_PROVIDER_QUALIFIED_PRACT materialized view refresh occasionally fails during weekend maintenance - needs automated retry logic
 - **SQL-156**: Query performance degrades during month-end when PRACTITIONER table locked for batch updates - needs READ UNCOMMITTED hint or retry logic
 ```
 

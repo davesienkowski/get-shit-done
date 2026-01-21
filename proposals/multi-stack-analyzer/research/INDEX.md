@@ -1,7 +1,7 @@
 # GSD Hooks System Research - Complete Index
 
 **Research Date:** 2026-01-20
-**Location:** `/mnt/d/Repos-Work/msow/symplr/.planning/quick/001-gsd-analyzer-optimization/`
+**Location:** `/projects/healthcare-integration/.planning/quick/001-gsd-analyzer-optimization/`
 **Total Documentation:** 3,072 lines across 8 documents
 
 ---

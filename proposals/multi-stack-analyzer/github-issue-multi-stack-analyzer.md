@@ -11,7 +11,7 @@ This limits GSD's applicability to enterprise and brownfield projects, which are
 
 ## Real-World Use Case
 
-**Trinity Health MSOW Symplr Integration** (production healthcare system):
+**Healthcare Corp Provider Symplr Integration** (production healthcare system):
 - **PowerShell module** (84 files) - Oracle data extraction, ODP.NET integration, Pester tests
 - **.NET 8 Blazor Server** (160 files) - Dashboard UI, SignalR real-time monitoring, EF Core storage
 - **Oracle SQL** (26 files) - Healthcare data extraction queries (demographics, certifications, education, locations)
@@ -224,7 +224,7 @@ function Invoke-SymplrExtract {
 - **Dot-sources**: Private/DataAccess/Connect-OracleDatabase.ps1
 
 ## Used By
-- MSOW-Symplr-Dashboard (C# Blazor) via ConfigurationSyncService.cs
+- Provider-Symplr-Dashboard (C# Blazor) via ConfigurationSyncService.cs
 - Windows Task Scheduler (RegisteredTask)
 ```
 
@@ -237,7 +237,7 @@ Track dependencies **across language boundaries**:
 cross_stack_dependencies:
   - source:
       stack: dotnet
-      file: MSOW-Symplr-Dashboard/Services/ConfigurationSyncService.cs
+      file: Provider-Symplr-Dashboard/Services/ConfigurationSyncService.cs
       entity: SyncConfigurationAsync()
 
     target:
@@ -255,7 +255,7 @@ cross_stack_dependencies:
     target:
       stack: sql
       file: SymplrExtract/Resources/SQL/Symplr_Provider_Demographics.sql
-      entity: V_MSOW_SYMPLR_QUALIFIED_PRACT (view)
+      entity: V_PROVIDER_QUALIFIED_PRACT (view)
 
     mechanism: Get-Content + ExecuteReader()
 ```
@@ -267,7 +267,7 @@ cross_stack_dependencies:
 
 ## Detected Stacks
 - **PowerShell** (SymplrExtract module)
-- **.NET 8 Blazor Server** (MSOW-Symplr-Dashboard)
+- **.NET 8 Blazor Server** (Provider-Symplr-Dashboard)
 - **Oracle SQL** (Extraction queries)
 
 ## Metrics by Stack
@@ -276,7 +276,7 @@ cross_stack_dependencies:
 |-------|-------|----------|----------|------------|
 | PowerShell | 84 | 47 cmdlets, 23 classes | 3 | Invoke-SymplrExtract (called by 12) |
 | .NET Blazor | 160 | 40 services, 15 pages, 12 hubs | 5 | ExtractMonitoringHub (SignalR) |
-| Oracle SQL | 26 | 4 queries, 18 views | 2 | V_MSOW_SYMPLR_QUALIFIED_PRACT |
+| Oracle SQL | 26 | 4 queries, 18 views | 2 | V_PROVIDER_QUALIFIED_PRACT |
 
 ## Cross-Stack Dependencies
 - **C# → PowerShell**: ConfigurationSyncService calls Invoke-SymplrExtract
@@ -363,14 +363,14 @@ This enhancement follows GSD's established patterns for minimal context consumpt
 - [ ] Supports at least 10 Tier 1 languages in initial release
 - [ ] YAML profile system allows adding new languages without code changes
 
-## Example: Expected Output for Trinity Health MSOW
+## Example: Expected Output for Healthcare Corp Provider
 
 ```markdown
 # /gsd:analyze-codebase Output (Multi-Stack)
 
 ## Detected Stacks
 ✓ PowerShell (SymplrExtract module v0.4.0)
-✓ .NET 8 Blazor Server (MSOW-Symplr-Dashboard)
+✓ .NET 8 Blazor Server (Provider-Symplr-Dashboard)
 ✓ Oracle SQL (Extraction queries)
 
 ## Entity Extraction
@@ -390,7 +390,7 @@ This enhancement follows GSD's established patterns for minimal context consumpt
 
 ### SQL Entities (4 queries, 18 views)
 - Symplr_Provider_Demographics.sql
-- V_MSOW_SYMPLR_QUALIFIED_PRACT (master view)
+- V_PROVIDER_QUALIFIED_PRACT (master view)
 
 ## Cross-Stack Hotspots
 1. **ConfigurationSyncService.cs** (C#) → **Invoke-SymplrExtract** (PowerShell)

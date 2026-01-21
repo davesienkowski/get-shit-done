@@ -18,7 +18,7 @@ Investigation into how the GSD `analyze-codebase` command interacts with other G
 
 ## Deliverable: research-dependencies.md
 
-**Location**: `/mnt/d/Repos-Work/msow/symplr/.planning/quick/001-gsd-analyzer-optimization/research-dependencies.md`
+**Location**: `/projects/healthcare-integration/.planning/quick/001-gsd-analyzer-optimization/research-dependencies.md`
 **Size**: 625 lines
 **Format**: Comprehensive technical analysis document
 
@@ -138,7 +138,7 @@ analyze-codebase → index.json, conventions.json, summary.md
 ## Files in Research Directory
 
 ```
-/mnt/d/Repos-Work/msow/symplr/.planning/quick/001-gsd-analyzer-optimization/
+/projects/healthcare-integration/.planning/quick/001-gsd-analyzer-optimization/
 
 research-dependencies.md       ← PRIMARY DELIVERABLE (625 lines)
 ├─ Complete integration analysis
