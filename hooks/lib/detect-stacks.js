@@ -718,6 +718,9 @@ async function checkCodePatterns(projectPath, extensions, patterns, sampleSize =
     for await (const file of walkDir(projectPath)) {
       if (filesChecked >= sampleSize) break;
 
+      // Skip detection infrastructure to avoid self-detection
+      if (file.endsWith('detect-stacks.js') || file.endsWith('stack-profiles.yaml')) continue;
+
       const ext = path.extname(file).toLowerCase();
       if (!extensions.includes(ext)) continue;
 
