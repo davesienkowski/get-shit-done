@@ -106,6 +106,16 @@ function expandTilde(filePath) {
 }
 
 /**
+ * Build a hook command path using forward slashes for cross-platform compatibility.
+ * On Windows, $HOME is not expanded by cmd.exe/PowerShell, so we use the actual path.
+ */
+function buildHookCommand(claudeDir, hookName) {
+  // Use forward slashes for Node.js compatibility on all platforms
+  const hooksPath = claudeDir.replace(/\\/g, '/') + '/hooks/' + hookName;
+  return `node "${hooksPath}"`;
+}
+
+/**
  * Read and parse settings.json, returning empty object if doesn't exist
  */
 function readSettings(settingsPath) {
@@ -181,6 +191,9 @@ function cleanupOrphanedHooks(settings) {
   const orphanedHookPatterns = [
     'gsd-notify.sh',  // Removed in v1.6.x
     'hooks/statusline.js',  // Renamed to gsd-statusline.js in v1.9.0
+    'gsd-intel-index.js',  // Removed in v1.9.2
+    'gsd-intel-session.js',  // Removed in v1.9.2
+    'gsd-intel-prune.js',  // Removed in v1.9.2
   ];
 
   let cleaned = false;
@@ -387,10 +400,10 @@ function install(isGlobal) {
   const settingsPath = path.join(claudeDir, 'settings.json');
   const settings = cleanupOrphanedHooks(readSettings(settingsPath));
   const statuslineCommand = isGlobal
-    ? 'node "$HOME/.claude/hooks/gsd-statusline.js"'
+    ? buildHookCommand(claudeDir, 'gsd-statusline.js')
     : 'node .claude/hooks/gsd-statusline.js';
   const updateCheckCommand = isGlobal
-    ? 'node "$HOME/.claude/hooks/gsd-check-update.js"'
+    ? buildHookCommand(claudeDir, 'gsd-check-update.js')
     : 'node .claude/hooks/gsd-check-update.js';
 
   // Configure SessionStart hook for update checking
@@ -416,72 +429,6 @@ function install(isGlobal) {
       ]
     });
     console.log(`  ${green}✓${reset} Configured update check hook`);
-  }
-
-  // Register intel hooks for codebase intelligence
-  const intelIndexCommand = isGlobal
-    ? 'node "$HOME/.claude/hooks/gsd-intel-index.js"'
-    : 'node .claude/hooks/gsd-intel-index.js';
-
-  const intelSessionCommand = isGlobal
-    ? 'node "$HOME/.claude/hooks/gsd-intel-session.js"'
-    : 'node .claude/hooks/gsd-intel-session.js';
-
-  // PostToolUse hook for indexing
-  if (!settings.hooks.PostToolUse) {
-    settings.hooks.PostToolUse = [];
-  }
-
-  const hasIntelIndexHook = settings.hooks.PostToolUse.some(entry =>
-    entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-intel-index'))
-  );
-
-  if (!hasIntelIndexHook) {
-    settings.hooks.PostToolUse.push({
-      hooks: [{
-        type: 'command',
-        command: intelIndexCommand
-      }]
-    });
-    console.log(`  ${green}✓${reset} Configured intel indexing hook`);
-  }
-
-  // SessionStart hook for context injection
-  const hasIntelSessionHook = settings.hooks.SessionStart.some(entry =>
-    entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-intel-session'))
-  );
-
-  if (!hasIntelSessionHook) {
-    settings.hooks.SessionStart.push({
-      hooks: [{
-        type: 'command',
-        command: intelSessionCommand
-      }]
-    });
-    console.log(`  ${green}✓${reset} Configured intel session hook`);
-  }
-
-  // Stop hook for pruning deleted files
-  const intelPruneCommand = isGlobal
-    ? 'node "$HOME/.claude/hooks/gsd-intel-prune.js"'
-    : 'node .claude/hooks/gsd-intel-prune.js';
-
-  if (!settings.hooks.Stop) {
-    settings.hooks.Stop = [];
-  }
-
-  const hasIntelPruneHook = settings.hooks.Stop.some(entry =>
-    entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-intel-prune'))
-  );
-
-  if (!hasIntelPruneHook) {
-    settings.hooks.Stop.push({
-      hooks: [{
-        type: 'command',
-        command: intelPruneCommand
-      }]
-    });
-    console.log(`  ${green}✓${reset} Configured intel prune hook`);
   }
 
   return { settingsPath, settings, statuslineCommand };

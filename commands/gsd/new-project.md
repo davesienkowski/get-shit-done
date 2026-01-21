@@ -19,7 +19,6 @@ This is the most leveraged moment in any project. Deep questioning here means be
 - `.planning/PROJECT.md` — project context
 - `.planning/config.json` — workflow preferences
 - `.planning/research/` — domain research (optional)
-- `.planning/intel/` — codebase intelligence (auto-populated by hooks)
 - `.planning/REQUIREMENTS.md` — scoped requirements
 - `.planning/ROADMAP.md` — phase structure
 - `.planning/STATE.md` — project memory
@@ -58,14 +57,7 @@ This is the most leveraged moment in any project. Deep questioning here means be
    fi
    ```
 
-3. **Create intel directory for codebase intelligence:**
-   ```bash
-   mkdir -p .planning/intel
-   ```
-
-   This prepares the directory for the PostToolUse hook to populate with index.json, conventions.json, and summary.md as Claude writes code.
-
-4. **Detect existing code (brownfield detection):**
+3. **Detect existing code (brownfield detection):**
    ```bash
    CODE_FILES=$(find . -name "*.ts" -o -name "*.js" -o -name "*.py" -o -name "*.go" -o -name "*.rs" -o -name "*.swift" -o -name "*.java" 2>/dev/null | grep -v node_modules | grep -v .git | head -20)
    HAS_PACKAGE=$([ -f package.json ] || [ -f requirements.txt ] || [ -f Cargo.toml ] || [ -f go.mod ] || [ -f Package.swift ] && echo "yes")
@@ -305,29 +297,39 @@ All recommended for important projects. Skip for quick experiments.
 questions: [
   {
     header: "Research",
-    question: "Spawn Plan Researcher? (researches domain before planning — adds tokens/time)",
+    question: "Research before planning each phase? (adds tokens/time)",
     multiSelect: false,
     options: [
-      { label: "Yes (Recommended)", description: "Research phase goals before planning" },
-      { label: "No", description: "Skip research, plan directly" }
+      { label: "Yes (Recommended)", description: "Investigate domain, find patterns, surface gotchas" },
+      { label: "No", description: "Plan directly from requirements" }
     ]
   },
   {
     header: "Plan Check",
-    question: "Spawn Plan Checker? (verifies plans before execution — adds tokens/time)",
+    question: "Verify plans will achieve their goals? (adds tokens/time)",
     multiSelect: false,
     options: [
-      { label: "Yes (Recommended)", description: "Verify plans meet phase goals" },
-      { label: "No", description: "Skip plan verification" }
+      { label: "Yes (Recommended)", description: "Catch gaps before execution starts" },
+      { label: "No", description: "Execute plans without verification" }
     ]
   },
   {
     header: "Verifier",
-    question: "Spawn Execution Verifier? (verifies phase completion — adds tokens/time)",
+    question: "Verify work satisfies requirements after each phase? (adds tokens/time)",
     multiSelect: false,
     options: [
-      { label: "Yes (Recommended)", description: "Verify must-haves after execution" },
-      { label: "No", description: "Skip post-execution verification" }
+      { label: "Yes (Recommended)", description: "Confirm deliverables match phase goals" },
+      { label: "No", description: "Trust execution, skip verification" }
+    ]
+  },
+  {
+    header: "Model Profile",
+    question: "Which AI models for planning agents?",
+    multiSelect: false,
+    options: [
+      { label: "Balanced (Recommended)", description: "Sonnet for most agents — good quality/cost ratio" },
+      { label: "Quality", description: "Opus for research/roadmap — higher cost, deeper analysis" },
+      { label: "Budget", description: "Haiku where possible — fastest, lowest cost" }
     ]
   }
 ]
@@ -341,6 +343,7 @@ Create `.planning/config.json` with all settings:
   "depth": "quick|standard|comprehensive",
   "parallelization": true|false,
   "commit_docs": true|false,
+  "model_profile": "quality|balanced|budget",
   "workflow": {
     "research": true|false,
     "plan_check": true|false,
@@ -354,7 +357,7 @@ Create `.planning/config.json` with all settings:
 - Add `.planning/` to `.gitignore` (create if needed)
 
 **If commit_docs = Yes:**
-- Add `.planning/intel/` to `.gitignore` (intel is always local — changes constantly, can be regenerated)
+- No additional gitignore entries needed
 
 **Commit config.json:**
 
@@ -970,7 +973,6 @@ Present completion with next steps:
   - `ARCHITECTURE.md`
   - `PITFALLS.md`
   - `SUMMARY.md`
-- `.planning/intel/` (created empty, populated by hooks during coding)
 - `.planning/REQUIREMENTS.md`
 - `.planning/ROADMAP.md`
 - `.planning/STATE.md`
