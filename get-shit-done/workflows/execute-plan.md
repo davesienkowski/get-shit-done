@@ -4,11 +4,32 @@ Execute a phase prompt (PLAN.md) and create the outcome summary (SUMMARY.md).
 
 <required_reading>
 Read STATE.md before any operation to load project context.
+Read config.json for planning behavior settings.
+
+@~/.claude/get-shit-done/references/git-integration.md
 </required_reading>
 
 <process>
 
-<step name="load_project_state" priority="first">
+<step name="resolve_model_profile" priority="first">
+Read model profile for agent spawning:
+
+```bash
+MODEL_PROFILE=$(cat .planning/config.json 2>/dev/null | grep -o '"model_profile"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"' || echo "balanced")
+```
+
+Default to "balanced" if not set.
+
+**Model lookup table:**
+
+| Agent | quality | balanced | budget |
+|-------|---------|----------|--------|
+| gsd-executor | opus | sonnet | sonnet |
+
+Store resolved model for use in Task calls below.
+</step>
+
+<step name="load_project_state">
 Before any operation, read project state:
 
 ```bash
@@ -34,6 +55,17 @@ Options:
 **If .planning/ doesn't exist:** Error - project not initialized.
 
 This ensures every execution has full project context.
+
+**Load planning config:**
+
+```bash
+# Check if planning docs should be committed (default: true)
+COMMIT_PLANNING_DOCS=$(cat .planning/config.json 2>/dev/null | grep -o '"commit_docs"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "true")
+# Auto-detect gitignored (overrides config)
+git check-ignore -q .planning 2>/dev/null && COMMIT_PLANNING_DOCS=false
+```
+
+Store `COMMIT_PLANNING_DOCS` for use in git operations.
 </step>
 
 <step name="identify_plan">
@@ -205,7 +237,7 @@ No segmentation benefit - execute entirely in main
 ```
 1. Run init_agent_tracking step first (see step below)
 
-2. Use Task tool with subagent_type="gsd-executor":
+2. Use Task tool with subagent_type="gsd-executor" and model="{executor_model}":
 
    Prompt: "Execute plan at .planning/phases/{phase}-{plan}-PLAN.md
 
@@ -357,7 +389,7 @@ For Pattern A (fully autonomous) and Pattern C (decision-dependent), skip this s
 
    B. If routing = Subagent:
       ```
-      Spawn Task tool with subagent_type="gsd-executor":
+      Spawn Task tool with subagent_type="gsd-executor" and model="{executor_model}":
 
       Prompt: "Execute tasks [task numbers/names] from plan at [plan path].
 
@@ -566,7 +598,8 @@ Execute each task in the prompt. **Deviations are normal** - handle them automat
    - Continue implementing, applying rules as needed
    - Run the verification
    - Confirm done criteria met
-   - **Commit the task** (see `<task_commit>` below)
+   - **Update intel entities** for modified files (see `<update_intel_entity>` below)
+   - **Commit the task** (see `<task_commit>` below) - includes entity files in commit
    - Track task completion and commit hash for Summary documentation
    - Continue to next task
 
@@ -895,6 +928,148 @@ None - plan executed exactly as written.
 
 </deviation_documentation>
 
+<update_intel_entity>
+
+## Update Codebase Intelligence Entity
+
+**Trigger:** After each task's `<done>` criteria met, BEFORE committing.
+
+This step documents your understanding of modified files. The knowledge base self-evolves as you work.
+
+**1. Get files from the just-completed task:**
+
+Check the task's `<files>` list. If no `<files>` attribute, use `git status --short` to identify modified files.
+
+**2. For each file, determine if significant:**
+
+**Skip these patterns (not worth indexing):**
+```bash
+# Build/generated
+node_modules/*, .next/*, dist/*, build/*, .git/*
+
+# Tests (their targets are more valuable)
+*.test.*, *.spec.*, __tests__/*, __mocks__/*
+
+# Config files (change rarely, low context value)
+package.json, package-lock.json, tsconfig.json, *.config.*, *.config.js, *.config.ts
+
+# Environment and locks
+.env*, *.lock, *.log, yarn.lock, pnpm-lock.yaml
+```
+
+If file matches skip pattern: continue to next file.
+
+**3. Derive entity path:**
+
+```bash
+# Convert file path to entity filename
+# src/lib/auth.ts → src-lib-auth.md
+# app/api/users/route.ts → app-api-users-route.md
+
+FILE_PATH="$1"
+ENTITY_NAME=$(echo "$FILE_PATH" | sed 's|^[./]*||' | tr '/' '-' | sed 's/\.[^.]*$//')
+ENTITY_PATH=".planning/intel/entities/${ENTITY_NAME}.md"
+```
+
+**4. Create intel directory if needed:**
+
+```bash
+mkdir -p .planning/intel/entities
+```
+
+**5. Check if entity exists:**
+
+```bash
+if [ -f "$ENTITY_PATH" ]; then
+  ACTION="update"
+else
+  ACTION="create"
+fi
+```
+
+**6. Create or update entity:**
+
+Use template from `~/.claude/get-shit-done/templates/entity.md`.
+
+Fill fields based on what you just built:
+
+| Field | Source |
+|-------|--------|
+| `path` | Absolute path to file |
+| `type` | Infer: module, component, util, config, api, hook |
+| `updated` | Today's date (YYYY-MM-DD) |
+| `status` | active (unless you're deprecating) |
+| **Purpose** | What you understand this file does |
+| **Exports** | Extract from the code you just wrote |
+| **Dependencies** | `[[slugified-path]]` for internal, plain for external |
+| **Used By** | Add callers if you know them from this session |
+| **Notes** | Gotchas, patterns, warnings discovered |
+
+**If updating existing entity:**
+- Read current content first
+- Preserve Used By entries you didn't touch
+- Update sections that changed
+- Don't remove information unless it's wrong
+
+**7. Write entity file:**
+
+```bash
+# Write the entity content
+cat > "$ENTITY_PATH" << 'EOF'
+---
+path: {path}
+type: {type}
+updated: {today}
+status: active
+---
+
+# {filename}
+
+## Purpose
+
+{purpose}
+
+## Exports
+
+{exports}
+
+## Dependencies
+
+{dependencies}
+
+## Used By
+
+{used_by}
+
+## Notes
+
+{notes}
+EOF
+```
+
+**8. Verify entity was created/updated:**
+
+```bash
+head -10 "$ENTITY_PATH"
+```
+
+**9. Stage entity file:**
+
+Entity files are staged along with task code files in the task commit.
+
+```bash
+git add "$ENTITY_PATH"
+```
+
+**Error handling:**
+- If entity creation fails: Log warning, continue to task_commit
+- Entity update is NOT blocking - a failed entity shouldn't stop code from being committed
+- Log: `"Warning: Could not update entity for {file}: {reason}"`
+
+**Target size:** Keep entities concise (30-50 lines). Purpose and Exports are most valuable.
+
+</update_intel_entity>
+
 <tdd_plan_execution>
 ## TDD Plan Execution
 
@@ -1196,7 +1371,7 @@ You will NOT be resumed. A new agent continues from where you stopped, using you
 
 **How to know if you were spawned:**
 
-If you're reading this workflow because an orchestrator spawned you (vs running directly from /gsd:execute-plan), the orchestrator's prompt will include checkpoint return instructions. Follow those instructions when you hit a checkpoint.
+If you're reading this workflow because an orchestrator spawned you (vs running directly), the orchestrator's prompt will include checkpoint return instructions. Follow those instructions when you hit a checkpoint.
 
 **If running in main context (not spawned):**
 
@@ -1511,6 +1686,17 @@ Commit execution metadata (SUMMARY + STATE + ROADMAP):
 **Note:** All task code has already been committed during execution (one commit per task).
 PLAN.md was already committed during plan-phase. This final commit captures execution results only.
 
+**Check planning config:**
+
+If `COMMIT_PLANNING_DOCS=false` (set in load_project_state):
+- Skip all git operations for .planning/ files
+- Planning docs exist locally but are gitignored
+- Log: "Skipping planning docs commit (commit_docs: false)"
+- Proceed to next step
+
+If `COMMIT_PLANNING_DOCS=true` (default):
+- Continue with git operations below
+
 **1. Stage execution artifacts:**
 
 ```bash
@@ -1574,7 +1760,7 @@ lmn012o feat(08-02): create user registration endpoint
 
 Each task has its own commit, followed by one metadata commit documenting plan completion.
 
-For commit message conventions, see ~/.claude/get-shit-done/references/git-integration.md
+See `git-integration.md` (loaded via required_reading) for commit message conventions.
 </step>
 
 <step name="update_codebase_map">
@@ -1701,7 +1887,7 @@ Summary: .planning/phases/{phase-dir}/{phase}-{plan}-SUMMARY.md
 
 **{phase}-{next-plan}: [Plan Name]** — [objective from next PLAN.md]
 
-`/gsd:execute-plan .planning/phases/{phase-dir}/{phase}-{next-plan}-PLAN.md`
+`/gsd:execute-phase {phase}`
 
 <sub>`/clear` first → fresh context window</sub>
 

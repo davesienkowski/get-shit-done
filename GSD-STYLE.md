@@ -376,6 +376,74 @@ Depth setting controls compression tolerance:
 
 ---
 
+## Quick Mode Patterns
+
+Quick mode provides GSD guarantees for ad-hoc tasks without full planning overhead.
+
+### When to Use Quick Mode
+
+**Quick mode:**
+- Task is small and self-contained
+- You know exactly what to do (no research needed)
+- Task doesn't warrant full phase planning
+- Mid-project fixes or small additions
+
+**Full planning:**
+- Task involves multiple subsystems
+- You need to investigate approach first
+- Task is part of a larger phase
+- Task might have hidden complexity
+
+### Quick Task Structure
+
+```
+.planning/quick/
+├── 001-add-dark-mode/
+│   ├── PLAN.md
+│   └── SUMMARY.md
+├── 002-fix-login-bug/
+│   ├── PLAN.md
+│   └── SUMMARY.md
+```
+
+Numbering: 3-digit sequential (001, 002, 003...)
+Slug: kebab-case from description, max 40 chars
+
+### Quick Mode Tracking
+
+Quick tasks update STATE.md, NOT ROADMAP.md:
+
+```markdown
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 001 | Add dark mode toggle | 2026-01-19 | abc123f | [001-add-dark-mode](./quick/001-add-dark-mode/) |
+```
+
+### Quick Mode Orchestration
+
+Unlike full phases, quick mode orchestration is inline in the command file — no separate workflow. The simplified flow:
+
+1. Validate ROADMAP.md exists (project active)
+2. Get task description
+3. Spawn planner (quick constraints)
+4. Spawn executor
+5. Update STATE.md
+6. Commit artifacts
+
+### Commit Convention
+
+```
+docs(quick-NNN): description
+
+Quick task completed.
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+```
+
+---
+
 ## TDD Plans
 
 ### Detection Heuristic
@@ -412,6 +480,70 @@ How to make tests pass
 - RED: `test({phase}-{plan}): add failing test for [feature]`
 - GREEN: `feat({phase}-{plan}): implement [feature]`
 - REFACTOR: `refactor({phase}-{plan}): clean up [feature]`
+
+---
+
+## Codebase Intelligence
+
+GSD includes an automatic codebase learning system that indexes code and detects patterns.
+
+### Files
+
+| File | Purpose | Updated By |
+|------|---------|------------|
+| `.planning/intel/index.json` | File exports/imports index | PostToolUse hook |
+| `.planning/intel/conventions.json` | Detected naming/directory/suffix patterns | PostToolUse hook |
+| `.planning/intel/summary.md` | Concise context for injection | PostToolUse hook |
+
+### Index Schema
+
+```json
+{
+  "version": 1,
+  "updated": 1234567890,
+  "files": {
+    "/absolute/path/to/file.ts": {
+      "exports": ["functionA", "ClassB", "default"],
+      "imports": ["react", "./utils", "@org/pkg"],
+      "indexed": 1234567890
+    }
+  }
+}
+```
+
+### Convention Detection
+
+**Naming conventions** (requires 5+ exports, 70%+ match rate):
+- camelCase, PascalCase, snake_case, SCREAMING_SNAKE
+- 'default' is skipped (keyword, not naming indicator)
+
+**Directory purposes** (lookup table):
+- components, hooks, utils, lib, services, api, routes, types, models, tests, etc.
+
+**Suffix patterns** (requires 5+ files):
+- .test.*, .spec.*, .service.*, .controller.*, etc.
+
+### Hook Patterns
+
+**PostToolUse hook (intel-index.js):**
+- Triggers on Write/Edit of JS/TS files
+- Incremental update (single file per invocation)
+- Silent failure (never blocks Claude)
+- Regenerates conventions.json and summary.md on every update
+
+**SessionStart hook (intel-session.js):**
+- Triggers on startup/resume
+- Reads index.json and conventions.json
+- Outputs `<codebase-intelligence>` wrapped summary
+- Silent failure if intel files missing
+
+### Commands
+
+**`/gsd:analyze-codebase`** — Bulk scan for brownfield projects:
+- Creates .planning/intel/ directory
+- Scans all JS/TS files (excludes node_modules, dist, build, .git, vendor, coverage)
+- Uses same extraction logic as PostToolUse hook
+- Works standalone (no /gsd:new-project required)
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: gsd-project-researcher
-description: Researches domain ecosystem before roadmap creation. Produces multiple files in .planning/research/ consumed by /gsd:create-roadmap. Spawned by /gsd:research-project orchestrator.
+description: Researches domain ecosystem before roadmap creation. Produces files in .planning/research/ consumed during roadmap creation. Spawned by /gsd:new-project or /gsd:new-milestone orchestrators.
 tools: Read, Write, Bash, Grep, Glob, WebSearch, WebFetch, mcp__context7__*
 color: cyan
 ---
@@ -10,9 +10,10 @@ You are a GSD project researcher. You research the domain ecosystem before roadm
 
 You are spawned by:
 
-- `/gsd:research-project` orchestrator (project-wide research before roadmap)
+- `/gsd:new-project` orchestrator (Phase 6: Research)
+- `/gsd:new-milestone` orchestrator (Phase 6: Research)
 
-Your job: Answer "What does this domain ecosystem look like?" Produce multiple research files that inform roadmap creation.
+Your job: Answer "What does this domain ecosystem look like?" Produce research files that inform roadmap creation.
 
 **Core responsibilities:**
 - Survey the domain ecosystem broadly
@@ -25,7 +26,7 @@ Your job: Answer "What does this domain ecosystem look like?" Produce multiple r
 </role>
 
 <downstream_consumer>
-Your research files are consumed by `/gsd:create-roadmap` which uses them to:
+Your research files are consumed during roadmap creation:
 
 | File | How Roadmap Uses It |
 |------|---------------------|
@@ -199,12 +200,12 @@ For finding what exists, community patterns, real-world usage.
 - "Common mistakes with Z"
 - Ecosystem surveys
 
-**Query templates (use current year):**
+**Query templates:**
 ```
 Ecosystem discovery:
-- "[technology] best practices 2025"
-- "[technology] recommended libraries 2025"
-- "[technology] vs [alternative] 2025"
+- "[technology] best practices [current year]"
+- "[technology] recommended libraries [current year]"
+- "[technology] vs [alternative] [current year]"
 
 Pattern discovery:
 - "how to build [type of thing] with [technology]"
@@ -218,7 +219,7 @@ Problem discovery:
 ```
 
 **Best practices:**
-- Include current year for freshness
+- Always include the current year (check today's date) for freshness
 - Use multiple query variations
 - Cross-verify findings with authoritative sources
 - Mark WebSearch-only findings as LOW confidence
@@ -807,7 +808,7 @@ When research finishes successfully:
 
 ### Ready for Roadmap
 
-Research complete. Run `/gsd:create-roadmap` to create phase structure.
+Research complete. Proceeding to roadmap creation.
 ```
 
 ## Research Blocked

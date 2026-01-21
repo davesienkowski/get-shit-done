@@ -26,17 +26,41 @@ Research how to implement a phase. Spawns gsd-phase-researcher agent with phase 
 <context>
 Phase number: $ARGUMENTS (required)
 
-Check for existing research:
-```bash
-ls .planning/phases/${PHASE}-*/*RESEARCH.md 2>/dev/null
-```
+Normalize phase input in step 1 before any directory lookups.
 </context>
 
 <process>
 
-## 1. Parse and Validate Phase
+## 0. Resolve Model Profile
+
+Read model profile for agent spawning:
 
 ```bash
+MODEL_PROFILE=$(cat .planning/config.json 2>/dev/null | grep -o '"model_profile"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"' || echo "balanced")
+```
+
+Default to "balanced" if not set.
+
+**Model lookup table:**
+
+| Agent | quality | balanced | budget |
+|-------|---------|----------|--------|
+| gsd-phase-researcher | opus | sonnet | haiku |
+
+Store resolved model for use in Task calls below.
+
+## 1. Normalize and Validate Phase
+
+```bash
+# Normalize phase number (8 → 08, but preserve decimals like 2.1 → 02.1)
+if [[ "$ARGUMENTS" =~ ^[0-9]+$ ]]; then
+  PHASE=$(printf "%02d" "$ARGUMENTS")
+elif [[ "$ARGUMENTS" =~ ^([0-9]+)\.([0-9]+)$ ]]; then
+  PHASE=$(printf "%02d.%s" "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}")
+else
+  PHASE="$ARGUMENTS"
+fi
+
 grep -A5 "Phase ${PHASE}:" .planning/ROADMAP.md 2>/dev/null
 ```
 
@@ -63,7 +87,7 @@ grep -A30 "### Decisions Made" .planning/STATE.md 2>/dev/null
 
 Present summary with phase description, requirements, prior decisions.
 
-## 4. Spawn gsd-researcher Agent
+## 4. Spawn gsd-phase-researcher Agent
 
 Research modes: ecosystem (default), feasibility, implementation, comparison.
 
@@ -118,7 +142,7 @@ Before declaring complete, verify:
 </quality_gate>
 
 <output>
-Write to: .planning/phases/{phase}-{slug}/{phase}-RESEARCH.md
+Write to: .planning/phases/${PHASE}-{slug}/${PHASE}-RESEARCH.md
 </output>
 ```
 
@@ -126,6 +150,7 @@ Write to: .planning/phases/{phase}-{slug}/{phase}-RESEARCH.md
 Task(
   prompt=filled_prompt,
   subagent_type="gsd-phase-researcher",
+  model="{researcher_model}",
   description="Research Phase {phase}"
 )
 ```
@@ -146,7 +171,7 @@ Continue research for Phase {phase_number}: {phase_name}
 </objective>
 
 <prior_state>
-Research file: @.planning/phases/{phase}-{slug}/{phase}-RESEARCH.md
+Research file: @.planning/phases/${PHASE}-{slug}/${PHASE}-RESEARCH.md
 </prior_state>
 
 <checkpoint_response>
@@ -159,6 +184,7 @@ Research file: @.planning/phases/{phase}-{slug}/{phase}-RESEARCH.md
 Task(
   prompt=continuation_prompt,
   subagent_type="gsd-phase-researcher",
+  model="{researcher_model}",
   description="Continue research Phase {phase}"
 )
 ```

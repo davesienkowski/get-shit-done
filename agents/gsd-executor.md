@@ -8,10 +8,7 @@ color: yellow
 <role>
 You are a GSD plan executor. You execute PLAN.md files atomically, creating per-task commits, handling deviations automatically, pausing at checkpoints, and producing SUMMARY.md files.
 
-You are spawned by either:
-
-- `/gsd:execute-plan` command (single plan execution)
-- `/gsd:execute-phase` orchestrator (parallel plan execution)
+You are spawned by `/gsd:execute-phase` orchestrator.
 
 Your job: Execute the plan completely, commit each task, create SUMMARY.md, update STATE.md.
 </role>
@@ -42,6 +39,32 @@ Options:
 ```
 
 **If .planning/ doesn't exist:** Error - project not initialized.
+
+**Load planning config:**
+
+```bash
+# Check if planning docs should be committed (default: true)
+COMMIT_PLANNING_DOCS=$(cat .planning/config.json 2>/dev/null | grep -o '"commit_docs"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "true")
+# Auto-detect gitignored (overrides config)
+git check-ignore -q .planning 2>/dev/null && COMMIT_PLANNING_DOCS=false
+```
+
+Store `COMMIT_PLANNING_DOCS` for use in git operations.
+</step>
+
+<step name="load_codebase_intelligence">
+Check for codebase intelligence:
+
+```bash
+cat .planning/intel/summary.md 2>/dev/null
+```
+
+If exists:
+- Follow detected naming conventions when writing code
+- Place new files in directories that match their purpose
+- Use established patterns (camelCase, PascalCase, etc.)
+
+This context helps maintain codebase consistency during execution.
 </step>
 
 <step name="load_plan">
@@ -694,6 +717,10 @@ Resume file: [path to .continue-here if exists, else "None"]
 
 <final_commit>
 After SUMMARY.md and STATE.md updates:
+
+**If `COMMIT_PLANNING_DOCS=false`:** Skip git operations for planning files, log "Skipping planning docs commit (commit_docs: false)"
+
+**If `COMMIT_PLANNING_DOCS=true` (default):**
 
 **1. Stage execution artifacts:**
 

@@ -1,139 +1,102 @@
 # Project State
 
-## Project Summary
+## Project Reference
 
-**Building:** Brownfield support for GSD - `/gsd:map-codebase` workflow that analyzes existing codebases using parallel Explore agents, producing structured `.planning/codebase/` documents.
+See: .planning/PROJECT.md (updated 2026-01-19)
 
-**Core requirements:**
-- `/gsd:map-codebase` produces useful codebase documents from any codebase
-- Documents are focused (<100 lines each) and easy to update incrementally
-- `/gsd:new-project` detects existing code and offers mapping
-- `/gsd:plan-phase` loads relevant codebase context automatically
-- Codebase map updates after plan execution
-
-**Constraints:**
-- Explore agents required for initial mapping
-- Each codebase map file must stay under ~100 lines
-- Only load relevant codebase sections into phase planning
-- Follow existing GSD command/workflow/template patterns
+**Core value:** Claude understands your codebase structure and conventions before it starts working — automatically
+**Current focus:** v1.9.0 Codebase Intelligence System
 
 ## Current Position
 
-Phase: 16 of 16 (Plan Verification Loop)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-01-16 - Completed 16-03-PLAN.md
+Phase: 5 of 5 (Subagent Codebase Analysis)
+Plan: 1 of 2
+Status: In progress
+Last activity: 2026-01-20 — Completed 05-01-PLAN.md (gsd-entity-generator Agent Definition)
 
-Progress: ███████████████████████████████████████ 39/39 plans (100%)
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 39
-- Average duration: 3.4 min
-- Total execution time: ~132 min
+- Total plans completed: 13
+- Average duration: 2.4 min
+- Total execution time: 31 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1 | 3 | 9 min | 3 min |
-| 2 | 2 | 5 min | 2.5 min |
-| 3 | 1 | 2 min | 2 min |
-| 4 | 2 | 7 min | 3.5 min |
-| 5 | 2 | 5 min | 2.5 min |
-| 6 | 2 | 4 min | 2 min |
-| 7 | 1 | 4 min | 4 min |
-| 8 | 1 | 1 min | 1 min |
-| 9 | 1 | 3 min | 3 min |
-| 10 | 4 | 33 min | 8.3 min |
-| 11 | 4 | 12 min | 3 min |
-| 99 | 3 | 1 min | <1 min (parallel) |
-| 13 | 3 | 10 min | 3.3 min |
-| 14 | 3 | 11 min | 3.7 min |
-| 15 | 3 | 7 min | 2.3 min |
-| 16 | 3 | 10 min | 3.3 min |
-
-**Recent Trend:**
-- Last 5 plans: 15-03 (1m), 16-01 (3m), 16-02 (4m), 16-03 (3m)
-- Trend: Consistent execution times
+| 1. Foundation & Learning | 2/2 | 7 min | 3.5 min |
+| 2. Context Injection | 2/2 | 4 min | 2.0 min |
+| 3. Brownfield & Integration | 3/3 | 6 min | 2.0 min |
+| 4. Semantic Intelligence | 5/5 | 13 min | 2.6 min |
+| 5. Subagent Codebase Analysis | 1/2 | 1 min | 1.0 min |
 
 *Updated after each plan completion*
 
 ## Accumulated Context
 
-### Decisions Made
+### Decisions
 
-| Phase | Decision | Rationale |
-|-------|----------|-----------|
-| 0 | Folder with focused files | Easier to update incrementally than monolithic file |
-| 0 | Update after plan execution | Fits existing STATE.md update pattern |
-| 0 | Parallel Explore agents | Thoroughness for initial mapping |
-| 0 | Selective context loading | Avoid loading irrelevant sections |
-| 6 | Frontmatter with dependency graph | Enable automatic context assembly via transitive closure |
-| 6 | Intelligent summary selection | Scan frontmatter, build graph, auto-select relevant phases |
-| 8 | Active milestone details in ROADMAP.md | Single source of truth during development, archive only on completion |
-| 9 | Phase-scoped UAT issues | Keep UAT findings tied to specific plan, not global ISSUES.md |
-| 10 | git mv preserves history | Rename workflow while keeping git history intact |
-| 10 | execute-plan = single, execute-phase = parallel | Clear naming for single-plan vs multi-plan execution |
-| 10 | Agent-history v1.2 schema | Extended for parallel tracking, dependencies, resume support |
-| 11 | Frontmatter parallelization markers | parallelizable, depends_on, files_exclusive in plan template |
-| 11 | Vertical slices over workflow stages | Maximize independence when parallelization enabled |
-| 11 | SUMMARY references only when needed | Avoid reflexive sequential chains |
-| 13 | Consolidated debugging expertise to 990 lines | Complete methodology with 59% reduction from source material |
-| 13 | Thin orchestrator pattern for /gsd:debug | Orchestrator <200 lines, expertise in agent - reduces main context from ~2,400 to ~150 |
-| 13 | Deprecated reference files with redirect notices | No duplicate content between references and agent |
-| 14 | 4 explicit research modes | Ecosystem, feasibility, implementation, comparison cover all needs |
-| 14 | Context7 > Official > WebSearch hierarchy | Prevents hallucination with authoritative sources first |
-| 14 | 902 lines from ~1,200 source (25% reduction) | Preserved all concepts while removing redundancy |
-| 14 | Thin orchestrator for /gsd:research-phase | Orchestrator 130 lines, expertise in agent |
-| 14 | Parallel agent spawning for /gsd:research-project | 4 agents (stack, features, architecture, pitfalls) maximize throughput |
-| 15 | 1,147 lines from ~3,580 source (68% reduction) | Complete planning methodology consolidated into single agent |
-| 15 | 14 sections covering full planning workflow | Includes discovery, task breakdown, dependency graph, goal-backward, checkpoints, TDD, gap closure |
-| 15 | Deprecation notices point to specific agent sections | Planning references deprecated, content in gsd-planner |
-| 15 | 189 lines thin orchestrator for /gsd:plan-phase | Under 200 target, uses agent: gsd-planner frontmatter |
-| 15 | Context-only planner-subagent-prompt.md template | Follows debug/research template pattern |
-| 16 | Six verification dimensions | Coverage, completeness, dependencies, links, scope, derivation |
-| 16 | Checker verifies plans WILL achieve goal | Same methodology as verifier but applied to plans pre-execution |
-| 16 | Orchestrator stays in main context | User sees ping-pong between planner and checker |
-| 16 | Max 3 iterations before user escalation | Prevents infinite loops, gives user control |
-| 16 | --skip-verify flag for power users | Experienced users can bypass verification when confident |
-| 16 | 6-step revision process in planner | Surgeon mindset: minimal targeted updates for checker issues |
-| 16 | Strategy table maps dimensions to actions | Each of 6 issue dimensions has specific revision strategy |
+| Decision | Phase | Rationale |
+|----------|-------|-----------|
+| index.json keyed by absolute path | 01-01 | O(1) lookup for file entries |
+| JSON schema with version field | 01-01 | Enables future schema migrations |
+| updated=null for initialization | 01-01 | Distinguishes init from update |
+| Use heredoc for stdin testing | 01-02 | Pipe chaining has timing issues with async stdin |
+| Extract 'default' as export name | 01-02 | Both 'default' and identifier recorded for default exports |
+| Read file from disk for Edit tool | 01-02 | Edit only provides old_string/new_string, not full content |
+| Regenerate conventions every index update | 02-01 | Detection is fast, avoids staleness issues |
+| Skip 'default' in case detection | 02-01 | Keyword, not naming convention indicator |
+| Single lowercase words as camelCase | 02-01 | Follows camelCase rules (e.g., 'main', 'app') |
+| Use lookup tables for purposes | 02-01 | More maintainable than regex patterns |
+| Target < 500 tokens for summary | 02-02 | Minimize context window usage |
+| Top 5 directories, top 3 suffixes | 02-02 | Keep output concise |
+| Command documents same regex as hook | 03-01 | Consistency between bulk scan and incremental updates |
+| generateSummary in intel-index.js | 03-01 | Co-locate all intel generation; regenerate on every update |
+| No FK constraints in graph schema | 04-01 | Entities can reference before target indexed |
+| Virtual id from JSON body | 04-01 | Flexible node structure with unique constraint |
+| Delete-then-insert for edges | 04-01 | Clean replacement removes stale links |
+| Singleton WASM instance | 04-01 | Avoids repeated sql.js init overhead |
+| 50 file limit per entity run | 04-03 | Prevents context window exhaustion |
+| Batches of 10 for Task tool | 04-03 | Balances parallelization with overhead |
+| Entity slug: path--segments--file-ext.md | 04-03 | Flat directory with reversible identification |
+| LEFT JOIN allows forward references | 04-02 | Edges can exist before target nodes indexed |
+| UNION in recursive CTE | 04-02 | Prevents infinite loops in cyclic graphs |
+| maxDepth default of 5 | 04-02 | Prevents runaway queries on deep dependencies |
+| Query mode read-only | 04-04 | Query actions don't persist to disk, safe operations |
+| Default limit 10 for dependents | 04-04 | Prevents huge output for files with many dependents |
+| Query routing before Write/Edit | 04-04 | Clean separation between query and indexing modes |
+| Intel read in Step 7 with others | 04-05 | Keep all context file reads in one place |
+| 2>/dev/null for missing intel | 04-05 | Graceful degradation when summary.md doesn't exist |
+| Skip existing entities by default | 05-01 | Prevents overwriting manual edits to entities |
 
-### Deferred Issues
+### Pending Todos
 
-None yet.
-
-### Blockers/Concerns Carried Forward
-
-None yet.
+- `/gsd:resume-work` decimal phase handling (deferred from v1.8.0)
 
 ### Roadmap Evolution
 
-- Phase 4 added: Plan-phase optimizations (~37% context reduction target)
-- Phase 5 added: TDD instructions for appropriate test-driven development
-- Phase 6 added: Frontmatter and related system upgrade
-- Phase 7 added: Backfill existing summaries with frontmatter
-- Phase 8 added: Improve roadmap system
-- Phase 9 added: Integrate verify-work (community contribution from OracleGreyBeard)
-- Phase 10 added: Parallel phase execution (rename workflow, create /gsd:execute-phase with parallelization)
-- Phase 11 added: Parallel-aware planning (update plan-phase.md to create parallelizable plans when enabled)
-- Phase 12 added: Changelog & update awareness (remote changelog fetch, /gsd:whats-new, publish workflow integration)
-- Phase 13 added: Dedicated debug agent (gsd-debugger with baked-in expertise, thin orchestrator pattern)
-- Phase 14 added: Dedicated researcher agent (gsd-researcher with research methodology, tool strategy, output formats)
-- Phase 15 added: Dedicated planner agent (gsd-planner with planning expertise, refactor plan-phase to thin orchestrator)
-- Phase 16 added: Plan verification loop (gsd-plan-checker, planner → checker → revise orchestration)
+- Phase 5 added: Subagent Codebase Analysis
 
-## Project Alignment
+### Blockers/Concerns
 
-Last checked: 2026-01-16
-Status: COMPLETE
-Assessment: Phase 16 complete. Plan verification loop — gsd-plan-checker (744 lines), plan-phase orchestrator loop (310 lines), gsd-planner revision mode (1,284 lines).
-Drift notes: None
+- `.planning/` is gitignored in GSD repo - intel files created but not committed (expected for project-local data)
 
 ## Session Continuity
 
-Last session: 2026-01-16
-Stopped at: Completed 16-03-PLAN.md (Phase 16 complete)
+Last session: 2026-01-20
+Stopped at: Completed 05-01-PLAN.md (gsd-entity-generator Agent Definition)
 Resume file: None
+
+## Phase Progress
+
+- Phase 1: Foundation & Learning ✓
+- Phase 2: Context Injection ✓
+- Phase 3: Brownfield & Integration ✓
+- Phase 4: Semantic Intelligence & Scale ✓
+
+**Phase 5 status:**
+- 05-01: gsd-entity-generator agent definition ✓
+- 05-02: Integrate into analyze-codebase (pending)

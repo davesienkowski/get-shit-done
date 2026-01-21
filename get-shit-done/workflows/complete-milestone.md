@@ -528,7 +528,7 @@ Archive requirements and prepare for fresh requirements in next milestone.
    ✅ REQUIREMENTS.md deleted (fresh one needed for next milestone)
    ```
 
-**Important:** The next milestone workflow starts with `/gsd:define-requirements` to create a fresh REQUIREMENTS.md. PROJECT.md's Validated section carries the cumulative record across milestones.
+**Important:** The next milestone workflow starts with `/gsd:new-milestone` which includes requirements definition. PROJECT.md's Validated section carries the cumulative record across milestones.
 
 </step>
 
@@ -620,6 +620,17 @@ git push origin v[X.Y]
 
 Commit milestone completion including archive files and deletions.
 
+**Check planning config:**
+
+```bash
+COMMIT_PLANNING_DOCS=$(cat .planning/config.json 2>/dev/null | grep -o '"commit_docs"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "true")
+git check-ignore -q .planning 2>/dev/null && COMMIT_PLANNING_DOCS=false
+```
+
+**If `COMMIT_PLANNING_DOCS=false`:** Skip git operations
+
+**If `COMMIT_PLANNING_DOCS=true` (default):**
+
 ```bash
 # Stage archive files (new)
 git add .planning/milestones/v[X.Y]-ROADMAP.md
@@ -681,20 +692,11 @@ Tag: v[X.Y]
 
 ## ▶ Next Up
 
-**Discuss Next Milestone** — figure out what to build next
+**Start Next Milestone** — questioning → research → requirements → roadmap
 
-`/gsd:discuss-milestone`
+`/gsd:new-milestone`
 
 <sub>`/clear` first → fresh context window</sub>
-
----
-
-**Next milestone flow:**
-1. `/gsd:discuss-milestone` — thinking partner, creates context file
-2. `/gsd:new-milestone` — update PROJECT.md with new goals
-3. `/gsd:research-project` — (optional) research ecosystem
-4. `/gsd:define-requirements` — scope what to build
-5. `/gsd:create-roadmap` — plan how to build it
 
 ---
 ```
@@ -754,6 +756,6 @@ Milestone completion is successful when:
 - [ ] STATE.md updated with fresh project reference
 - [ ] Git tag created (v[X.Y])
 - [ ] Milestone commit made (includes archive files and deletion)
-- [ ] User knows next steps (starting with /gsd:define-requirements)
+- [ ] User knows next step (/gsd:new-milestone)
 
 </success_criteria>

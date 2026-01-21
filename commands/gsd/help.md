@@ -76,13 +76,16 @@ Map an existing codebase for brownfield projects.
 
 Usage: `/gsd:map-codebase`
 
-### Standalone Commands (deprecated, kept for mid-project use)
+**`/gsd:analyze-codebase`**
+Bootstrap codebase intelligence for existing projects.
 
-These commands are now integrated into `/gsd:new-project` but remain available for mid-project adjustments:
+- Scans all JS/TS files and extracts exports/imports
+- Detects naming conventions, directory patterns, file suffixes
+- Creates `.planning/intel/` with index, conventions, and summary
+- Works standalone (no `/gsd:new-project` required)
+- After initial scan, PostToolUse hook continues incremental learning
 
-**`/gsd:research-project`** — Re-research a domain (integrated into new-project Phase 6)
-**`/gsd:define-requirements`** — Redefine requirements (integrated into new-project Phase 7)
-**`/gsd:create-roadmap`** — Recreate roadmap (integrated into new-project Phase 8)
+Usage: `/gsd:analyze-codebase`
 
 ### Phase Planning
 
@@ -127,29 +130,30 @@ Result: Creates `.planning/phases/01-foundation/01-01-PLAN.md`
 
 ### Execution
 
-**`/gsd:execute-plan <path>`**
-Execute a single PLAN.md file.
-
-- Runs plan tasks sequentially
-- Creates SUMMARY.md after completion
-- Updates STATE.md with accumulated context
-- Use for interactive execution with checkpoints
-
-Usage: `/gsd:execute-plan .planning/phases/01-foundation/01-01-PLAN.md`
-
 **`/gsd:execute-phase <phase-number>`**
-Execute all unexecuted plans in a phase with parallel background agents.
+Execute all plans in a phase.
 
-- Analyzes plan dependencies and spawns independent plans concurrently
-- Use when phase has 2+ plans and you want "walk away" execution
-- Respects max_concurrent_agents from config.json
+- Groups plans by wave (from frontmatter), executes waves sequentially
+- Plans within each wave run in parallel via Task tool
+- Verifies phase goal after all plans complete
+- Updates REQUIREMENTS.md, ROADMAP.md, STATE.md
 
 Usage: `/gsd:execute-phase 5`
 
-Options (via `.planning/config.json` parallelization section):
-- `max_concurrent_agents`: Limit parallel agents (default: 3)
-- `skip_checkpoints`: Skip human checkpoints in background (default: true)
-- `min_plans_for_parallel`: Minimum plans to trigger parallelization (default: 2)
+### Quick Mode
+
+**`/gsd:quick`**
+Execute small, ad-hoc tasks with GSD guarantees but skip optional agents.
+
+Quick mode uses the same system with a shorter path:
+- Spawns planner + executor (skips researcher, checker, verifier)
+- Quick tasks live in `.planning/quick/` separate from planned phases
+- Updates STATE.md tracking (not ROADMAP.md)
+
+Use when you know exactly what to do and the task is small enough to not need research or verification.
+
+Usage: `/gsd:quick`
+Result: Creates `.planning/quick/NNN-slug/PLAN.md`, `.planning/quick/NNN-slug/SUMMARY.md`
 
 ### Roadmap Management
 
@@ -185,21 +189,15 @@ Result: Phase 17 deleted, phases 18-20 become 17-19
 
 ### Milestone Management
 
-**`/gsd:discuss-milestone`**
-Figure out what you want to build in the next milestone.
-
-- Reviews what shipped in previous milestone
-- Helps you identify features to add, improve, or fix
-- Routes to /gsd:new-milestone when ready
-
-Usage: `/gsd:discuss-milestone`
-
 **`/gsd:new-milestone <name>`**
-Create a new milestone with phases for an existing project.
+Start a new milestone through unified flow.
 
-- Adds milestone section to ROADMAP.md
-- Creates phase directories
-- Updates STATE.md for new milestone
+- Deep questioning to understand what you're building next
+- Optional domain research (spawns 4 parallel researcher agents)
+- Requirements definition with scoping
+- Roadmap creation with phase breakdown
+
+Mirrors `/gsd:new-project` flow for brownfield projects (existing PROJECT.md).
 
 Usage: `/gsd:new-milestone "v2.0 Features"`
 
@@ -287,6 +285,73 @@ List pending todos and select one to work on.
 Usage: `/gsd:check-todos`
 Usage: `/gsd:check-todos api`
 
+### User Acceptance Testing
+
+**`/gsd:verify-work [phase]`**
+Validate built features through conversational UAT.
+
+- Extracts testable deliverables from SUMMARY.md files
+- Presents tests one at a time (yes/no responses)
+- Automatically diagnoses failures and creates fix plans
+- Ready for re-execution if issues found
+
+Usage: `/gsd:verify-work 3`
+
+### Milestone Auditing
+
+**`/gsd:audit-milestone [version]`**
+Audit milestone completion against original intent.
+
+- Reads all phase VERIFICATION.md files
+- Checks requirements coverage
+- Spawns integration checker for cross-phase wiring
+- Creates MILESTONE-AUDIT.md with gaps and tech debt
+
+Usage: `/gsd:audit-milestone`
+
+**`/gsd:plan-milestone-gaps`**
+Create phases to close gaps identified by audit.
+
+- Reads MILESTONE-AUDIT.md and groups gaps into phases
+- Prioritizes by requirement priority (must/should/nice)
+- Adds gap closure phases to ROADMAP.md
+- Ready for `/gsd:plan-phase` on new phases
+
+Usage: `/gsd:plan-milestone-gaps`
+
+### Configuration
+
+**`/gsd:settings`**
+Configure workflow toggles and model profile interactively.
+
+- Toggle researcher, plan checker, verifier agents
+- Select model profile (quality/balanced/budget)
+- Updates `.planning/config.json`
+
+Usage: `/gsd:settings`
+
+**`/gsd:set-profile <profile>`**
+Quick switch model profile for GSD agents.
+
+- `quality` — Opus everywhere except verification
+- `balanced` — Opus for planning, Sonnet for execution (default)
+- `budget` — Sonnet for writing, Haiku for research/verification
+
+Usage: `/gsd:set-profile budget`
+
+### Codebase Intelligence
+
+**`/gsd:query-intel <type> [path]`**
+Query the codebase intelligence graph database.
+
+- `dependents <file>` — What files depend on this? (blast radius)
+- `hotspots` — Which files have the most dependents?
+
+Requires `/gsd:analyze-codebase` to build the graph first.
+
+Usage: `/gsd:query-intel dependents src/lib/db.ts`
+Usage: `/gsd:query-intel hotspots`
+
 ### Utility Commands
 
 **`/gsd:help`**
@@ -302,6 +367,15 @@ See what's changed since your installed version.
 
 Usage: `/gsd:whats-new`
 
+**`/gsd:update`**
+Update GSD to latest version with changelog preview.
+
+- Shows what changed before updating
+- Confirms before running install
+- Better than raw `npx get-shit-done-cc`
+
+Usage: `/gsd:update`
+
 ## Files & Structure
 
 ```
@@ -315,6 +389,10 @@ Usage: `/gsd:whats-new`
 │   └── done/             # Completed todos
 ├── debug/                # Active debug sessions
 │   └── resolved/         # Archived resolved issues
+├── intel/                # Codebase intelligence (auto-populated)
+│   ├── index.json        # File exports and imports
+│   ├── conventions.json  # Detected patterns
+│   └── summary.md        # Context for session injection
 ├── codebase/             # Codebase map (brownfield projects)
 │   ├── STACK.md          # Languages, frameworks, dependencies
 │   ├── ARCHITECTURE.md   # Patterns, layers, data flow
@@ -350,6 +428,33 @@ Set during `/gsd:new-project`:
 
 Change anytime by editing `.planning/config.json`
 
+## Planning Configuration
+
+Configure how planning artifacts are managed in `.planning/config.json`:
+
+**`planning.commit_docs`** (default: `true`)
+- `true`: Planning artifacts committed to git (standard workflow)
+- `false`: Planning artifacts kept local-only, not committed
+
+When `commit_docs: false`:
+- Add `.planning/` to your `.gitignore`
+- Useful for OSS contributions, client projects, or keeping planning private
+- All planning files still work normally, just not tracked in git
+
+**`planning.search_gitignored`** (default: `false`)
+- `true`: Add `--no-ignore` to broad ripgrep searches
+- Only needed when `.planning/` is gitignored and you want project-wide searches to include it
+
+Example config:
+```json
+{
+  "planning": {
+    "commit_docs": false,
+    "search_gitignored": true
+  }
+}
+```
+
 ## Common Workflows
 
 **Starting a new project:**
@@ -373,14 +478,15 @@ Change anytime by editing `.planning/config.json`
 ```
 /gsd:insert-phase 5 "Critical security fix"
 /gsd:plan-phase 5.1
-/gsd:execute-plan .planning/phases/05.1-critical-security-fix/05.1-01-PLAN.md
+/gsd:execute-phase 5.1
 ```
 
 **Completing a milestone:**
 
 ```
 /gsd:complete-milestone 1.0.0
-/gsd:new-milestone  # Start next milestone
+/clear
+/gsd:new-milestone  # Start next milestone (questioning → research → requirements → roadmap)
 ```
 
 **Capturing ideas during work:**

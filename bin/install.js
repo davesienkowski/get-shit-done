@@ -48,15 +48,18 @@ function parseConfigDirArg() {
   // Also handle --config-dir=value format
   const configDirArg = args.find(arg => arg.startsWith('--config-dir=') || arg.startsWith('-c='));
   if (configDirArg) {
-    return configDirArg.split('=')[1];
+    const value = configDirArg.split('=')[1];
+    if (!value) {
+      console.error(`  ${yellow}--config-dir requires a non-empty path${reset}`);
+      process.exit(1);
+    }
+    return value;
   }
   return null;
 }
 const explicitConfigDir = parseConfigDirArg();
 const hasHelp = args.includes('--help') || args.includes('-h');
 const forceStatusline = args.includes('--force-statusline');
-const forceNotify = args.includes('--force-notify');
-const noNotify = args.includes('--no-notify');
 
 console.log(banner);
 
@@ -70,8 +73,6 @@ if (hasHelp) {
     ${cyan}-c, --config-dir <path>${reset}   Specify custom Claude config directory
     ${cyan}-h, --help${reset}                Show this help message
     ${cyan}--force-statusline${reset}        Replace existing statusline config
-    ${cyan}--force-notify${reset}            Replace existing notification hook
-    ${cyan}--no-notify${reset}               Skip notification hook installation
 
   ${yellow}Examples:${reset}
     ${dim}# Install to default ~/.claude directory${reset}
@@ -127,8 +128,13 @@ function writeSettings(settingsPath, settings) {
 
 /**
  * Recursively copy directory, replacing paths in .md files
+ * Deletes existing destDir first to remove orphaned files from previous versions
  */
 function copyWithPathReplacement(srcDir, destDir, pathPrefix) {
+  // Clean install: remove existing destination to prevent orphaned files
+  if (fs.existsSync(destDir)) {
+    fs.rmSync(destDir, { recursive: true });
+  }
   fs.mkdirSync(destDir, { recursive: true });
 
   const entries = fs.readdirSync(srcDir, { withFileTypes: true });
@@ -148,6 +154,98 @@ function copyWithPathReplacement(srcDir, destDir, pathPrefix) {
       fs.copyFileSync(srcPath, destPath);
     }
   }
+}
+
+/**
+ * Clean up orphaned files from previous GSD versions
+ */
+function cleanupOrphanedFiles(claudeDir) {
+  const orphanedFiles = [
+    'hooks/gsd-notify.sh',  // Removed in v1.6.x
+    'hooks/statusline.js',  // Renamed to gsd-statusline.js in v1.9.0
+  ];
+
+  for (const relPath of orphanedFiles) {
+    const fullPath = path.join(claudeDir, relPath);
+    if (fs.existsSync(fullPath)) {
+      fs.unlinkSync(fullPath);
+      console.log(`  ${green}✓${reset} Removed orphaned ${relPath}`);
+    }
+  }
+}
+
+/**
+ * Clean up orphaned hook registrations from settings.json
+ */
+function cleanupOrphanedHooks(settings) {
+  const orphanedHookPatterns = [
+    'gsd-notify.sh',  // Removed in v1.6.x
+    'hooks/statusline.js',  // Renamed to gsd-statusline.js in v1.9.0
+  ];
+
+  let cleaned = false;
+
+  // Check all hook event types (Stop, SessionStart, etc.)
+  if (settings.hooks) {
+    for (const eventType of Object.keys(settings.hooks)) {
+      const hookEntries = settings.hooks[eventType];
+      if (Array.isArray(hookEntries)) {
+        // Filter out entries that contain orphaned hooks
+        const filtered = hookEntries.filter(entry => {
+          if (entry.hooks && Array.isArray(entry.hooks)) {
+            // Check if any hook in this entry matches orphaned patterns
+            const hasOrphaned = entry.hooks.some(h =>
+              h.command && orphanedHookPatterns.some(pattern => h.command.includes(pattern))
+            );
+            if (hasOrphaned) {
+              cleaned = true;
+              return false;  // Remove this entry
+            }
+          }
+          return true;  // Keep this entry
+        });
+        settings.hooks[eventType] = filtered;
+      }
+    }
+  }
+
+  if (cleaned) {
+    console.log(`  ${green}✓${reset} Removed orphaned hook registrations`);
+  }
+
+  return settings;
+}
+
+/**
+ * Verify a directory exists and contains files
+ */
+function verifyInstalled(dirPath, description) {
+  if (!fs.existsSync(dirPath)) {
+    console.error(`  ${yellow}✗${reset} Failed to install ${description}: directory not created`);
+    return false;
+  }
+  try {
+    const entries = fs.readdirSync(dirPath);
+    if (entries.length === 0) {
+      console.error(`  ${yellow}✗${reset} Failed to install ${description}: directory is empty`);
+      return false;
+    }
+  } catch (e) {
+    console.error(`  ${yellow}✗${reset} Failed to install ${description}: ${e.message}`);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Verify a file exists
+ */
+function verifyFileInstalled(filePath, description) {
+  if (!fs.existsSync(filePath)) {
+    console.error(`  ${yellow}✗${reset} Failed to install ${description}: file not created`);
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -174,6 +272,12 @@ function install(isGlobal) {
 
   console.log(`  Installing to ${cyan}${locationLabel}${reset}\n`);
 
+  // Track installation failures
+  const failures = [];
+
+  // Clean up orphaned files from previous versions
+  cleanupOrphanedFiles(claudeDir);
+
   // Create commands directory
   const commandsDir = path.join(claudeDir, 'commands');
   fs.mkdirSync(commandsDir, { recursive: true });
@@ -182,20 +286,52 @@ function install(isGlobal) {
   const gsdSrc = path.join(src, 'commands', 'gsd');
   const gsdDest = path.join(commandsDir, 'gsd');
   copyWithPathReplacement(gsdSrc, gsdDest, pathPrefix);
-  console.log(`  ${green}✓${reset} Installed commands/gsd`);
+  if (verifyInstalled(gsdDest, 'commands/gsd')) {
+    console.log(`  ${green}✓${reset} Installed commands/gsd`);
+  } else {
+    failures.push('commands/gsd');
+  }
 
   // Copy get-shit-done skill with path replacement
   const skillSrc = path.join(src, 'get-shit-done');
   const skillDest = path.join(claudeDir, 'get-shit-done');
   copyWithPathReplacement(skillSrc, skillDest, pathPrefix);
-  console.log(`  ${green}✓${reset} Installed get-shit-done`);
+  if (verifyInstalled(skillDest, 'get-shit-done')) {
+    console.log(`  ${green}✓${reset} Installed get-shit-done`);
+  } else {
+    failures.push('get-shit-done');
+  }
 
   // Copy agents to ~/.claude/agents (subagents must be at root level)
+  // Only delete gsd-*.md files to preserve user's custom agents
   const agentsSrc = path.join(src, 'agents');
   if (fs.existsSync(agentsSrc)) {
     const agentsDest = path.join(claudeDir, 'agents');
-    copyWithPathReplacement(agentsSrc, agentsDest, pathPrefix);
-    console.log(`  ${green}✓${reset} Installed agents`);
+    fs.mkdirSync(agentsDest, { recursive: true });
+
+    // Remove old GSD agents (gsd-*.md) before copying new ones
+    if (fs.existsSync(agentsDest)) {
+      for (const file of fs.readdirSync(agentsDest)) {
+        if (file.startsWith('gsd-') && file.endsWith('.md')) {
+          fs.unlinkSync(path.join(agentsDest, file));
+        }
+      }
+    }
+
+    // Copy new agents (don't use copyWithPathReplacement which would wipe the folder)
+    const agentEntries = fs.readdirSync(agentsSrc, { withFileTypes: true });
+    for (const entry of agentEntries) {
+      if (entry.isFile() && entry.name.endsWith('.md')) {
+        let content = fs.readFileSync(path.join(agentsSrc, entry.name), 'utf8');
+        content = content.replace(/~\/\.claude\//g, pathPrefix);
+        fs.writeFileSync(path.join(agentsDest, entry.name), content);
+      }
+    }
+    if (verifyInstalled(agentsDest, 'agents')) {
+      console.log(`  ${green}✓${reset} Installed agents`);
+    } else {
+      failures.push('agents');
+    }
   }
 
   // Copy CHANGELOG.md
@@ -203,44 +339,59 @@ function install(isGlobal) {
   const changelogDest = path.join(claudeDir, 'get-shit-done', 'CHANGELOG.md');
   if (fs.existsSync(changelogSrc)) {
     fs.copyFileSync(changelogSrc, changelogDest);
-    console.log(`  ${green}✓${reset} Installed CHANGELOG.md`);
+    if (verifyFileInstalled(changelogDest, 'CHANGELOG.md')) {
+      console.log(`  ${green}✓${reset} Installed CHANGELOG.md`);
+    } else {
+      failures.push('CHANGELOG.md');
+    }
   }
 
   // Write VERSION file for whats-new command
   const versionDest = path.join(claudeDir, 'get-shit-done', 'VERSION');
   fs.writeFileSync(versionDest, pkg.version);
-  console.log(`  ${green}✓${reset} Wrote VERSION (${pkg.version})`);
+  if (verifyFileInstalled(versionDest, 'VERSION')) {
+    console.log(`  ${green}✓${reset} Wrote VERSION (${pkg.version})`);
+  } else {
+    failures.push('VERSION');
+  }
 
-  // Copy hooks
-  const hooksSrc = path.join(src, 'hooks');
+  // Copy hooks from dist/ (bundled with dependencies)
+  const hooksSrc = path.join(src, 'hooks', 'dist');
   if (fs.existsSync(hooksSrc)) {
     const hooksDest = path.join(claudeDir, 'hooks');
     fs.mkdirSync(hooksDest, { recursive: true });
     const hookEntries = fs.readdirSync(hooksSrc);
     for (const entry of hookEntries) {
       const srcFile = path.join(hooksSrc, entry);
-      const destFile = path.join(hooksDest, entry);
-      fs.copyFileSync(srcFile, destFile);
-      // Make shell scripts executable
-      if (entry.endsWith('.sh')) {
-        fs.chmodSync(destFile, 0o755);
+      // Only copy files, not directories
+      if (fs.statSync(srcFile).isFile()) {
+        const destFile = path.join(hooksDest, entry);
+        fs.copyFileSync(srcFile, destFile);
       }
     }
-    console.log(`  ${green}✓${reset} Installed hooks`);
+    if (verifyInstalled(hooksDest, 'hooks')) {
+      console.log(`  ${green}✓${reset} Installed hooks (bundled)`);
+    } else {
+      failures.push('hooks');
+    }
+  }
+
+  // If critical components failed, exit with error
+  if (failures.length > 0) {
+    console.error(`\n  ${yellow}Installation incomplete!${reset} Failed: ${failures.join(', ')}`);
+    console.error(`  Try running directly: node ~/.npm/_npx/*/node_modules/get-shit-done-cc/bin/install.js --global\n`);
+    process.exit(1);
   }
 
   // Configure statusline and hooks in settings.json
   const settingsPath = path.join(claudeDir, 'settings.json');
-  const settings = readSettings(settingsPath);
+  const settings = cleanupOrphanedHooks(readSettings(settingsPath));
   const statuslineCommand = isGlobal
-    ? '$HOME/.claude/hooks/statusline.sh'
-    : '.claude/hooks/statusline.sh';
+    ? 'node "$HOME/.claude/hooks/gsd-statusline.js"'
+    : 'node .claude/hooks/gsd-statusline.js';
   const updateCheckCommand = isGlobal
-    ? '$HOME/.claude/hooks/gsd-check-update.sh'
-    : '.claude/hooks/gsd-check-update.sh';
-  const notifyCommand = isGlobal
-    ? '$HOME/.claude/hooks/gsd-notify.sh'
-    : '.claude/hooks/gsd-notify.sh';
+    ? 'node "$HOME/.claude/hooks/gsd-check-update.js"'
+    : 'node .claude/hooks/gsd-check-update.js';
 
   // Configure SessionStart hook for update checking
   if (!settings.hooks) {
@@ -267,38 +418,85 @@ function install(isGlobal) {
     console.log(`  ${green}✓${reset} Configured update check hook`);
   }
 
-  return { settingsPath, settings, statuslineCommand, notifyCommand };
+  // Register intel hooks for codebase intelligence
+  const intelIndexCommand = isGlobal
+    ? 'node "$HOME/.claude/hooks/gsd-intel-index.js"'
+    : 'node .claude/hooks/gsd-intel-index.js';
+
+  const intelSessionCommand = isGlobal
+    ? 'node "$HOME/.claude/hooks/gsd-intel-session.js"'
+    : 'node .claude/hooks/gsd-intel-session.js';
+
+  // PostToolUse hook for indexing
+  if (!settings.hooks.PostToolUse) {
+    settings.hooks.PostToolUse = [];
+  }
+
+  const hasIntelIndexHook = settings.hooks.PostToolUse.some(entry =>
+    entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-intel-index'))
+  );
+
+  if (!hasIntelIndexHook) {
+    settings.hooks.PostToolUse.push({
+      hooks: [{
+        type: 'command',
+        command: intelIndexCommand
+      }]
+    });
+    console.log(`  ${green}✓${reset} Configured intel indexing hook`);
+  }
+
+  // SessionStart hook for context injection
+  const hasIntelSessionHook = settings.hooks.SessionStart.some(entry =>
+    entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-intel-session'))
+  );
+
+  if (!hasIntelSessionHook) {
+    settings.hooks.SessionStart.push({
+      hooks: [{
+        type: 'command',
+        command: intelSessionCommand
+      }]
+    });
+    console.log(`  ${green}✓${reset} Configured intel session hook`);
+  }
+
+  // Stop hook for pruning deleted files
+  const intelPruneCommand = isGlobal
+    ? 'node "$HOME/.claude/hooks/gsd-intel-prune.js"'
+    : 'node .claude/hooks/gsd-intel-prune.js';
+
+  if (!settings.hooks.Stop) {
+    settings.hooks.Stop = [];
+  }
+
+  const hasIntelPruneHook = settings.hooks.Stop.some(entry =>
+    entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-intel-prune'))
+  );
+
+  if (!hasIntelPruneHook) {
+    settings.hooks.Stop.push({
+      hooks: [{
+        type: 'command',
+        command: intelPruneCommand
+      }]
+    });
+    console.log(`  ${green}✓${reset} Configured intel prune hook`);
+  }
+
+  return { settingsPath, settings, statuslineCommand };
 }
 
 /**
- * Apply statusline and notification config, then print completion message
+ * Apply statusline config, then print completion message
  */
-function finishInstall(settingsPath, settings, statuslineCommand, notifyCommand, shouldInstallStatusline, shouldInstallNotify) {
+function finishInstall(settingsPath, settings, statuslineCommand, shouldInstallStatusline) {
   if (shouldInstallStatusline) {
     settings.statusLine = {
       type: 'command',
       command: statuslineCommand
     };
     console.log(`  ${green}✓${reset} Configured statusline`);
-  }
-
-  if (shouldInstallNotify) {
-    if (!settings.hooks.Stop) {
-      settings.hooks.Stop = [];
-    }
-    // Remove any existing GSD notify hook first
-    settings.hooks.Stop = settings.hooks.Stop.filter(entry =>
-      !(entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-notify')))
-    );
-    settings.hooks.Stop.push({
-      hooks: [
-        {
-          type: 'command',
-          command: notifyCommand
-        }
-      ]
-    });
-    console.log(`  ${green}✓${reset} Configured completion notifications`);
   }
 
   // Always write settings (hooks were already configured in install())
@@ -366,72 +564,38 @@ function handleStatusline(settings, isInteractive, callback) {
 }
 
 /**
- * Handle notification hook configuration with optional prompt
- */
-function handleNotifications(settings, isInteractive, callback) {
-  // Check if --no-notify flag was passed
-  if (noNotify) {
-    callback(false);
-    return;
-  }
-
-  // Check if GSD notify hook already exists
-  const hasExisting = settings.hooks?.Stop?.some(entry =>
-    entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-notify'))
-  );
-
-  // No existing - just install it
-  if (!hasExisting) {
-    callback(true);
-    return;
-  }
-
-  // Has existing and --force-notify flag
-  if (forceNotify) {
-    callback(true);
-    return;
-  }
-
-  // Has existing, non-interactive mode - skip
-  if (!isInteractive) {
-    console.log(`  ${yellow}⚠${reset} Skipping notifications (already configured)`);
-    console.log(`    Use ${cyan}--force-notify${reset} to replace\n`);
-    callback(false);
-    return;
-  }
-
-  // Has existing, interactive mode - prompt user
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
-
-  console.log(`
-  ${yellow}⚠${reset} Existing notification hook detected
-
-  GSD includes completion notifications that alert you when:
-    • A phase completes planning or execution
-    • Claude stops and needs your input
-    • Works on Mac, Linux, and Windows
-
-  ${cyan}1${reset}) Keep existing
-  ${cyan}2${reset}) Replace with GSD notifications
-`);
-
-  rl.question(`  Choice ${dim}[1]${reset}: `, (answer) => {
-    rl.close();
-    const choice = answer.trim() || '1';
-    callback(choice === '2');
-  });
-}
-
-/**
  * Prompt for install location
  */
 function promptLocation() {
+  // Check if stdin is a TTY - if not, fall back to global install
+  // This handles npx execution in environments like WSL2 where stdin may not be properly connected
+  if (!process.stdin.isTTY) {
+    console.log(`  ${yellow}Non-interactive terminal detected, defaulting to global install${reset}\n`);
+    const { settingsPath, settings, statuslineCommand } = install(true);
+    handleStatusline(settings, false, (shouldInstallStatusline) => {
+      finishInstall(settingsPath, settings, statuslineCommand, shouldInstallStatusline);
+    });
+    return;
+  }
+
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
+  });
+
+  // Track whether we've processed the answer to prevent double-execution
+  let answered = false;
+
+  // Handle readline close event to detect premature stdin closure
+  rl.on('close', () => {
+    if (!answered) {
+      answered = true;
+      console.log(`\n  ${yellow}Input stream closed, defaulting to global install${reset}\n`);
+      const { settingsPath, settings, statuslineCommand } = install(true);
+      handleStatusline(settings, false, (shouldInstallStatusline) => {
+        finishInstall(settingsPath, settings, statuslineCommand, shouldInstallStatusline);
+      });
+    }
   });
 
   const configDir = expandTilde(explicitConfigDir) || expandTilde(process.env.CLAUDE_CONFIG_DIR);
@@ -445,15 +609,14 @@ function promptLocation() {
 `);
 
   rl.question(`  Choice ${dim}[1]${reset}: `, (answer) => {
+    answered = true;
     rl.close();
     const choice = answer.trim() || '1';
     const isGlobal = choice !== '2';
-    const { settingsPath, settings, statuslineCommand, notifyCommand } = install(isGlobal);
+    const { settingsPath, settings, statuslineCommand } = install(isGlobal);
     // Interactive mode - prompt for optional features
     handleStatusline(settings, true, (shouldInstallStatusline) => {
-      handleNotifications(settings, true, (shouldInstallNotify) => {
-        finishInstall(settingsPath, settings, statuslineCommand, notifyCommand, shouldInstallStatusline, shouldInstallNotify);
-      });
+      finishInstall(settingsPath, settings, statuslineCommand, shouldInstallStatusline);
     });
   });
 }
@@ -466,20 +629,16 @@ if (hasGlobal && hasLocal) {
   console.error(`  ${yellow}Cannot use --config-dir with --local${reset}`);
   process.exit(1);
 } else if (hasGlobal) {
-  const { settingsPath, settings, statuslineCommand, notifyCommand } = install(true);
+  const { settingsPath, settings, statuslineCommand } = install(true);
   // Non-interactive - respect flags
   handleStatusline(settings, false, (shouldInstallStatusline) => {
-    handleNotifications(settings, false, (shouldInstallNotify) => {
-      finishInstall(settingsPath, settings, statuslineCommand, notifyCommand, shouldInstallStatusline, shouldInstallNotify);
-    });
+    finishInstall(settingsPath, settings, statuslineCommand, shouldInstallStatusline);
   });
 } else if (hasLocal) {
-  const { settingsPath, settings, statuslineCommand, notifyCommand } = install(false);
+  const { settingsPath, settings, statuslineCommand } = install(false);
   // Non-interactive - respect flags
   handleStatusline(settings, false, (shouldInstallStatusline) => {
-    handleNotifications(settings, false, (shouldInstallNotify) => {
-      finishInstall(settingsPath, settings, statuslineCommand, notifyCommand, shouldInstallStatusline, shouldInstallNotify);
-    });
+    finishInstall(settingsPath, settings, statuslineCommand, shouldInstallStatusline);
   });
 } else {
   promptLocation();

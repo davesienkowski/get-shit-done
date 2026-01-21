@@ -19,8 +19,7 @@ One command creates all fix phases — no manual `/gsd:add-phase` per gap.
 </objective>
 
 <execution_context>
-@~/.claude/get-shit-done/references/principles.md
-@~/.claude/get-shit-done/workflows/plan-phase.md
+<!-- Spawns gsd-planner agent which has all planning expertise baked in -->
 </execution_context>
 
 <context>
@@ -158,6 +157,17 @@ mkdir -p ".planning/phases/{NN}-{name}"
 ```
 
 ## 8. Commit Roadmap Update
+
+**Check planning config:**
+
+```bash
+COMMIT_PLANNING_DOCS=$(cat .planning/config.json 2>/dev/null | grep -o '"commit_docs"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "true")
+git check-ignore -q .planning 2>/dev/null && COMMIT_PLANNING_DOCS=false
+```
+
+**If `COMMIT_PLANNING_DOCS=false`:** Skip git operations
+
+**If `COMMIT_PLANNING_DOCS=true` (default):**
 
 ```bash
 git add .planning/ROADMAP.md

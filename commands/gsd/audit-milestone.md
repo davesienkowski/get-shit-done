@@ -18,7 +18,7 @@ Verify milestone achieved its definition of done. Check requirements coverage, c
 </objective>
 
 <execution_context>
-@~/.claude/get-shit-done/references/principles.md
+<!-- Spawns gsd-integration-checker agent which has all audit expertise baked in -->
 </execution_context>
 
 <context>
@@ -38,6 +38,24 @@ Glob: .planning/phases/*/*-VERIFICATION.md
 </context>
 
 <process>
+
+## 0. Resolve Model Profile
+
+Read model profile for agent spawning:
+
+```bash
+MODEL_PROFILE=$(cat .planning/config.json 2>/dev/null | grep -o '"model_profile"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"' || echo "balanced")
+```
+
+Default to "balanced" if not set.
+
+**Model lookup table:**
+
+| Agent | quality | balanced | budget |
+|-------|---------|----------|--------|
+| gsd-integration-checker | sonnet | sonnet | haiku |
+
+Store resolved model for use in Task call below.
 
 ## 1. Determine Milestone Scope
 
@@ -83,7 +101,8 @@ Phase exports: {from SUMMARYs}
 API routes: {routes created}
 
 Verify cross-phase wiring and E2E user flows.",
-  subagent_type="gsd-integration-checker"
+  subagent_type="gsd-integration-checker",
+  model="{integration_checker_model}"
 )
 ```
 
@@ -143,9 +162,12 @@ Route by status (see `<offer_next>`).
 </process>
 
 <offer_next>
+Output this markdown directly (not as a code block). Route based on status:
+
+---
+
 **If passed:**
 
-```markdown
 ## ✓ Milestone {version} — Audit Passed
 
 **Score:** {N}/{M} requirements satisfied
@@ -153,22 +175,22 @@ Route by status (see `<offer_next>`).
 
 All requirements covered. Cross-phase integration verified. E2E flows complete.
 
----
+───────────────────────────────────────────────────────────────
 
 ## ▶ Next Up
 
 **Complete milestone** — archive and tag
 
-`/gsd:complete-milestone {version}`
+/gsd:complete-milestone {version}
 
-<sub>`/clear` first → fresh context window</sub>
-```
+<sub>/clear first → fresh context window</sub>
+
+───────────────────────────────────────────────────────────────
 
 ---
 
 **If gaps_found:**
 
-```markdown
 ## ⚠ Milestone {version} — Gaps Found
 
 **Score:** {N}/{M} requirements satisfied
@@ -190,28 +212,28 @@ All requirements covered. Cross-phase integration verified. E2E flows complete.
 {For each flow gap:}
 - **{flow name}:** breaks at {step}
 
----
+───────────────────────────────────────────────────────────────
 
 ## ▶ Next Up
 
 **Plan gap closure** — create phases to complete milestone
 
-`/gsd:plan-milestone-gaps`
+/gsd:plan-milestone-gaps
 
-<sub>`/clear` first → fresh context window</sub>
+<sub>/clear first → fresh context window</sub>
 
----
+───────────────────────────────────────────────────────────────
 
 **Also available:**
-- `cat .planning/v{version}-MILESTONE-AUDIT.md` — see full report
-- `/gsd:complete-milestone {version}` — proceed anyway (accept tech debt)
-```
+- cat .planning/v{version}-MILESTONE-AUDIT.md — see full report
+- /gsd:complete-milestone {version} — proceed anyway (accept tech debt)
+
+───────────────────────────────────────────────────────────────
 
 ---
 
 **If tech_debt (no blockers but accumulated debt):**
 
-```markdown
 ## ⚡ Milestone {version} — Tech Debt Review
 
 **Score:** {N}/{M} requirements satisfied
@@ -228,20 +250,21 @@ All requirements met. No critical blockers. Accumulated tech debt needs review.
 
 ### Total: {N} items across {M} phases
 
----
+───────────────────────────────────────────────────────────────
 
 ## ▶ Options
 
 **A. Complete milestone** — accept debt, track in backlog
 
-`/gsd:complete-milestone {version}`
+/gsd:complete-milestone {version}
 
 **B. Plan cleanup phase** — address debt before completing
 
-`/gsd:plan-milestone-gaps`
+/gsd:plan-milestone-gaps
 
-<sub>`/clear` first → fresh context window</sub>
-```
+<sub>/clear first → fresh context window</sub>
+
+───────────────────────────────────────────────────────────────
 </offer_next>
 
 <success_criteria>

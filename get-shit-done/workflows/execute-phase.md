@@ -8,11 +8,32 @@ The orchestrator's job is coordination, not execution. Each subagent loads the f
 
 <required_reading>
 Read STATE.md before any operation to load project context.
+Read config.json for planning behavior settings.
 </required_reading>
 
 <process>
 
-<step name="load_project_state" priority="first">
+<step name="resolve_model_profile" priority="first">
+Read model profile for agent spawning:
+
+```bash
+MODEL_PROFILE=$(cat .planning/config.json 2>/dev/null | grep -o '"model_profile"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"' || echo "balanced")
+```
+
+Default to "balanced" if not set.
+
+**Model lookup table:**
+
+| Agent | quality | balanced | budget |
+|-------|---------|----------|--------|
+| gsd-executor | opus | sonnet | sonnet |
+| gsd-verifier | sonnet | sonnet | haiku |
+| general-purpose | — | — | — |
+
+Store resolved models for use in Task calls below.
+</step>
+
+<step name="load_project_state">
 Before any operation, read project state:
 
 ```bash
@@ -33,13 +54,26 @@ Options:
 ```
 
 **If .planning/ doesn't exist:** Error - project not initialized.
+
+**Load planning config:**
+
+```bash
+# Check if planning docs should be committed (default: true)
+COMMIT_PLANNING_DOCS=$(cat .planning/config.json 2>/dev/null | grep -o '"commit_docs"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "true")
+# Auto-detect gitignored (overrides config)
+git check-ignore -q .planning 2>/dev/null && COMMIT_PLANNING_DOCS=false
+```
+
+Store `COMMIT_PLANNING_DOCS` for use in git operations.
 </step>
 
 <step name="validate_phase">
 Confirm phase exists and has plans:
 
 ```bash
-PHASE_DIR=$(ls -d .planning/phases/${PHASE_ARG}* 2>/dev/null | head -1)
+# Match both zero-padded (05-*) and unpadded (5-*) folders
+PADDED_PHASE=$(printf "%02d" ${PHASE_ARG} 2>/dev/null || echo "${PHASE_ARG}")
+PHASE_DIR=$(ls -d .planning/phases/${PADDED_PHASE}-* .planning/phases/${PHASE_ARG}-* 2>/dev/null | head -1)
 if [ -z "$PHASE_DIR" ]; then
   echo "ERROR: No phase directory matching '${PHASE_ARG}'"
   exit 1
@@ -69,15 +103,21 @@ ls -1 "$PHASE_DIR"/*-SUMMARY.md 2>/dev/null | sort
 For each plan, read frontmatter to extract:
 - `wave: N` - Execution wave (pre-computed)
 - `autonomous: true/false` - Whether plan has checkpoints
+- `gap_closure: true/false` - Whether plan closes gaps from verification/UAT
 
 Build plan inventory:
 - Plan path
 - Plan ID (e.g., "03-01")
 - Wave number
 - Autonomous flag
+- Gap closure flag
 - Completion status (SUMMARY exists = complete)
 
-Skip completed plans. If all complete, report "Phase already executed" and exit.
+**Filtering:**
+- Skip completed plans (have SUMMARY.md)
+- If `--gaps-only` flag: also skip plans where `gap_closure` is not `true`
+
+If all plans filtered out, report "No matching incomplete plans" and exit.
 </step>
 
 <step name="group_by_wave">
@@ -150,9 +190,18 @@ Execute each wave in sequence. Autonomous plans within a wave run in parallel.
    - Bad: "Executing terrain generation plan"
    - Good: "Procedural terrain generator using Perlin noise — creates height maps, biome zones, and collision meshes. Required before vehicle physics can interact with ground."
 
-2. **Spawn all autonomous agents in wave simultaneously:**
+2. **Read files and spawn all autonomous agents in wave simultaneously:**
 
-   Use Task tool with multiple parallel calls. Each agent gets prompt from subagent-task-prompt template:
+   Before spawning, read file contents. The `@` syntax does not work across Task() boundaries - content must be inlined.
+
+   ```bash
+   # Read each plan in the wave
+   PLAN_CONTENT=$(cat "{plan_path}")
+   STATE_CONTENT=$(cat .planning/STATE.md)
+   CONFIG_CONTENT=$(cat .planning/config.json 2>/dev/null)
+   ```
+
+   Use Task tool with multiple parallel calls. Each agent gets prompt with inlined content:
 
    ```
    <objective>
@@ -169,9 +218,14 @@ Execute each wave in sequence. Autonomous plans within a wave run in parallel.
    </execution_context>
 
    <context>
-   Plan: @{plan_path}
-   Project state: @.planning/STATE.md
-   Config: @.planning/config.json (if exists)
+   Plan:
+   {plan_content}
+
+   Project state:
+   {state_content}
+
+   Config (if exists):
+   {config_content}
    </context>
 
    <success_criteria>
@@ -240,7 +294,7 @@ Plans with `autonomous: false` require user interaction.
 
 1. **Spawn agent for checkpoint plan:**
    ```
-   Task(prompt="{subagent-task-prompt}", subagent_type="general-purpose")
+   Task(prompt="{subagent-task-prompt}", subagent_type="gsd-executor", model="{executor_model}")
    ```
 
 2. **Agent runs until checkpoint:**
@@ -279,7 +333,8 @@ Plans with `autonomous: false` require user interaction.
    ```
    Task(
      prompt=filled_continuation_template,
-     subagent_type="general-purpose"
+     subagent_type="gsd-executor",
+     model="{executor_model}"
    )
    ```
 
@@ -355,7 +410,8 @@ Phase goal: {goal from ROADMAP.md}
 
 Check must_haves against actual codebase. Create VERIFICATION.md.
 Verify what actually exists in the code.",
-  subagent_type="gsd-verifier"
+  subagent_type="gsd-verifier",
+  model="{verifier_model}"
 )
 ```
 
@@ -431,9 +487,9 @@ Present gaps and offer next command:
 
 User runs `/gsd:plan-phase {X} --gaps` which:
 1. Reads VERIFICATION.md gaps
-2. Creates additional plans (04, 05, etc.) to close gaps
-3. User then runs `/gsd:execute-phase {X}` again
-4. Execute-phase runs incomplete plans (04-05)
+2. Creates additional plans (04, 05, etc.) with `gap_closure: true` to close gaps
+3. User then runs `/gsd:execute-phase {X} --gaps-only`
+4. Execute-phase runs only gap closure plans (04-05)
 5. Verifier runs again after new plans complete
 
 User stays in control at each decision point.
@@ -447,6 +503,17 @@ Update ROADMAP.md to reflect phase completion:
 # Update completion date
 # Update status
 ```
+
+**Check planning config:**
+
+If `COMMIT_PLANNING_DOCS=false` (set in load_project_state):
+- Skip all git operations for .planning/ files
+- Planning docs exist locally but are gitignored
+- Log: "Skipping planning docs commit (commit_docs: false)"
+- Proceed to offer_next step
+
+If `COMMIT_PLANNING_DOCS=true` (default):
+- Continue with git operations below
 
 Commit phase completion (roadmap, state, verification):
 ```bash
