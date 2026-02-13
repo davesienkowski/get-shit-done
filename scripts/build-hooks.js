@@ -17,6 +17,10 @@ const HOOKS_TO_COPY = [
   'pre-bash-dispatch.js',
   'pre-write-dispatch.js',
   'post-write-dispatch.js'
+=======
+  'check-dangerous-commands.js',
+  'validate-commit.js',
+  'check-skill-workflow.js'
 ];
 
 function build() {

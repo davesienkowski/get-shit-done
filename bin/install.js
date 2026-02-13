@@ -856,6 +856,8 @@ function uninstall(isGlobal, runtime = 'claude') {
       'gsd-statusline.js', 'gsd-check-update.js', 'gsd-check-update.sh',
       'hook-logger.js', 'pre-bash-dispatch.js', 'pre-write-dispatch.js', 'post-write-dispatch.js'
     ];
+=======
+    const gsdHooks = ['gsd-statusline.js', 'gsd-check-update.js', 'gsd-check-update.sh', 'check-dangerous-commands.js', 'validate-commit.js', 'check-skill-workflow.js'];
     let hookCount = 0;
     for (const hook of gsdHooks) {
       const hookPath = path.join(hooksDir, hook);
