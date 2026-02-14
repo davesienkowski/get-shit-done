@@ -19,7 +19,10 @@ const HOOKS_TO_COPY = [
   'post-write-dispatch.js',
   'check-dangerous-commands.js',
   'validate-commit.js',
-  'check-skill-workflow.js'
+  'check-skill-workflow.js',
+  'track-context-budget.js',
+  'suggest-compact.js',
+  'context-budget-check.js'
 ];
 
 function build() {

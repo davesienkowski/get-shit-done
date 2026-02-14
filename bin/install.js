@@ -855,7 +855,8 @@ function uninstall(isGlobal, runtime = 'claude') {
     const gsdHooks = [
       'gsd-statusline.js', 'gsd-check-update.js', 'gsd-check-update.sh',
       'hook-logger.js', 'pre-bash-dispatch.js', 'pre-write-dispatch.js', 'post-write-dispatch.js',
-      'check-dangerous-commands.js', 'validate-commit.js', 'check-skill-workflow.js'
+      'check-dangerous-commands.js', 'validate-commit.js', 'check-skill-workflow.js',
+      'track-context-budget.js', 'suggest-compact.js', 'context-budget-check.js'
     ];
     let hookCount = 0;
     for (const hook of gsdHooks) {
@@ -888,9 +889,10 @@ function uninstall(isGlobal, runtime = 'claude') {
     // Remove GSD hooks from all hook event types
     const gsdHookPatterns = [
       'gsd-check-update', 'gsd-statusline',
-      'pre-bash-dispatch', 'pre-write-dispatch', 'post-write-dispatch'
+      'pre-bash-dispatch', 'pre-write-dispatch', 'post-write-dispatch',
+      'track-context-budget', 'suggest-compact', 'context-budget-check'
     ];
-    const hookEventTypes = ['SessionStart', 'PreToolUse', 'PostToolUse'];
+    const hookEventTypes = ['SessionStart', 'PreToolUse', 'PostToolUse', 'PreCompact'];
 
     for (const eventType of hookEventTypes) {
       if (settings.hooks && settings.hooks[eventType]) {
@@ -913,6 +915,10 @@ function uninstall(isGlobal, runtime = 'claude') {
           delete settings.hooks[eventType];
         }
       }
+    }
+    // Clean up empty hooks object
+    if (settings.hooks && Object.keys(settings.hooks).length === 0) {
+      delete settings.hooks;
     }
 
     // Clean up empty hooks object
@@ -1487,6 +1493,63 @@ function install(isGlobal, runtime = 'claude') {
         ]
       });
       console.log(`  ${green}✓${reset} Configured update check hook`);
+    }
+
+    // Configure PreCompact hook for context budget preservation
+    if (!settings.hooks.PreCompact) {
+      settings.hooks.PreCompact = [];
+    }
+
+    const contextBudgetCheckCommand = isGlobal
+      ? buildHookCommand(targetDir, 'context-budget-check.js')
+      : 'node ' + dirName + '/hooks/context-budget-check.js';
+
+    const hasContextBudgetCheck = settings.hooks.PreCompact.some(entry =>
+      entry.hooks && entry.hooks.some(h => h.command && h.command.includes('context-budget-check'))
+    );
+
+    if (!hasContextBudgetCheck) {
+      settings.hooks.PreCompact.push({
+        hooks: [
+          {
+            type: 'command',
+            command: contextBudgetCheckCommand
+          }
+        ]
+      });
+      console.log(`  ${green}✓${reset} Configured context budget PreCompact hook`);
+    }
+
+    // Configure PostToolUse hooks for context tracking and compact suggestion
+    if (!settings.hooks.PostToolUse) {
+      settings.hooks.PostToolUse = [];
+    }
+
+    const trackContextCommand = isGlobal
+      ? buildHookCommand(targetDir, 'track-context-budget.js')
+      : 'node ' + dirName + '/hooks/track-context-budget.js';
+    const suggestCompactCommand = isGlobal
+      ? buildHookCommand(targetDir, 'suggest-compact.js')
+      : 'node ' + dirName + '/hooks/suggest-compact.js';
+
+    const hasTrackContext = settings.hooks.PostToolUse.some(entry =>
+      entry.hooks && entry.hooks.some(h => h.command && h.command.includes('track-context-budget'))
+    );
+
+    if (!hasTrackContext) {
+      settings.hooks.PostToolUse.push({
+        hooks: [
+          {
+            type: 'command',
+            command: trackContextCommand
+          },
+          {
+            type: 'command',
+            command: suggestCompactCommand
+          }
+        ]
+      });
+      console.log(`  ${green}✓${reset} Configured context budget PostToolUse hooks`);
     }
   }
 
