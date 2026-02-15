@@ -3954,10 +3954,9 @@ function cmdPhaseComplete(cwd, phaseNum, raw) {
 
     atomicWrite(roadmapPath, roadmapContent);
 
-    // Update REQUIREMENTS.md traceability for this phase's requirements
+    // Update REQUIREMENTS.md checkboxes for this phase's requirements
     const reqPath = path.join(cwd, '.planning', 'REQUIREMENTS.md');
     if (fs.existsSync(reqPath)) {
-      // Extract Requirements line from roadmap for this phase
       const reqMatch = roadmapContent.match(
         new RegExp(`Phase\\s+${phaseNum.replace('.', '\\.')}[\\s\\S]*?\\*\\*Requirements:\\*\\*\\s*([^\\n]+)`, 'i')
       );
@@ -3971,11 +3970,6 @@ function cmdPhaseComplete(cwd, phaseNum, raw) {
           reqContent = reqContent.replace(
             new RegExp(`(-\\s*\\[)[ ](\\]\\s*\\*\\*${reqId}\\*\\*)`, 'gi'),
             '$1x$2'
-          );
-          // Update traceability table: | REQ-ID | Phase N | Pending | → | REQ-ID | Phase N | Complete |
-          reqContent = reqContent.replace(
-            new RegExp(`(\\|\\s*${reqId}\\s*\\|[^|]+\\|)\\s*Pending\\s*(\\|)`, 'gi'),
-            '$1 Complete $2'
           );
         }
 
@@ -4054,6 +4048,28 @@ function cmdPhaseComplete(cwd, phaseNum, raw) {
     });
   }
 
+  // Update REQUIREMENTS.md traceability table if it exists
+  const reqPath = path.join(cwd, '.planning', 'REQUIREMENTS.md');
+  let requirementsUpdated = false;
+  if (fs.existsSync(reqPath)) {
+    try {
+      let reqContent = fs.readFileSync(reqPath, 'utf-8');
+
+      // Find traceability table rows referencing this phase and update status
+      // Pattern: | REQ-NNN | description | Phase N | status |
+      const phaseRef = new RegExp(
+        `(\\|[^|]+\\|[^|]+\\|[^|]*Phase\\s*${phaseNum.replace('.', '\\.')}[^|]*\\|)\\s*[^|]*(\\|)`,
+        'gi'
+      );
+      if (phaseRef.test(reqContent)) {
+        phaseRef.lastIndex = 0; // reset after test() advanced it
+        reqContent = reqContent.replace(phaseRef, `$1 Delivered (${today}) $2`);
+        atomicWrite(reqPath, reqContent);
+        requirementsUpdated = true;
+      }
+    } catch (e) { /* non-fatal */ }
+  }
+
   const result = {
     completed_phase: phaseNum,
     phase_name: phaseInfo.phase_name,
@@ -4064,6 +4080,7 @@ function cmdPhaseComplete(cwd, phaseNum, raw) {
     date: today,
     roadmap_updated: fs.existsSync(roadmapPath),
     state_updated: fs.existsSync(statePath),
+    requirements_updated: requirementsUpdated,
   };
 
   output(result, raw);
@@ -5724,6 +5741,31 @@ function cmdInitMapCodebase(cwd, raw) {
     existingMaps = fs.readdirSync(codebaseDir).filter(f => f.endsWith('.md'));
   } catch {}
 
+  // Staleness detection: compare map age against recent git activity
+  let mapAge = null;
+  let stale = false;
+  let commitsSinceMap = 0;
+  if (existingMaps.length > 0) {
+    try {
+      // Find oldest map file modification time
+      const mapTimes = existingMaps.map(f => {
+        try { return fs.statSync(path.join(codebaseDir, f)).mtimeMs; } catch { return Date.now(); }
+      });
+      const oldestMapTime = Math.min(...mapTimes);
+      const oldestDate = new Date(oldestMapTime).toISOString().split('T')[0];
+      mapAge = oldestDate;
+
+      // Count commits since the oldest map was written
+      try {
+        const gitLog = execSync(`git log --oneline --since="${oldestDate}" -- . ":(exclude).planning"`, {
+          cwd, encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe']
+        }).trim();
+        commitsSinceMap = gitLog ? gitLog.split('\n').length : 0;
+        stale = commitsSinceMap > 5; // More than 5 code commits = likely stale
+      } catch { /* not a git repo or git unavailable */ }
+    } catch { /* ignore staleness detection errors */ }
+  }
+
   const result = {
     // Models
     mapper_model: resolveModelInternal(cwd, 'gsd-codebase-mapper'),
@@ -5739,6 +5781,11 @@ function cmdInitMapCodebase(cwd, raw) {
     // Existing maps
     existing_maps: existingMaps,
     has_maps: existingMaps.length > 0,
+
+    // Staleness
+    map_age: mapAge,
+    commits_since_map: commitsSinceMap,
+    stale: stale,
 
     // File existence
     planning_exists: pathExistsInternal(cwd, '.planning'),

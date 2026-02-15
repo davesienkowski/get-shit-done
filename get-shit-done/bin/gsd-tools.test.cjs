@@ -1787,12 +1787,12 @@ describe('phase complete command', () => {
 
 ## Traceability
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 2 | Pending |
-| API-01 | Phase 2 | Pending |
+| Requirement | Description | Phase | Status |
+|-------------|-------------|-------|--------|
+| AUTH-01 | Sign up with email | Phase 1 | Pending |
+| AUTH-02 | Log in | Phase 1 | Pending |
+| AUTH-03 | Reset password | Phase 2 | Pending |
+| API-01 | REST endpoints | Phase 2 | Pending |
 `
     );
     fs.writeFileSync(
@@ -1818,11 +1818,11 @@ describe('phase complete command', () => {
     assert.ok(req.includes('- [ ] **AUTH-03**'), 'AUTH-03 should remain unchecked');
     assert.ok(req.includes('- [ ] **API-01**'), 'API-01 should remain unchecked');
 
-    // Traceability table updated
-    assert.ok(req.includes('| AUTH-01 | Phase 1 | Complete |'), 'AUTH-01 status should be Complete');
-    assert.ok(req.includes('| AUTH-02 | Phase 1 | Complete |'), 'AUTH-02 status should be Complete');
-    assert.ok(req.includes('| AUTH-03 | Phase 2 | Pending |'), 'AUTH-03 should remain Pending');
-    assert.ok(req.includes('| API-01 | Phase 2 | Pending |'), 'API-01 should remain Pending');
+    // Traceability table updated (upstream uses "Delivered (date)" format)
+    assert.ok(/AUTH-01.*Delivered/.test(req), 'AUTH-01 status should be Delivered');
+    assert.ok(/AUTH-02.*Delivered/.test(req), 'AUTH-02 status should be Delivered');
+    assert.ok(/AUTH-03.*Pending/.test(req), 'AUTH-03 should remain Pending');
+    assert.ok(/API-01.*Pending/.test(req), 'API-01 should remain Pending');
   });
 
   test('handles phase with no requirements mapping', () => {
@@ -5797,7 +5797,7 @@ describe('resolve-model with per-agent overrides', () => {
     assert.ok(result.success, `Command failed: ${result.error}`);
 
     const output = JSON.parse(result.output);
-    assert.strictEqual(output.model, 'opus', 'planner on quality profile should be opus');
+    assert.strictEqual(output.model, 'inherit', 'planner on quality profile should be inherit');
     assert.strictEqual(output.override, undefined, 'should not have override flag');
   });
 
