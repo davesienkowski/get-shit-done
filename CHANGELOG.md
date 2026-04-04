@@ -9,6 +9,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.33.0] - 2026-04-05
 
 ### Added
+- **Queryable codebase intelligence system** -- Persistent `.planning/intel/` store with structured JSON files (files, exports, symbols, patterns, dependencies). Query via `gsd-tools intel` subcommands. Incremental updates via `gsd-intel-updater` agent. Opt-in; projects without intel store are unaffected. (#1688)
 - **Shared behavioral references** — Add questioning, domain-probes, and UI-brand reference docs wired into workflows (#1658)
 - **Chore / Maintenance issue template** — Structured template for internal maintenance tasks (#1689)
 - **Typed contribution templates** — Separate Bug, Enhancement, and Feature issue/PR templates with approval gates (#1673)
@@ -101,6 +102,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Health validation** — STATE/ROADMAP cross-validation
 - **Workstream session routing** — Isolated per session with fallback
 
+<<<<<<< HEAD
+=======
+>>>>>>> b96a456 (docs(changelog): add intel system entry for #1688)
+>>>>>>> 38e301f (docs(changelog): add intel system entry for #1688)
 ## [1.31.0] - 2026-04-01
 
 ### Added
