@@ -245,13 +245,10 @@ function loadConfig(cwd) {
     const raw = fs.readFileSync(configPath, 'utf-8');
     const parsed = JSON.parse(raw);
 
-    // Migrate deprecated "depth" key to "granularity" with value mapping
-    if ('depth' in parsed && !('granularity' in parsed)) {
-      const depthToGranularity = { quick: 'coarse', standard: 'standard', comprehensive: 'fine' };
-      parsed.granularity = depthToGranularity[parsed.depth] || parsed.depth;
-      delete parsed.depth;
-      try { fs.writeFileSync(configPath, JSON.stringify(parsed, null, 2), 'utf-8'); } catch { /* intentionally empty */ }
-    }
+    // Historical migration: "depth" was auto-migrated to "granularity" in earlier GSD versions.
+    // Migration disabled — all existing configs have been migrated, and "depth" is now reused
+    // as an independent field (quick/standard/comprehensive) controlling workflow thoroughness.
+    // The old "granularity" field (coarse/standard/fine) controls plan granularity separately.
 
     // Auto-detect and sync sub_repos: scan for child directories with .git
     let configDirty = false;
@@ -354,7 +351,10 @@ function loadConfig(cwd) {
       phase_naming: get('phase_naming') ?? defaults.phase_naming,
       project_code: get('project_code') ?? defaults.project_code,
       subagent_timeout: get('subagent_timeout', { section: 'workflow', field: 'subagent_timeout' }) ?? defaults.subagent_timeout,
-      model_overrides: parsed.model_overrides || null,
+      execution_context: get('execution_context') ?? null,
+      context_window_tokens: get('context_window_tokens') ?? get('context_window') ?? defaults.context_window,
+      depth: get('depth') ?? null,
+      model_overrides: parsed.models || parsed.model_overrides || null,
       agent_skills: parsed.agent_skills || {},
       manager: parsed.manager || {},
       response_language: get('response_language') || null,
