@@ -1187,6 +1187,7 @@ describe('E2E: Copilot full install verification', () => {
       'gsd-doc-writer.agent.md',
       'gsd-executor.agent.md',
       'gsd-integration-checker.agent.md',
+      'gsd-intel-updater.agent.md',
       'gsd-nyquist-auditor.agent.md',
       'gsd-phase-researcher.agent.md',
       'gsd-plan-checker.agent.md',
