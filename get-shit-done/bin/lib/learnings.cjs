@@ -76,8 +76,8 @@ function generateId() {
  */
 function readLearningFile(filePath) {
   try {
-    const raw = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(raw);
+    const content = fs.readFileSync(filePath, 'utf-8');
+    return JSON.parse(content);
   } catch (err) {
     process.stderr.write(`Warning: skipping malformed file ${filePath}: ${err.message}\n`);
     return null;
@@ -138,6 +138,7 @@ function learningsWrite(entry, opts) {
  * @returns {object|null}
  */
 function learningsRead(id, opts) {
+  if (!/^[a-z0-9]+-[a-f0-9]+$/.test(id)) return null;
   const dir = getStoreDir(opts);
   const filePath = path.join(dir, `${id}.json`);
   if (!fs.existsSync(filePath)) return null;
@@ -193,6 +194,7 @@ function learningsQuery(query, opts) {
  * @returns {boolean} true if deleted, false if not found
  */
 function learningsDelete(id, opts) {
+  if (!/^[a-z0-9]+-[a-f0-9]+$/.test(id)) return false;
   const dir = getStoreDir(opts);
   const filePath = path.join(dir, `${id}.json`);
   if (!fs.existsSync(filePath)) return false;
@@ -254,7 +256,7 @@ function learningsCopyFromProject(planningDir, opts) {
     }
   }
 
-  return { total: sections.length, created, skipped };
+  return { total: created + skipped, created, skipped };
 }
 
 /**
@@ -336,8 +338,12 @@ function cmdLearningsCopy(cwd, raw) {
  * @param {boolean} raw - Raw output flag
  */
 function cmdLearningsPrune(olderThan, raw) {
-  const result = learningsPrune(olderThan);
-  output(result, raw);
+  try {
+    const result = learningsPrune(olderThan);
+    output(result, raw);
+  } catch (err) {
+    coreError(err.message);
+  }
 }
 
 /**
@@ -346,6 +352,9 @@ function cmdLearningsPrune(olderThan, raw) {
  * @param {boolean} raw - Raw output flag
  */
 function cmdLearningsDelete(id, raw) {
+  if (!/^[a-z0-9]+-[a-f0-9]+$/.test(id)) {
+    coreError(`Invalid learning ID: "${id}"`);
+  }
   const deleted = learningsDelete(id);
   output({ id, deleted }, raw);
 }
