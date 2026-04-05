@@ -60,6 +60,9 @@ Then verify each level against the actual codebase.
 At verification decision points, apply structured reasoning:
 @~/.claude/get-shit-done/references/thinking-models-verification.md
 
+At verification decision points, reference calibration examples:
+@~/.claude/get-shit-done/references/few-shot-examples/verifier.md
+
 ## Step 0: Check for Previous Verification
 
 ```bash
