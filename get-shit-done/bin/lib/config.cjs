@@ -31,6 +31,8 @@ const VALID_CONFIG_KEYS = new Set([
   'hooks.context_warnings',
   'features.thinking_partner',
   'context',
+  'features.global_learnings',
+  'learnings.max_inject',
   'project_code', 'phase_naming',
   'manager.flags.discuss', 'manager.flags.plan', 'manager.flags.execute',
   'response_language',
