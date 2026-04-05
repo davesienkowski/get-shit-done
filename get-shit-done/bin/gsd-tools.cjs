@@ -137,6 +137,13 @@
  *
  * Documentation:
  *   docs-init                            Project context for docs-update workflow
+ *
+ * Learnings:
+ *   learnings list                       List all global learnings (JSON)
+ *   learnings query --tag <tag>          Query learnings by tag
+ *   learnings copy                       Copy from current project's LEARNINGS.md
+ *   learnings prune --older-than <dur>   Remove entries older than duration (e.g. 90d)
+ *   learnings delete <id>                Delete a learning by ID
  */
 
 const fs = require('fs');
@@ -157,6 +164,7 @@ const profilePipeline = require('./lib/profile-pipeline.cjs');
 const profileOutput = require('./lib/profile-output.cjs');
 const workstream = require('./lib/workstream.cjs');
 const docs = require('./lib/docs.cjs');
+const learnings = require('./lib/learnings.cjs');
 
 // ─── Arg parsing helpers ──────────────────────────────────────────────────────
 
@@ -951,6 +959,34 @@ async function runCommand(command, args, cwd, raw) {
 
     case 'docs-init': {
       docs.cmdDocsInit(cwd, raw);
+      break;
+    }
+
+    // ─── Learnings ─────────────────────────────────────────────────────────
+
+    case 'learnings': {
+      const subcommand = args[1];
+      if (subcommand === 'list') {
+        learnings.cmdLearningsList(raw);
+      } else if (subcommand === 'query') {
+        const tagIdx = args.indexOf('--tag');
+        const tag = tagIdx !== -1 ? args[tagIdx + 1] : null;
+        if (!tag) error('Usage: gsd-tools learnings query --tag <tag>');
+        learnings.cmdLearningsQuery(tag, raw);
+      } else if (subcommand === 'copy') {
+        learnings.cmdLearningsCopy(cwd, raw);
+      } else if (subcommand === 'prune') {
+        const olderIdx = args.indexOf('--older-than');
+        const olderThan = olderIdx !== -1 ? args[olderIdx + 1] : null;
+        if (!olderThan) error('Usage: gsd-tools learnings prune --older-than <duration>');
+        learnings.cmdLearningsPrune(olderThan, raw);
+      } else if (subcommand === 'delete') {
+        const id = args[2];
+        if (!id) error('Usage: gsd-tools learnings delete <id>');
+        learnings.cmdLearningsDelete(id, raw);
+      } else {
+        error('Unknown learnings subcommand. Available: list, query, copy, prune, delete');
+      }
       break;
     }
 
