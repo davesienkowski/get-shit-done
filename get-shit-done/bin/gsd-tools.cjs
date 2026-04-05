@@ -73,6 +73,7 @@
  * Intel:
  *   intel query <term>             Query intel files for a term
  *   intel status                   Show intel file freshness
+ *   intel update                   Trigger intel refresh (returns agent spawn hint)
  *   intel diff                     Show changed intel entries since last snapshot
  *   intel snapshot                 Save current intel state as diff baseline
  *   intel patch-meta <file>        Update _meta.updated_at in an intel file
@@ -986,8 +987,11 @@ async function runCommand(command, args, cwd, raw) {
         const filePath = args[2];
         if (!filePath) error('Usage: gsd-tools intel extract-exports <file-path>');
         core.output(intel.intelExtractExports(path.resolve(cwd, filePath)), raw);
+      } else if (subcommand === 'update') {
+        const planningDir = path.join(cwd, '.planning');
+        core.output(intel.intelUpdate(planningDir), raw);
       } else {
-        error('Unknown intel subcommand. Available: query, status, diff, snapshot, patch-meta, validate, extract-exports');
+        error('Unknown intel subcommand. Available: query, status, update, diff, snapshot, patch-meta, validate, extract-exports');
       }
       break;
     }

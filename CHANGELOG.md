@@ -102,10 +102,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Health validation** — STATE/ROADMAP cross-validation
 - **Workstream session routing** — Isolated per session with fallback
 
-<<<<<<< HEAD
-=======
->>>>>>> b96a456 (docs(changelog): add intel system entry for #1688)
->>>>>>> 38e301f (docs(changelog): add intel system entry for #1688)
 ## [1.31.0] - 2026-04-01
 
 ### Added

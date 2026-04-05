@@ -52,9 +52,9 @@ function ensureIntelDir(planningDir) {
  */
 function isIntelEnabled(planningDir) {
   try {
-    const configPath = require('path').join(planningDir, 'config.json');
-    if (!require('fs').existsSync(configPath)) return false;
-    const config = JSON.parse(require('fs').readFileSync(configPath, 'utf8'));
+    const configPath = path.join(planningDir, 'config.json');
+    if (!fs.existsSync(configPath)) return false;
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     if (config && config.intel && config.intel.enabled === true) return true;
     return false;
   } catch (_e) {
@@ -336,7 +336,7 @@ function intelUpdate(planningDir) {
 
   return {
     action: 'spawn_agent',
-    message: 'Run /gsd:intel refresh or spawn gsd-intel-updater agent for full refresh'
+    message: 'Run gsd-tools intel update or spawn gsd-intel-updater agent for full refresh'
   };
 }
 
@@ -475,6 +475,9 @@ function intelValidate(planningDir) {
  * Patch _meta.updated_at in a JSON intel file to the current timestamp.
  * Reads the file, updates _meta.updated_at, increments version, writes back.
  *
+ * NOTE: Does not gate on isIntelEnabled — operates on arbitrary file paths
+ * for use by agents patching individual files outside the intel store.
+ *
  * @param {string} filePath - Absolute or relative path to the JSON intel file
  * @returns {{ patched: boolean, file: string, timestamp: string } | { patched: false, error: string }}
  */
@@ -510,6 +513,9 @@ function intelPatchMeta(filePath) {
 
 /**
  * Extract exports from a JS/CJS file by parsing module.exports or exports.X patterns.
+ *
+ * NOTE: Does not gate on isIntelEnabled — operates on arbitrary source files
+ * for use by agents building intel data from project files.
  *
  * @param {string} filePath - Path to the JS/CJS file
  * @returns {{ file: string, exports: string[], method: string }}
