@@ -909,6 +909,15 @@ describe('config-set/config-get context', () => {
     assert.strictEqual(output, 'dev');
   });
 
+  test('config set context rejects invalid values', () => {
+    const result = runGsdTools('config-set context foobar', tmpDir);
+    assert.strictEqual(result.success, false);
+    assert.ok(
+      result.error.includes('Invalid context value'),
+      `Expected "Invalid context value" in error: ${result.error}`
+    );
+  });
+
   test('all three context profile files exist', () => {
     const contextsDir = path.join(__dirname, '..', 'get-shit-done', 'contexts');
     assert.ok(fs.existsSync(path.join(contextsDir, 'dev.md')), 'dev.md should exist');

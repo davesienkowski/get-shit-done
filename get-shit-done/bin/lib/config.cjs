@@ -338,6 +338,11 @@ function cmdConfigSet(cwd, keyPath, value, raw) {
     try { parsedValue = JSON.parse(value); } catch { /* keep as string */ }
   }
 
+  const VALID_CONTEXT_VALUES = ['dev', 'research', 'review'];
+  if (keyPath === 'context' && !VALID_CONTEXT_VALUES.includes(String(parsedValue))) {
+    error(`Invalid context value '${value}'. Valid values: ${VALID_CONTEXT_VALUES.join(', ')}`);
+  }
+
   const setConfigValueResult = setConfigValue(cwd, keyPath, parsedValue);
   output(setConfigValueResult, raw, `${keyPath}=${parsedValue}`);
 }
