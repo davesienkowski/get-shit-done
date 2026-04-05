@@ -4,7 +4,6 @@ description: "Safe git revert. Roll back phase or plan commits using the phase m
 argument-hint: "--last N | --phase NN | --plan NN-MM"
 allowed-tools:
   - Read
-  - Write
   - Bash
   - Glob
   - Grep

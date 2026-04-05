@@ -75,15 +75,14 @@ Parse the user's selection into COMMITS list.
 
 Read `.planning/.phase-manifest.json` if it exists.
 
-If the file exists and `manifest.phase == TARGET_PHASE`:
-  - Use `manifest.commit_log` entries as COMMITS
-  - Each entry is in format "hash message" — extract the hash portion
+If the file exists and `manifest.phases?.[TARGET_PHASE]?.commits` is a non-empty array:
+  - Use `manifest.phases[TARGET_PHASE].commits` entries as COMMITS (each entry is a commit hash)
 
-If the file does not exist, or `manifest.phase != TARGET_PHASE`:
-  - Display: "Manifest is for phase {manifest.phase} (or missing), falling back to git log search"
+If the file does not exist, or `manifest.phases?.[TARGET_PHASE]` is missing:
+  - Display: "Manifest has no entry for phase ${TARGET_PHASE} (or file missing), falling back to git log search"
   - Fallback: run git log and filter for the target phase scope:
     ```bash
-    git log --oneline --no-merges --all | grep -E "\(0*${TARGET_PHASE}[^0-9-]|\(0*${TARGET_PHASE}\):" | head -50
+    git log --oneline --no-merges --all | grep -E "\(0*${TARGET_PHASE}(-[0-9]+)?\):" | head -50
     ```
   - Use matching commits as COMMITS
 
@@ -110,9 +109,13 @@ Exit cleanly.
 </step>
 
 <step name="dependency_check">
-**Only applies when MODE=phase.**
+**Applies when MODE=phase or MODE=plan.**
 
-Skip this step entirely for MODE=last and MODE=plan.
+Skip this step entirely for MODE=last.
+
+---
+
+**MODE=phase:**
 
 Read `.planning/ROADMAP.md` inline.
 
@@ -131,10 +134,28 @@ If any downstream phase has started work, collect warnings:
    Phase ${N} depends on Phase ${TARGET_PHASE} and has started work.
 ```
 
-If any warnings exist:
+---
+
+**MODE=plan:**
+
+Extract the phase number from TARGET_PLAN (the NN part of NN-MM). Extract the plan number (the MM part).
+
+Look for later plans in the same phase directory (`.planning/phases/${NN}-*/`). For each later plan (plans with number > MM):
+1. Read the later plan's PLAN.md
+2. Check if its `<files>` sections or `consumes` fields reference outputs from the target plan
+
+If any later plan references the target plan's outputs, collect warnings:
+```
+⚠  Intra-phase dependency detected:
+   Plan ${LATER_PLAN} in phase ${NN} references outputs from plan ${TARGET_PLAN}.
+```
+
+---
+
+If any warnings exist (from either mode):
 - Display all warnings
 - Use AskUserQuestion with approve-revise-abort pattern:
-  - question: "Downstream phases have started work that depends on Phase ${TARGET_PHASE}. Proceed with revert anyway?"
+  - question: "Downstream work depends on the target being reverted. Proceed anyway?"
   - header: "Confirm"
   - options: Proceed | Abort
 
@@ -175,7 +196,17 @@ Store the response as REVERT_REASON. Continue to execute_revert.
 </step>
 
 <step name="execute_revert">
-**HARD CONSTRAINT: Use git revert --no-commit. NEVER use git reset.**
+**HARD CONSTRAINT: Use git revert --no-commit. NEVER use git reset (except for conflict cleanup as documented below).**
+
+**Dirty-tree guard (run first, before any revert):**
+
+Run `git status --porcelain`. If the output is non-empty, display the dirty files and abort:
+```
+Working tree has uncommitted changes. Commit or stash them before running /gsd-undo.
+```
+Exit immediately — do not proceed to any revert operations.
+
+---
 
 Sort COMMITS in reverse chronological order (newest first). If commits came from git log (already newest-first), they are already in correct order.
 
@@ -186,9 +217,14 @@ git revert --no-commit ${HASH}
 
 If any revert fails (merge conflict or error):
 1. Display the error message
-2. Run cleanup:
+2. Run cleanup — handle both first-call and mid-sequence cases:
    ```bash
-   git revert --abort
+   # Try git revert --abort first (works if this is the first failed revert)
+   git revert --abort 2>/dev/null
+   # If prior --no-commit reverts already staged cleanly before this failure,
+   # revert --abort may be a no-op. Clean up staged and working tree changes:
+   git reset HEAD 2>/dev/null
+   git restore . 2>/dev/null
    ```
 3. Display:
    ```
@@ -263,12 +299,14 @@ Show next steps:
 
 <success_criteria>
 - [ ] Arguments parsed correctly for all three modes
-- [ ] --phase mode reads .planning/.phase-manifest.json and checks manifest.phase == target
-- [ ] --phase mode falls back to git log if manifest phase mismatch
-- [ ] Dependency check warns when downstream phases have started
+- [ ] --phase mode reads .planning/.phase-manifest.json using manifest.phases[TARGET_PHASE].commits
+- [ ] --phase mode falls back to git log if manifest entry missing
+- [ ] Dependency check warns when downstream phases have started (MODE=phase)
+- [ ] Dependency check warns when later plans reference target plan outputs (MODE=plan)
+- [ ] Dirty-tree guard aborts if working tree has uncommitted changes
 - [ ] Confirmation gate shown before any revert execution
 - [ ] Reverts use git revert --no-commit in reverse chronological order
 - [ ] Single commit created after all reverts staged
-- [ ] Error handling includes git revert --abort on failure
-- [ ] git reset is NEVER used anywhere in this workflow
+- [ ] Error handling cleans up both first-call and mid-sequence conflict cases
+- [ ] git reset --hard is NEVER used anywhere in this workflow
 </success_criteria>
