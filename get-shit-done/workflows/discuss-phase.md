@@ -458,6 +458,29 @@ Gray areas:
 - Empty State: What shows when no posts exist — EmptyState component exists in ui/
 - Content: What metadata displays (time, author, reactions count)
 ```
+
+**Thinking partner** (only when `features.thinking_partner: true`):
+
+Count the number of gray areas identified above where choosing one option constrains or forecloses options in at least one other gray area. These are "interacting" gray areas.
+
+```bash
+THINKING_PARTNER_ENABLED=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get features.thinking_partner 2>/dev/null || echo "false")
+```
+
+If `THINKING_PARTNER_ENABLED=true` AND interacting gray area count >= 3 AND NOT `--auto`:
+
+@get-shit-done/references/thinking-models-discuss.md
+
+Use AskUserQuestion:
+- header: "Thinking Partner"
+- question: "3+ interacting decisions detected — some choices here constrain each other. Apply structured reasoning before we discuss?"
+- options:
+  - "Reversibility Test + Constraint Analysis — classify which decisions are hardest to reverse, then identify which one locks down the others"
+  - "Pre-Mortem — enumerate the most likely regret scenarios before committing to a direction"
+  - "Skip — proceed to discussion without structured analysis"
+
+If model selected: apply the model inline using @get-shit-done/references/thinking-models-discuss.md guidance, present the output to the user, then continue to present_gray_areas.
+If "Skip" or `THINKING_PARTNER_ENABLED=false` or `--auto`: continue to present_gray_areas without interruption.
 </step>
 
 <step name="present_gray_areas">

@@ -348,6 +348,12 @@ Based on codebase analysis, here's what I'd go with:
 {Confidence badge} **{Assumption statement}**
 ↳ Evidence: {file paths cited}
 ↳ If wrong: {consequence}
+↳ {If IRREVERSIBLE: "IRREVERSIBLE — changing this later requires {specific cost from If wrong field}". If REVERSIBLE: omit this line.}
+
+Classification logic (apply per assumption during display):
+- IRREVERSIBLE if "If wrong" implies: migration required, breaking change, significant rework, data loss, or re-architecture
+- REVERSIBLE if "If wrong" implies: minor fix, config change, UI update, or feature toggle
+- Only display the classification line for IRREVERSIBLE assumptions (no clutter for simple cases)
 
 ### {Area Name 2}
 ...
@@ -356,6 +362,28 @@ Based on codebase analysis, here's what I'd go with:
 ### External Research Applied
 - {Topic}: {Finding} (Source: {URL})
 ```
+
+**Thinking partner** (only when `features.thinking_partner: true`):
+
+After displaying all assumptions above, count the number of assumptions classified as IRREVERSIBLE.
+
+```bash
+THINKING_PARTNER_ENABLED=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get features.thinking_partner 2>/dev/null || echo "false")
+```
+
+If `THINKING_PARTNER_ENABLED=true` AND irreversible assumption count >= 1 AND NOT `--auto`:
+
+@get-shit-done/references/thinking-models-discuss.md
+
+Use AskUserQuestion:
+- header: "Thinking Partner"
+- question: "{N} assumption(s) marked IRREVERSIBLE above. Apply Reversibility Test analysis before proceeding?"
+- options:
+  - "Reversibility Test — surface the full reversal cost for each irreversible assumption and flag the riskiest one"
+  - "Skip — proceed to corrections"
+
+If "Reversibility Test" selected: apply the Reversibility Test model from @get-shit-done/references/thinking-models-discuss.md to each IRREVERSIBLE assumption, present the analysis, then continue to the "These all look right?" confirmation.
+If "Skip" or `THINKING_PARTNER_ENABLED=false` or `--auto`: continue to the "These all look right?" confirmation without interruption.
 
 **If `--auto`:**
 - If all assumptions are Confident or Likely: log assumptions, skip to write_context.
