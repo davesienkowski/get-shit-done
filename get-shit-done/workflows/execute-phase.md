@@ -1080,6 +1080,43 @@ node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" commit "docs(phase-{X}): co
 ```
 </step>
 
+<step name="auto_copy_learnings">
+**Auto-copy phase learnings to global store (when enabled).**
+
+This step runs AFTER phase completion and SUMMARY.md is written. It copies any LEARNINGS.md
+entries from the completed phase to the global learnings store at `~/.gsd/knowledge/`.
+
+**Check config gate:**
+```bash
+GLOBAL_LEARNINGS=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get features.global_learnings --raw 2>/dev/null || echo "false")
+```
+
+**If `GLOBAL_LEARNINGS` is not `true`:** Skip this step entirely (feature disabled by default).
+
+**If enabled:**
+
+1. Check if LEARNINGS.md exists in the phase directory:
+```bash
+LEARNINGS_FILE=$(ls ${phase_dir}/*-LEARNINGS.md 2>/dev/null || ls ${phase_dir}/LEARNINGS.md 2>/dev/null || echo "")
+```
+
+2. If no LEARNINGS.md found: skip silently — not every phase produces learnings.
+
+3. If LEARNINGS.md exists, copy to global store:
+```bash
+node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" learnings copy 2>/dev/null || echo "⚠ Failed to copy learnings to global store — continuing without blocking"
+```
+
+**Copy failure is non-blocking.** If the copy command fails for any reason (missing global store
+directory, permission error, malformed file), emit a warning and continue. Phase completion
+must never be blocked by a learnings copy failure.
+
+**Success output:**
+```
+✓ Phase learnings copied to global store (~/.gsd/knowledge/)
+```
+</step>
+
 <step name="update_project_md">
 **Evolve PROJECT.md to reflect phase completion (prevents planning document drift — #956):**
 
