@@ -340,7 +340,7 @@ function cmdConfigSet(cwd, keyPath, value, raw) {
   validateKnownConfigKeyPath(keyPath);
 
   if (!isValidConfigKey(keyPath)) {
-    error(`Unknown config key: "${keyPath}". Valid keys: ${[...VALID_CONFIG_KEYS].sort().join(', ')}, agent_skills.<agent-type>`);
+    error(`Unknown config key: "${keyPath}". Valid keys: ${[...VALID_CONFIG_KEYS].sort().join(', ')}, agent_skills.<agent-type>, features.<feature_name>`);
   }
 
   // Parse value (handle booleans, numbers, and JSON arrays/objects)

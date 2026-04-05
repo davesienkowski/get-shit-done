@@ -1008,7 +1008,7 @@ Read the most recent milestone retrospective and cross-milestone trends. Extract
 </step>
 
 <step name="inject_global_learnings">
-If `features.global_learnings` is `true`: run `gsd-tools learnings query --tag <phase_tags> --limit 5`, prefix matches with `[Prior learning from <project>]` as weak priors. Project-local decisions take precedence. Skip silently if disabled or no matches.
+If `features.global_learnings` is `true`: run `gsd-tools learnings query --tag <phase_tags> --limit 5`, prefix matches with `[Prior learning from <project>]` as weak priors. Project-local decisions take precedence. Skip silently if disabled or no matches. For tags, use PLAN.md frontmatter `tags` field or keywords from the phase objective, comma-separated (e.g. `--tag auth,database,api`).
 </step>
 
 <step name="gather_phase_context">
