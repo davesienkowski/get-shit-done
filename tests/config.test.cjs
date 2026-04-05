@@ -861,3 +861,53 @@ describe('config-set/config-get workflow.use_worktrees', () => {
     assert.strictEqual(output, true);
   });
 });
+
+// ─── isValidConfigKey unit tests ────────────────────────────────────────────
+
+const { isValidConfigKey } = require('../get-shit-done/bin/lib/config.cjs');
+
+describe('isValidConfigKey - models.* namespace', () => {
+  test('models.gsd-planner is valid', () => {
+    assert.strictEqual(isValidConfigKey('models.gsd-planner'), true);
+  });
+
+  test('models.gsd-executor is valid', () => {
+    assert.strictEqual(isValidConfigKey('models.gsd-executor'), true);
+  });
+
+  test('models. (empty sub-key) is invalid', () => {
+    assert.strictEqual(isValidConfigKey('models.'), false);
+  });
+
+  test('models (no dot) is invalid', () => {
+    assert.strictEqual(isValidConfigKey('models'), false);
+  });
+});
+
+describe('isValidConfigKey - backwards compatibility', () => {
+  test('granularity is still valid', () => {
+    assert.strictEqual(isValidConfigKey('granularity'), true);
+  });
+
+  test('model_profile is still valid', () => {
+    assert.strictEqual(isValidConfigKey('model_profile'), true);
+  });
+
+  test('workflow.research is still valid', () => {
+    assert.strictEqual(isValidConfigKey('workflow.research'), true);
+  });
+
+  test('agent_skills.custom-agent is still valid', () => {
+    assert.strictEqual(isValidConfigKey('agent_skills.custom-agent'), true);
+  });
+});
+
+describe('isValidConfigKey - invalid keys rejected', () => {
+  test('invalid_key_xyz is rejected', () => {
+    assert.strictEqual(isValidConfigKey('invalid_key_xyz'), false);
+  });
+
+  test('random.nested.key is rejected', () => {
+    assert.strictEqual(isValidConfigKey('random.nested.key'), false);
+  });
+});

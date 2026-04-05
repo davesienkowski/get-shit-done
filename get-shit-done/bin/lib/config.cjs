@@ -41,6 +41,8 @@ function isValidConfigKey(keyPath) {
   if (VALID_CONFIG_KEYS.has(keyPath)) return true;
   // Allow agent_skills.<agent-type> with any agent type string
   if (/^agent_skills\.[a-zA-Z0-9_-]+$/.test(keyPath)) return true;
+  // Per-agent model overrides: models.gsd-planner, models.gsd-executor, etc.
+  if (/^models\.[a-zA-Z0-9_-]+$/.test(keyPath)) return true;
   return false;
 }
 
@@ -324,7 +326,7 @@ function cmdConfigSet(cwd, keyPath, value, raw) {
   validateKnownConfigKeyPath(keyPath);
 
   if (!isValidConfigKey(keyPath)) {
-    error(`Unknown config key: "${keyPath}". Valid keys: ${[...VALID_CONFIG_KEYS].sort().join(', ')}, agent_skills.<agent-type>`);
+    error(`Unknown config key: "${keyPath}". Valid keys: ${[...VALID_CONFIG_KEYS].sort().join(', ')}, agent_skills.<agent-type>, models.<agent-type>`);
   }
 
   // Parse value (handle booleans, numbers, and JSON arrays/objects)
@@ -442,6 +444,7 @@ function getCmdConfigSetModelProfileResultMessage(
 
 module.exports = {
   VALID_CONFIG_KEYS,
+  isValidConfigKey,
   cmdConfigEnsureSection,
   cmdConfigSet,
   cmdConfigGet,
