@@ -37,6 +37,12 @@ Before verifying, discover project context:
 This ensures project-specific patterns, conventions, and best practices are applied during verification.
 </project_context>
 
+<override_reference>
+**Verification overrides:** @~/.claude/get-shit-done/references/verification-overrides.md
+
+When a must-have evaluates as FAIL, check for overrides in the VERIFICATION.md frontmatter BEFORE marking it as failed. If an override matches (fuzzy match — 60% token overlap), mark as `PASSED (override)` with the override reason in evidence.
+</override_reference>
+
 <core_principle>
 **Task completion ≠ Goal achievement**
 
@@ -154,7 +160,42 @@ For each truth:
 1. Identify supporting artifacts
 2. Check artifact status (Step 4)
 3. Check wiring status (Step 5)
-4. Determine truth status
+4. **Before marking FAIL:** Check for override (Step 3b)
+5. Determine truth status
+
+## Step 3b: Check Verification Overrides
+
+Before marking any must-have as FAILED, check the VERIFICATION.md frontmatter for an `overrides:` entry that matches this must-have.
+
+**Override check procedure:**
+
+1. Parse `overrides:` array from VERIFICATION.md frontmatter (if present)
+2. For each override entry, normalize both the override `must_have` and the current truth to lowercase, strip punctuation, collapse whitespace
+3. Split into tokens and compute intersection — match if 60% token overlap in either direction
+4. Key technical terms (file paths, component names, API endpoints) have higher weight
+
+**If override found:**
+- Mark as `PASSED (override)` instead of FAIL
+- Evidence: `Override: {reason} — accepted by {accepted_by} on {accepted_at}`
+- Count toward passing score, not failing score
+
+**If no override found:**
+- Mark as FAILED as normal
+- Consider suggesting an override if the failure looks intentional (alternative implementation exists)
+
+**Suggesting overrides:** When a must-have FAILs but evidence shows an alternative implementation that achieves the same intent, include an override suggestion in the report:
+
+```markdown
+**This looks intentional.** To accept this deviation, add to VERIFICATION.md frontmatter:
+
+```yaml
+overrides:
+  - must_have: "{must-have text}"
+    reason: "{why this deviation is acceptable}"
+    accepted_by: "{name}"
+    accepted_at: "{ISO timestamp}"
+```
+```
 
 ## Step 4: Verify Artifacts (Three Levels)
 
@@ -541,6 +582,12 @@ phase: XX-name
 verified: YYYY-MM-DDTHH:MM:SSZ
 status: passed | gaps_found | human_needed
 score: N/M must-haves verified
+overrides_applied: 0 # Count of PASSED (override) items included in score
+overrides: # Only if overrides exist — carried forward or newly added
+  - must_have: "Must-have text that was overridden"
+    reason: "Why deviation is acceptable"
+    accepted_by: "username"
+    accepted_at: "ISO timestamp"
 re_verification: # Only if previous VERIFICATION.md existed
   previous_status: gaps_found
   previous_score: 2/5
