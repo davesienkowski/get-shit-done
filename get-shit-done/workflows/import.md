@@ -37,17 +37,14 @@ Usage: /gsd-import --from <path>
   --from <path>   Import an external plan file into GSD format
 ```
 
-**Validate the file path using security.cjs:**
+**Validate the file path:**
+
+Verify the path does not contain traversal sequences and the file exists:
 
 ```bash
-node "$HOME/.claude/get-shit-done/bin/lib/security.cjs" validatePath "{FILEPATH}"
-```
-
-If validation fails (path traversal, symlink escape, etc.), display the security error and exit.
-
-Then verify the file exists:
-
-```bash
+case "{FILEPATH}" in
+  *..* ) echo "SECURITY_ERROR: path contains traversal sequence"; exit 1 ;;
+esac
 test -f "{FILEPATH}" || echo "FILE_NOT_FOUND"
 ```
 
@@ -79,7 +76,9 @@ Load project context for conflict detection:
    ```
    GSD > Note: No PROJECT.md found. Conflict checks against project constraints will be skipped.
    ```
-3. Glob for all CONTEXT.md files across phase directories:
+3. Read `.planning/REQUIREMENTS.md` — extract existing requirements for overlap and contradiction checks.
+   **If REQUIREMENTS.md does not exist:** skip requirement conflict checks and continue.
+4. Glob for all CONTEXT.md files across phase directories:
    ```bash
    find .planning/phases/ -name "*-CONTEXT.md" -o -name "CONTEXT.md" 2>/dev/null
    ```
@@ -115,10 +114,11 @@ Run conflict checks against the loaded project context. Output as a plain-text c
 - Plan targets a phase number that does not exist in ROADMAP.md → [BLOCKER]
 - Plan specifies a tech stack that contradicts PROJECT.md constraints → [BLOCKER]
 - Plan contradicts a locked decision in any CONTEXT.md `<decisions>` block → [BLOCKER]
-- Plan uses PBR plan naming convention (PLAN-01.md, plan-01.md) → [BLOCKER] naming convention violation
+- Plan contradicts an existing requirement in REQUIREMENTS.md → [BLOCKER]
 
 ### WARNING checks (user confirmation required):
 
+- Plan partially overlaps existing requirement coverage in REQUIREMENTS.md → [WARNING]
 - Plan has `depends_on` referencing plans that are not yet complete → [WARNING]
 - Plan modifies files that overlap with existing incomplete plans → [WARNING]
 - Plan phase number conflicts with existing phase numbering in ROADMAP.md → [WARNING]
@@ -193,6 +193,9 @@ must_haves:
 ---
 ```
 
+**Reject PBR naming conventions in source content:**
+If the imported plan references PBR plan naming (e.g., `PLAN-01.md`, `plan-01.md`), rename all references to GSD `{NN}-{MM}-PLAN.md` convention during conversion.
+
 Apply GSD naming convention for the output filename:
 - Format: `{NN}-{MM}-PLAN.md` (e.g., `04-01-PLAN.md`)
 - NEVER use `PLAN-01.md`, `plan-01.md`, or any other format
@@ -229,7 +232,7 @@ If the checker returns errors:
 - Do not delete the written file — the user can fix and re-validate manually
 
 If the checker returns clean:
-- Display: "✓ Plan validation passed"
+- Display: "Plan validation passed"
 
 </step>
 
@@ -249,7 +252,7 @@ node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" commit "docs({phase}): impo
 Display completion:
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- GSD ► IMPORT COMPLETE ✓
+ GSD ► IMPORT COMPLETE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -268,4 +271,4 @@ Do NOT:
 - Write `.planning/.active-skill` — this is a PBR pattern with no GSD equivalent
 - Reference `pbr-tools`, `pbr:`, or `PLAN-BUILD-RUN` anywhere
 - Write any PLAN.md file when blockers exist — the safety gate must hold
-- Skip validatePath() on the --from file argument
+- Skip path validation on the --from file argument
