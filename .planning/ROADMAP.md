@@ -36,7 +36,7 @@ See MILESTONES.md for details.
 - [x] **Phase 12: Verification Suite** - Plan structure validation, phase completeness, artifact checks, key-link verification, consistency and health checks (completed 2026-04-08)
 - [x] **Phase 13: Phase Lifecycle** - Phase add, insert, remove, complete, scaffold, and archive operations (completed 2026-04-08)
 - [x] **Phase 13.1: Upstream Reconciliation** - Locking TOCTOU fixes, config atomicity, acceptance criteria enforcement (completed 2026-04-08)
-- [ ] **Phase 14: Composition and Retirement** - Composable init chains, staged execution, workspace contexts, dry-run mode, workflow migration, gsd-tools.cjs deletion
+- [x] **Phase 14: Composition and Retirement** - Composable init chains, staged execution, workspace contexts, dry-run mode, workflow migration, gsd-tools.cjs deletion (completed 2026-04-08)
 
 ## Phase Details
 
@@ -150,10 +150,10 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
-- [ ] 14-01-PLAN.md — Init composition handlers (13 simple/medium) and registry wiring
-- [ ] 14-02-PLAN.md — Complex init handlers, pipeline middleware, workspace resolution, dry-run
-- [ ] 14-03-PLAN.md — Stub handlers and workflow/agent/command migration sweep
-- [ ] 14-04-PLAN.md — Bridge removal, CJS deprecation, installer update, verification checkpoint
+- [x] 14-01-PLAN.md — Init composition handlers (13 simple/medium) and registry wiring
+- [x] 14-02-PLAN.md — Complex init handlers, pipeline middleware, workspace resolution, dry-run
+- [x] 14-03-PLAN.md — Stub handlers and workflow/agent/command migration sweep
+- [x] 14-04-PLAN.md — Bridge removal, CJS deprecation, installer update, verification checkpoint
 
 ## Progress
 
@@ -168,4 +168,4 @@ Phases execute in numeric order: 9 -> 10 -> 11 -> 12 -> 13 -> 14
 | 12. Verification Suite | v3.0 | 3/3 | Complete    | 2026-04-08 |
 | 13. Phase Lifecycle | v3.0 | 3/3 | Complete    | 2026-04-08 |
 | 13.1. Upstream Reconciliation | v3.0 | 2/2 | Complete    | 2026-04-08 |
-| 14. Composition and Retirement | v3.0 | 0/4 | Not started | - |
+| 14. Composition and Retirement | v3.0 | 4/4 | Complete    | 2026-04-08 |
