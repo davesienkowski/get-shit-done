@@ -17,7 +17,7 @@
  * ```
  */
 
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -25,6 +25,16 @@ import { GSDError, ErrorClassification } from '../errors.js';
 import { MODEL_PROFILES, VALID_PROFILES } from './config-query.js';
 import { planningPaths } from './helpers.js';
 import type { QueryHandler } from './utils.js';
+
+/**
+ * Write config JSON atomically via temp file + rename to prevent
+ * partial writes on process interruption.
+ */
+async function atomicWriteConfig(configPath: string, config: Record<string, unknown>): Promise<void> {
+  const tmpPath = configPath + '.tmp';
+  await writeFile(tmpPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+  await rename(tmpPath, configPath);
+}
 
 // ─── VALID_CONFIG_KEYS ────────────────────────────────────────────────────
 
@@ -187,7 +197,7 @@ export const configSet: QueryHandler = async (args, projectDir) => {
   }
 
   setConfigValue(config, keyPath, parsedValue);
-  await writeFile(paths.config, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+  await atomicWriteConfig(paths.config, config);
 
   return { data: { set: true, key: keyPath, value: parsedValue } };
 };
@@ -229,7 +239,7 @@ export const configSetModelProfile: QueryHandler = async (args, projectDir) => {
   }
 
   config.model_profile = normalized;
-  await writeFile(paths.config, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+  await atomicWriteConfig(paths.config, config);
 
   return { data: { set: true, profile: normalized, agents: MODEL_PROFILES } };
 };
@@ -344,7 +354,7 @@ export const configNewProject: QueryHandler = async (args, projectDir) => {
     },
   };
 
-  await writeFile(paths.config, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+  await atomicWriteConfig(paths.config, config);
 
   return { data: { created: true, path: paths.config } };
 };
@@ -380,7 +390,7 @@ export const configEnsureSection: QueryHandler = async (args, projectDir) => {
     config[sectionName] = {};
   }
 
-  await writeFile(paths.config, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+  await atomicWriteConfig(paths.config, config);
 
   return { data: { ensured: true, section: sectionName } };
 };
