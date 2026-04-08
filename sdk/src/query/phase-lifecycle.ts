@@ -25,12 +25,14 @@ import { GSDError, ErrorClassification } from '../errors.js';
 import {
   escapeRegex,
   normalizePhaseName,
+  comparePhaseNum,
   phaseTokenMatches,
   toPosixPath,
   planningPaths,
   stateExtractField,
 } from './helpers.js';
 import { extractCurrentMilestone } from './roadmap.js';
+import { getMilestonePhaseFilter } from './state.js';
 import { acquireStateLock, releaseStateLock, stateReplaceField } from './state-mutation.js';
 import type { QueryHandler } from './utils.js';
 
@@ -800,6 +802,468 @@ export const phaseRemove: QueryHandler = async (args, projectDir) => {
       renamed_files: renamedFiles,
       roadmap_updated: true,
       state_updated: stateUpdated,
+    },
+  };
+};
+
+// ─── stateReplaceFieldWithFallback (inline) ────────────────────────────────
+
+/**
+ * Replace a field with fallback field name support.
+ *
+ * Tries primary first, then fallback. Returns content unchanged if neither matches.
+ * Reimplemented here because state-mutation.ts keeps it module-private.
+ */
+function stateReplaceFieldWithFallback(
+  content: string,
+  primary: string,
+  fallback: string | null,
+  value: string,
+): string {
+  let result = stateReplaceField(content, primary, value);
+  if (result) return result;
+  if (fallback) {
+    result = stateReplaceField(content, fallback, value);
+    if (result) return result;
+  }
+  return content;
+}
+
+// ─── updatePerformanceMetricsSection ───────────────────────────────────────
+
+/**
+ * Update the Performance Metrics section in STATE.md content.
+ *
+ * Port of updatePerformanceMetricsSection from state.cjs lines 1125-1156.
+ * Updates "Total plans completed" counter and upserts a row in the By Phase table.
+ *
+ * @param content - STATE.md content
+ * @param phaseNum - Phase number being completed
+ * @param planCount - Total number of plans in the phase
+ * @param summaryCount - Number of completed summaries
+ * @returns Modified content
+ */
+function updatePerformanceMetricsSection(
+  content: string,
+  phaseNum: string,
+  planCount: number,
+  summaryCount: number,
+): string {
+  // Update Velocity: Total plans completed
+  const totalMatch = content.match(/Total plans completed:\s*(\d+|\[N\])/);
+  const prevTotal = totalMatch && totalMatch[1] !== '[N]' ? parseInt(totalMatch[1], 10) : 0;
+  const newTotal = prevTotal + summaryCount;
+  content = content.replace(
+    /Total plans completed:\s*(\d+|\[N\])/,
+    `Total plans completed: ${newTotal}`,
+  );
+
+  // Update By Phase table — upsert row for this phase
+  const byPhaseTablePattern = /(\|\s*Phase\s*\|\s*Plans\s*\|\s*Total\s*\|\s*Avg\/Plan\s*\|[ \t]*\n\|(?:[- :\t]+\|)+[ \t]*\n)((?:[ \t]*\|[^\n]*\n)*)(?=\n|$)/i;
+  const byPhaseMatch = content.match(byPhaseTablePattern);
+  if (byPhaseMatch) {
+    let tableBody = byPhaseMatch[2].trim();
+    const phaseRowPattern = new RegExp(`^\\|\\s*${escapeRegex(String(phaseNum))}\\s*\\|.*$`, 'm');
+    const newRow = `| ${phaseNum} | ${summaryCount} | - | - |`;
+
+    if (phaseRowPattern.test(tableBody)) {
+      // Update existing row
+      tableBody = tableBody.replace(new RegExp(`^\\|\\s*${escapeRegex(String(phaseNum))}\\s*\\|.*$`, 'm'), newRow);
+    } else {
+      // Remove placeholder row and add new row
+      tableBody = tableBody.replace(/^\|\s*-\s*\|\s*-\s*\|\s*-\s*\|\s*-\s*\|$/m, '').trim();
+      tableBody = tableBody ? tableBody + '\n' + newRow : newRow;
+    }
+
+    content = content.replace(byPhaseTablePattern, `$1${tableBody}\n`);
+  }
+
+  return content;
+}
+
+// ─── phaseComplete handler ────────────────────────────────────────────────
+
+/**
+ * Query handler for phase.complete.
+ *
+ * Port of cmdPhaseComplete from phase.cjs lines 663-932.
+ * Marks a phase as done — updates ROADMAP.md (checkbox, progress table,
+ * plan count, plan checkboxes), REQUIREMENTS.md (requirement checkboxes,
+ * traceability table), and STATE.md (current phase, status, progress,
+ * performance metrics) atomically with per-file locks.
+ *
+ * @param args - args[0]: phaseNum (required)
+ * @param projectDir - Project root directory
+ * @returns QueryResult with completion details and warnings
+ */
+export const phaseComplete: QueryHandler = async (args, projectDir) => {
+  const phaseNum = args[0];
+  if (!phaseNum) {
+    throw new GSDError('phase number required for phase complete', ErrorClassification.Validation);
+  }
+  assertNoNullBytes(phaseNum, 'phaseNum');
+
+  const paths = planningPaths(projectDir);
+  const today = new Date().toISOString().split('T')[0];
+
+  // Step A: Validate phase exists and get info
+  const phaseInfo = await findPhaseDir(projectDir, phaseNum);
+  if (!phaseInfo) {
+    throw new GSDError(`Phase ${phaseNum} not found`, ErrorClassification.Validation);
+  }
+
+  const phaseDir = phaseInfo.dirPath;
+  let phaseFiles: string[];
+  try {
+    phaseFiles = await readdir(phaseDir);
+  } catch {
+    phaseFiles = [];
+  }
+
+  const plans = phaseFiles.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md');
+  const summaries = phaseFiles.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
+  const planCount = plans.length;
+  const summaryCount = summaries.length;
+  let requirementsUpdated = false;
+
+  // Step B: Check for verification warnings (non-blocking)
+  const warnings: string[] = [];
+  for (const file of phaseFiles.filter(f => f.includes('-UAT') && f.endsWith('.md'))) {
+    try {
+      const content = await readFile(join(phaseDir, file), 'utf-8');
+      if (/result: pending/.test(content)) warnings.push(`${file}: has pending tests`);
+      if (/result: blocked/.test(content)) warnings.push(`${file}: has blocked tests`);
+      if (/status: partial/.test(content)) warnings.push(`${file}: testing incomplete (partial)`);
+      if (/status: diagnosed/.test(content)) warnings.push(`${file}: has diagnosed gaps`);
+    } catch { /* intentionally empty */ }
+  }
+  for (const file of phaseFiles.filter(f => f.includes('-VERIFICATION') && f.endsWith('.md'))) {
+    try {
+      const content = await readFile(join(phaseDir, file), 'utf-8');
+      if (/status: human_needed/.test(content)) warnings.push(`${file}: needs human verification`);
+      if (/status: gaps_found/.test(content)) warnings.push(`${file}: has unresolved gaps`);
+    } catch { /* intentionally empty */ }
+  }
+
+  // Step C: Update ROADMAP.md atomically
+  if (existsSync(paths.roadmap)) {
+    await readModifyWriteRoadmapMd(projectDir, async (roadmapContent) => {
+      const phaseEscaped = escapeRegex(phaseNum);
+
+      // Checkbox: - [ ] Phase N: -> - [x] Phase N: (...completed DATE)
+      const checkboxPattern = new RegExp(
+        `(-\\s*\\[)[ ](\\]\\s*.*Phase\\s+${phaseEscaped}[:\\s][^\\n]*)`,
+        'i',
+      );
+      roadmapContent = replaceInCurrentMilestone(roadmapContent, checkboxPattern, `$1x$2 (completed ${today})`);
+
+      // Progress table: update Status to Complete, add date
+      const tableRowPattern = new RegExp(
+        `^(\\|\\s*${phaseEscaped}\\.?\\s[^|]*(?:\\|[^\\n]*))$`,
+        'im',
+      );
+      roadmapContent = roadmapContent.replace(tableRowPattern, (fullRow) => {
+        const cells = fullRow.split('|').slice(1, -1);
+        if (cells.length === 5) {
+          cells[2] = ` ${summaryCount}/${planCount} `;
+          cells[3] = ' Complete    ';
+          cells[4] = ` ${today} `;
+        } else if (cells.length === 4) {
+          cells[1] = ` ${summaryCount}/${planCount} `;
+          cells[2] = ' Complete    ';
+          cells[3] = ` ${today} `;
+        }
+        return '|' + cells.join('|') + '|';
+      });
+
+      // Update plan count in phase section
+      const planCountPattern = new RegExp(
+        `(#{2,4}\\s*Phase\\s+${phaseEscaped}[\\s\\S]*?\\*\\*Plans:\\*\\*\\s*)[^\\n]+`,
+        'i',
+      );
+      roadmapContent = replaceInCurrentMilestone(
+        roadmapContent, planCountPattern,
+        `$1${summaryCount}/${planCount} plans complete`,
+      );
+
+      // Mark completed plan checkboxes
+      for (const summaryFile of summaries) {
+        const planId = summaryFile.replace('-SUMMARY.md', '').replace('SUMMARY.md', '');
+        if (!planId) continue;
+        const planEscaped = escapeRegex(planId);
+        const planCheckboxPattern = new RegExp(
+          `(-\\s*\\[) (\\]\\s*(?:\\*\\*)?${planEscaped}(?:\\*\\*)?)`,
+          'i',
+        );
+        roadmapContent = roadmapContent.replace(planCheckboxPattern, '$1x$2');
+      }
+
+      // Step D: Update REQUIREMENTS.md
+      const reqPath = paths.requirements;
+      if (existsSync(reqPath)) {
+        const currentMilestoneRoadmap = await extractCurrentMilestone(roadmapContent, projectDir);
+        const phaseSectionMatch = currentMilestoneRoadmap.match(
+          new RegExp(`(#{2,4}\\s*Phase\\s+${phaseEscaped}[:\\s][\\s\\S]*?)(?=#{2,4}\\s*Phase\\s+|$)`, 'i'),
+        );
+
+        const sectionText = phaseSectionMatch ? phaseSectionMatch[1] : '';
+        const reqMatch = sectionText.match(/\*\*Requirements\*?\*?:?\s*([^\n]+)/i);
+
+        if (reqMatch) {
+          const reqIds = reqMatch[1].replace(/[[\]]/g, '').split(/[,\s]+/).map(r => r.trim()).filter(Boolean);
+          let reqContent = await readFile(reqPath, 'utf-8');
+
+          for (const reqId of reqIds) {
+            const reqEscaped = escapeRegex(reqId);
+            // Update checkbox: - [ ] **REQ-ID** -> - [x] **REQ-ID**
+            reqContent = reqContent.replace(
+              new RegExp(`(-\\s*\\[)[ ](\\]\\s*\\*\\*${reqEscaped}\\*\\*)`, 'gi'),
+              '$1x$2',
+            );
+            // Update traceability table: Pending/In Progress -> Complete
+            reqContent = reqContent.replace(
+              new RegExp(`(\\|\\s*${reqEscaped}\\s*\\|[^|]+\\|)\\s*(?:Pending|In Progress)\\s*(\\|)`, 'gi'),
+              '$1 Complete $2',
+            );
+          }
+
+          await writeFile(reqPath, reqContent, 'utf-8');
+          requirementsUpdated = true;
+        }
+      }
+
+      return roadmapContent;
+    });
+  }
+
+  // Step E: Find next phase — filesystem first, then ROADMAP.md fallback
+  let nextPhaseNum: string | null = null;
+  let nextPhaseName: string | null = null;
+  let isLastPhase = true;
+
+  try {
+    const isDirInMilestone = await getMilestonePhaseFilter(projectDir);
+    const entries = await readdir(paths.phases, { withFileTypes: true });
+    const dirs = entries.filter(e => e.isDirectory()).map(e => e.name)
+      .filter(isDirInMilestone)
+      .sort((a, b) => comparePhaseNum(a, b));
+
+    for (const dir of dirs) {
+      const dm = dir.match(/^(\d+[A-Z]?(?:\.\d+)*)-?(.*)/i);
+      if (dm) {
+        if (comparePhaseNum(dm[1], phaseNum) > 0) {
+          nextPhaseNum = dm[1];
+          nextPhaseName = dm[2] || null;
+          isLastPhase = false;
+          break;
+        }
+      }
+    }
+  } catch { /* intentionally empty */ }
+
+  // Fallback: check ROADMAP.md for phases not yet scaffolded
+  if (isLastPhase && existsSync(paths.roadmap)) {
+    try {
+      const roadmapContent = await readFile(paths.roadmap, 'utf-8');
+      const roadmapForPhases = await extractCurrentMilestone(roadmapContent, projectDir);
+      const phasePattern = /#{2,4}\s*Phase\s+(\d+[A-Z]?(?:\.\d+)*)\s*:\s*([^\n]+)/gi;
+      let pm: RegExpExecArray | null;
+      while ((pm = phasePattern.exec(roadmapForPhases)) !== null) {
+        if (comparePhaseNum(pm[1], phaseNum) > 0) {
+          nextPhaseNum = pm[1];
+          nextPhaseName = pm[2].replace(/\(INSERTED\)/i, '').trim().toLowerCase().replace(/\s+/g, '-');
+          isLastPhase = false;
+          break;
+        }
+      }
+    } catch { /* intentionally empty */ }
+  }
+
+  // Step F: Update STATE.md atomically
+  let stateUpdated = false;
+  if (existsSync(paths.state)) {
+    const lockPath = await acquireStateLock(paths.state);
+    try {
+      const rawState = await readFile(paths.state, 'utf-8');
+
+      // Split into frontmatter and body to prevent field replacement from
+      // matching YAML keys (e.g., `status:` in frontmatter vs `Status:` in body).
+      // Pattern 11: Strip frontmatter before modifier (from Phase 11 decisions).
+      const fmMatch = rawState.match(/^(---\r?\n[\s\S]*?\r?\n---)\s*/);
+      let frontmatter = fmMatch ? fmMatch[1] : '';
+      let body = fmMatch ? rawState.slice(fmMatch[0].length) : rawState;
+
+      // Update Current Phase — preserve "X of Y (Name)" compound format
+      const phaseValue = nextPhaseNum || phaseNum;
+      const existingPhaseField = stateExtractField(body, 'Current Phase')
+        || stateExtractField(body, 'Phase');
+      let newPhaseValue = String(phaseValue);
+      if (existingPhaseField) {
+        const totalMatch = existingPhaseField.match(/of\s+(\d+)/);
+        const nameMatch = existingPhaseField.match(/\(([^)]+)\)/);
+        if (totalMatch) {
+          const total = totalMatch[1];
+          const nameStr = nextPhaseName
+            ? ` (${nextPhaseName.replace(/-/g, ' ')})`
+            : (nameMatch ? ` (${nameMatch[1]})` : '');
+          newPhaseValue = `${phaseValue} of ${total}${nameStr}`;
+        }
+      }
+      body = stateReplaceFieldWithFallback(body, 'Current Phase', 'Phase', newPhaseValue);
+
+      // Update Status
+      body = stateReplaceFieldWithFallback(body, 'Status', null,
+        isLastPhase ? 'Milestone complete' : 'Ready to plan');
+
+      // Update Current Plan
+      body = stateReplaceFieldWithFallback(body, 'Current Plan', 'Plan', 'Not started');
+
+      // Update Last Activity
+      body = stateReplaceFieldWithFallback(body, 'Last Activity', 'Last activity', today);
+
+      // Update Performance Metrics section (operates on body only)
+      body = updatePerformanceMetricsSection(body, phaseNum, planCount, summaryCount);
+
+      // Update frontmatter fields separately
+      // Increment completed_phases
+      const completedFmMatch = frontmatter.match(/completed_phases:\s*(\d+)/);
+      if (completedFmMatch) {
+        const newCompleted = parseInt(completedFmMatch[1], 10) + 1;
+        frontmatter = frontmatter.replace(
+          /completed_phases:\s*\d+/,
+          `completed_phases: ${newCompleted}`,
+        );
+
+        // Recalculate percent
+        const totalFmMatch = frontmatter.match(/total_phases:\s*(\d+)/);
+        if (totalFmMatch) {
+          const totalPhases = parseInt(totalFmMatch[1], 10);
+          if (totalPhases > 0) {
+            const newPercent = Math.round((newCompleted / totalPhases) * 100);
+            frontmatter = frontmatter.replace(
+              /(percent:\s*)\d+/,
+              `$1${newPercent}`,
+            );
+          }
+        }
+      }
+
+      // Update frontmatter status field
+      frontmatter = frontmatter.replace(
+        /status:\s*.+/,
+        `status: ${isLastPhase ? 'milestone_complete' : 'ready_to_plan'}`,
+      );
+
+      // Reassemble and write
+      const stateContent = frontmatter + '\n\n' + body;
+      await writeFile(paths.state, stateContent, 'utf-8');
+      stateUpdated = true;
+    } finally {
+      await releaseStateLock(lockPath);
+    }
+  }
+
+  // Step G: Return result
+  return {
+    data: {
+      completed_phase: phaseNum,
+      phase_name: phaseInfo.phaseName,
+      plans_executed: `${summaryCount}/${planCount}`,
+      next_phase: nextPhaseNum,
+      next_phase_name: nextPhaseName,
+      is_last_phase: isLastPhase,
+      date: today,
+      roadmap_updated: existsSync(paths.roadmap),
+      state_updated: stateUpdated,
+      requirements_updated: requirementsUpdated,
+      warnings,
+      has_warnings: warnings.length > 0,
+    },
+  };
+};
+
+// ─── phasesClear handler ──────────────────────────────────────────────────
+
+/**
+ * Query handler for phases.clear.
+ *
+ * Port of cmdPhasesClear from milestone.cjs lines 250-277.
+ * Deletes all phase directories except 999.x backlog phases.
+ * Requires --confirm flag to proceed.
+ *
+ * @param args - args[0]: '--confirm' to proceed (optional)
+ * @param projectDir - Project root directory
+ * @returns QueryResult with { cleared: count }
+ */
+export const phasesClear: QueryHandler = async (args, projectDir) => {
+  const phasesDir = planningPaths(projectDir).phases;
+  const confirm = Array.isArray(args) && args.includes('--confirm');
+  let cleared = 0;
+
+  if (existsSync(phasesDir)) {
+    const entries = await readdir(phasesDir, { withFileTypes: true });
+    const dirs = entries.filter(e => e.isDirectory() && !/^999(?:\.|$)/.test(e.name));
+
+    if (dirs.length > 0 && !confirm) {
+      throw new GSDError(
+        `phases clear would delete ${dirs.length} phase director${dirs.length === 1 ? 'y' : 'ies'}. ` +
+        `Pass --confirm to proceed.`,
+        ErrorClassification.Validation,
+      );
+    }
+
+    for (const entry of dirs) {
+      await rm(join(phasesDir, entry.name), { recursive: true, force: true });
+      cleared++;
+    }
+  }
+
+  return { data: { cleared } };
+};
+
+// ─── phasesArchive handler ────────────────────────────────────────────────
+
+/**
+ * Query handler for phases.archive.
+ *
+ * Extracted from cmdMilestoneComplete, milestone.cjs lines 210-227.
+ * Moves milestone phase directories to milestones/{version}-phases/.
+ *
+ * @param args - args[0]: version string (e.g., "v3.0")
+ * @param projectDir - Project root directory
+ * @returns QueryResult with { archived: count, version, archive_directory }
+ */
+export const phasesArchive: QueryHandler = async (args, projectDir) => {
+  const version = args[0];
+  if (!version) {
+    throw new GSDError('version required for phases archive', ErrorClassification.Validation);
+  }
+  assertNoNullBytes(version, 'version');
+
+  const paths = planningPaths(projectDir);
+  const phasesDir = paths.phases;
+  const isDirInMilestone = await getMilestonePhaseFilter(projectDir);
+
+  const archiveDir = join(paths.planning, 'milestones', `${version}-phases`);
+  await mkdir(archiveDir, { recursive: true });
+
+  let archivedCount = 0;
+  if (existsSync(phasesDir)) {
+    const entries = await readdir(phasesDir, { withFileTypes: true });
+    const phaseDirNames = entries.filter(e => e.isDirectory()).map(e => e.name);
+
+    for (const dir of phaseDirNames) {
+      if (!isDirInMilestone(dir)) continue;
+      await rename(join(phasesDir, dir), join(archiveDir, dir));
+      archivedCount++;
+    }
+  }
+
+  return {
+    data: {
+      archived: archivedCount,
+      version,
+      archive_directory: toPosixPath(relative(projectDir, archiveDir)),
     },
   };
 };
