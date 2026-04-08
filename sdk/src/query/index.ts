@@ -28,6 +28,9 @@ import {
   stateRecordMetric, stateUpdateProgress, stateAddDecision,
   stateAddBlocker, stateResolveBlocker, stateRecordSession,
 } from './state-mutation.js';
+import {
+  configSet, configSetModelProfile, configNewProject, configEnsureSection,
+} from './config-mutation.js';
 
 // ─── Re-exports ────────────────────────────────────────────────────────────
 
@@ -77,6 +80,12 @@ export function createRegistry(): QueryRegistry {
   registry.register('state.add-blocker', stateAddBlocker);
   registry.register('state.resolve-blocker', stateResolveBlocker);
   registry.register('state.record-session', stateRecordSession);
+
+  // Config mutation handlers
+  registry.register('config-set', configSet);
+  registry.register('config-set-model-profile', configSetModelProfile);
+  registry.register('config-new-project', configNewProject);
+  registry.register('config-ensure-section', configEnsureSection);
 
   return registry;
 }
