@@ -117,14 +117,14 @@ describe('progressJson', () => {
     const phases = data.phases as Array<Record<string, unknown>>;
     expect(phases.length).toBe(2);
 
-    // Phase 1: 1 plan, 1 summary
-    expect(phases[0].number).toBe('1');
+    // Phase 1: 1 plan, 1 summary (dir name 01-foundation => number '01')
+    expect(phases[0].number).toBe('01');
     expect(phases[0].name).toBe('foundation');
     expect(phases[0].plans).toBe(1);
     expect(phases[0].summaries).toBe(1);
 
-    // Phase 2: 1 plan, 0 summaries
-    expect(phases[1].number).toBe('2');
+    // Phase 2: 1 plan, 0 summaries (dir name 02-features => number '02')
+    expect(phases[1].number).toBe('02');
     expect(phases[1].plans).toBe(1);
     expect(phases[1].summaries).toBe(0);
     expect(phases[1].status).toBe('Planned');
@@ -150,7 +150,7 @@ describe('progressJson', () => {
     const data = result.data as Record<string, unknown>;
     const phases = data.phases as Array<Record<string, unknown>>;
 
-    expect(phases[0].number).toBe('2');
+    expect(phases[0].number).toBe('02');
     expect(phases[1].number).toBe('10');
   });
 });

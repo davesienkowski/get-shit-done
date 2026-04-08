@@ -20,6 +20,8 @@ import { frontmatterGet } from './frontmatter.js';
 import { configGet, resolveModel } from './config-query.js';
 import { stateLoad, stateGet, stateSnapshot } from './state.js';
 import { findPhase, phasePlanIndex } from './phase.js';
+import { roadmapAnalyze, roadmapGetPhase } from './roadmap.js';
+import { progressJson } from './progress.js';
 
 // ─── Re-exports ────────────────────────────────────────────────────────────
 
@@ -47,6 +49,10 @@ export function createRegistry(): QueryRegistry {
   registry.register('state-snapshot', stateSnapshot);
   registry.register('find-phase', findPhase);
   registry.register('phase-plan-index', phasePlanIndex);
+  registry.register('roadmap.analyze', roadmapAnalyze);
+  registry.register('roadmap.get-phase', roadmapGetPhase);
+  registry.register('progress', progressJson);
+  registry.register('progress.json', progressJson);
 
   return registry;
 }

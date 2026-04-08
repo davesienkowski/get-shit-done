@@ -37,7 +37,7 @@ const ROADMAP_CONTENT = `# Roadmap
 
 **Depends on:** None
 
-**Success Criteria:**
+**Success Criteria**:
 1. Error classification system exists
 2. Query registry works
 
@@ -47,7 +47,7 @@ const ROADMAP_CONTENT = `# Roadmap
 
 **Depends on:** Phase 9
 
-**Success Criteria:**
+**Success Criteria**:
 1. All read queries work
 2. Golden file tests pass
 
