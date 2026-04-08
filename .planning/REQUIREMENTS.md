@@ -53,7 +53,7 @@ Requirements for SDK-First Migration. Each maps to roadmap phases.
 
 - [x] **LIFE-01**: SDK can add a phase to the end of the current roadmap (phase add)
 - [x] **LIFE-02**: SDK can insert a phase at a specific position with renumbering (phase insert)
-- [ ] **LIFE-03**: SDK can remove a phase with renumbering (phase remove)
+- [x] **LIFE-03**: SDK can remove a phase with renumbering (phase remove)
 - [ ] **LIFE-04**: SDK can mark a phase complete and update all tracking artifacts (phase complete)
 - [x] **LIFE-05**: SDK can scaffold new phase directories with required files (phase scaffold)
 - [ ] **LIFE-06**: SDK can archive phase directories for milestone completion (phases clear, phases archive)
@@ -133,7 +133,7 @@ Deferred to future release. Tracked but not in current roadmap.
 | RECON-03 | Phase 13.1 | Pending |
 | LIFE-01 | Phase 13 | Complete |
 | LIFE-02 | Phase 13 | Complete |
-| LIFE-03 | Phase 13 | Pending |
+| LIFE-03 | Phase 13 | Complete |
 | LIFE-04 | Phase 13 | Pending |
 | LIFE-05 | Phase 13 | Complete |
 | LIFE-06 | Phase 13 | Pending |
