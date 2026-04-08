@@ -23,6 +23,11 @@ import { findPhase, phasePlanIndex } from './phase.js';
 import { roadmapAnalyze, roadmapGetPhase } from './roadmap.js';
 import { progressJson } from './progress.js';
 import { frontmatterSet, frontmatterMerge, frontmatterValidate } from './frontmatter-mutation.js';
+import {
+  stateUpdate, statePatch, stateBeginPhase, stateAdvancePlan,
+  stateRecordMetric, stateUpdateProgress, stateAddDecision,
+  stateAddBlocker, stateResolveBlocker, stateRecordSession,
+} from './state-mutation.js';
 
 // ─── Re-exports ────────────────────────────────────────────────────────────
 
@@ -60,6 +65,18 @@ export function createRegistry(): QueryRegistry {
   registry.register('frontmatter.merge', frontmatterMerge);
   registry.register('frontmatter.validate', frontmatterValidate);
   registry.register('frontmatter validate', frontmatterValidate);
+
+  // State mutation handlers
+  registry.register('state.update', stateUpdate);
+  registry.register('state.patch', statePatch);
+  registry.register('state.begin-phase', stateBeginPhase);
+  registry.register('state.advance-plan', stateAdvancePlan);
+  registry.register('state.record-metric', stateRecordMetric);
+  registry.register('state.update-progress', stateUpdateProgress);
+  registry.register('state.add-decision', stateAddDecision);
+  registry.register('state.add-blocker', stateAddBlocker);
+  registry.register('state.resolve-blocker', stateResolveBlocker);
+  registry.register('state.record-session', stateRecordSession);
 
   return registry;
 }

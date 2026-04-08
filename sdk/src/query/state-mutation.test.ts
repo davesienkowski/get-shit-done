@@ -330,7 +330,10 @@ describe('stateAddDecision', () => {
 
     const content = await readFile(join(tmpDir, '.planning', 'STATE.md'), 'utf-8');
     expect(content).toContain('Use lockfile atomicity');
-    expect(content).not.toContain('None yet.');
+    // Verify "None yet." was removed from the Decisions section specifically
+    const decisionsMatch = content.match(/###?\s*Decisions\s*\n([\s\S]*?)(?=\n###?|\n##[^#]|$)/i);
+    expect(decisionsMatch).not.toBeNull();
+    expect(decisionsMatch![1]).not.toContain('None yet.');
   });
 });
 
