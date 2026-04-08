@@ -152,15 +152,15 @@ export const phaseAdd: QueryHandler = async (args, projectDir) => {
   const projectCode = (config.project_code as string) || '';
   const prefix = projectCode ? `${projectCode}-` : '';
 
-  let newPhaseId: number | string;
-  let dirName: string;
+  let newPhaseId: number | string = '';
+  let dirName = '';
 
   await readModifyWriteRoadmapMd(projectDir, async (rawContent) => {
     const content = await extractCurrentMilestone(rawContent, projectDir);
 
     if (customId || config.phase_naming === 'custom') {
       // Custom phase naming
-      newPhaseId = customId || slug.toUpperCase().replace(/-/g, '-');
+      newPhaseId = customId || slug.toUpperCase().replace(/-/g, '_');
       if (!newPhaseId) {
         throw new GSDError('--id required when phase_naming is "custom"', ErrorClassification.Validation);
       }
@@ -202,12 +202,19 @@ export const phaseAdd: QueryHandler = async (args, projectDir) => {
     return rawContent + phaseEntry;
   });
 
+  if (!dirName) {
+    throw new GSDError('Phase directory name was not computed', ErrorClassification.Execution);
+  }
+  if (newPhaseId === '') {
+    throw new GSDError('Phase ID was not computed', ErrorClassification.Execution);
+  }
+
   const result = {
-    phase_number: typeof newPhaseId! === 'number' ? newPhaseId! : String(newPhaseId!),
-    padded: typeof newPhaseId! === 'number' ? String(newPhaseId!).padStart(2, '0') : String(newPhaseId!),
+    phase_number: typeof newPhaseId === 'number' ? newPhaseId : String(newPhaseId),
+    padded: typeof newPhaseId === 'number' ? String(newPhaseId).padStart(2, '0') : String(newPhaseId),
     name: description,
     slug,
-    directory: toPosixPath(relative(projectDir, join(planningPaths(projectDir).phases, dirName!))),
+    directory: toPosixPath(relative(projectDir, join(planningPaths(projectDir).phases, dirName))),
     naming_mode: config.phase_naming || 'sequential',
   };
 
@@ -238,8 +245,8 @@ export const phaseInsert: QueryHandler = async (args, projectDir) => {
   assertNoNullBytes(description, 'description');
 
   const slug = generateSlugInternal(description);
-  let decimalPhase: string;
-  let dirName: string;
+  let decimalPhase = '';
+  let dirName = '';
 
   await readModifyWriteRoadmapMd(projectDir, async (rawContent) => {
     const content = await extractCurrentMilestone(rawContent, projectDir);
@@ -318,12 +325,19 @@ export const phaseInsert: QueryHandler = async (args, projectDir) => {
     return rawContent.slice(0, insertIdx) + phaseEntry + rawContent.slice(insertIdx);
   });
 
+  if (!decimalPhase) {
+    throw new GSDError('Decimal phase was not computed', ErrorClassification.Execution);
+  }
+  if (!dirName) {
+    throw new GSDError('Phase directory name was not computed', ErrorClassification.Execution);
+  }
+
   const result = {
-    phase_number: decimalPhase!,
+    phase_number: decimalPhase,
     after_phase: afterPhase,
     name: description,
     slug,
-    directory: toPosixPath(relative(projectDir, join(planningPaths(projectDir).phases, dirName!))),
+    directory: toPosixPath(relative(projectDir, join(planningPaths(projectDir).phases, dirName))),
   };
 
   return { data: result };
@@ -675,7 +689,7 @@ async function updateRoadmapAfterPhaseRemoval(
 
         // Renumber depends-on references
         content = content.replace(
-          new RegExp(`(Depends on:\\*\\*\\s*Phase\\s+)${escapeRegex(oldStr)}\\b`, 'gi'),
+          new RegExp(`(\\*\\*Depends on:\\*\\*\\s*Phase\\s+)${escapeRegex(oldStr)}\\b`, 'gi'),
           `$1${newStr}`,
         );
       }
@@ -743,9 +757,20 @@ export const phaseRemove: QueryHandler = async (args, projectDir) => {
   let renamedDirs: Array<{ from: string; to: string }> = [];
   let renamedFiles: Array<{ from: string; to: string }> = [];
   try {
-    const renamed = isDecimal
-      ? await renameDecimalPhases(phasesDir, normalized.split('.')[0], parseInt(normalized.split('.')[1], 10))
-      : await renameIntegerPhases(phasesDir, parseInt(normalized, 10));
+    let renamed: { renamedDirs: Array<{ from: string; to: string }>; renamedFiles: Array<{ from: string; to: string }> };
+    if (isDecimal) {
+      const parts = normalized.split('.');
+      if (parts.length < 2 || !parts[1]) {
+        throw new GSDError(`Invalid decimal phase identifier: ${targetPhase}`, ErrorClassification.Validation);
+      }
+      const decimalPart = parseInt(parts[1], 10);
+      if (isNaN(decimalPart)) {
+        throw new GSDError(`Invalid decimal part in phase: ${targetPhase}`, ErrorClassification.Validation);
+      }
+      renamed = await renameDecimalPhases(phasesDir, parts[0], decimalPart);
+    } else {
+      renamed = await renameIntegerPhases(phasesDir, parseInt(normalized, 10));
+    }
     renamedDirs = renamed.renamedDirs;
     renamedFiles = renamed.renamedFiles;
   } catch { /* intentionally empty — renaming is best-effort */ }
