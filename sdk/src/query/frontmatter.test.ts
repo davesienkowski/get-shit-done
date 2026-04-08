@@ -11,6 +11,7 @@ import {
   extractFrontmatter,
   stripFrontmatter,
   frontmatterGet,
+  parseMustHavesBlock,
 } from './frontmatter.js';
 
 // ─── splitInlineArray ───────────────────────────────────────────────────────
@@ -151,5 +152,115 @@ describe('frontmatterGet', () => {
   it('throws GSDError for null bytes in path', async () => {
     const { GSDError } = await import('../errors.js');
     await expect(frontmatterGet(['bad\0path.md'], tmpDir)).rejects.toThrow(GSDError);
+  });
+});
+
+// ─── parseMustHavesBlock ───────────────────────────────────────────────────
+
+describe('parseMustHavesBlock', () => {
+  it('parses artifacts block with path, provides, min_lines, contains, exports', () => {
+    const content = `---
+phase: 12
+must_haves:
+  artifacts:
+    - path: sdk/src/foo.ts
+      provides: Foo handler
+      min_lines: 50
+      contains: export function foo
+      exports:
+        - foo
+        - bar
+---
+body`;
+    const result = parseMustHavesBlock(content, 'artifacts');
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toEqual({
+      path: 'sdk/src/foo.ts',
+      provides: 'Foo handler',
+      min_lines: 50,
+      contains: 'export function foo',
+      exports: ['foo', 'bar'],
+    });
+  });
+
+  it('parses key_links block with from, to, via, pattern', () => {
+    const content = `---
+phase: 12
+must_haves:
+  key_links:
+    - from: src/a.ts
+      to: src/b.ts
+      via: import something
+      pattern: import.*something.*from.*b
+---
+body`;
+    const result = parseMustHavesBlock(content, 'key_links');
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toEqual({
+      from: 'src/a.ts',
+      to: 'src/b.ts',
+      via: 'import something',
+      pattern: 'import.*something.*from.*b',
+    });
+  });
+
+  it('parses simple string items (truths)', () => {
+    const content = `---
+phase: 12
+must_haves:
+  truths:
+    - Running verify returns valid
+    - Running check returns true
+---
+body`;
+    const result = parseMustHavesBlock(content, 'truths');
+    expect(result.items).toHaveLength(2);
+    expect(result.items[0]).toBe('Running verify returns valid');
+    expect(result.items[1]).toBe('Running check returns true');
+  });
+
+  it('preserves nested array values (exports: [a, b])', () => {
+    const content = `---
+must_haves:
+  artifacts:
+    - path: foo.ts
+      exports:
+        - alpha
+        - beta
+---
+`;
+    const result = parseMustHavesBlock(content, 'artifacts');
+    expect(result.items[0]).toMatchObject({ exports: ['alpha', 'beta'] });
+  });
+
+  it('returns empty items for missing block', () => {
+    const content = `---
+must_haves:
+  truths:
+    - something
+---
+`;
+    const result = parseMustHavesBlock(content, 'artifacts');
+    expect(result.items).toEqual([]);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('returns empty items for no frontmatter', () => {
+    const result = parseMustHavesBlock('no frontmatter here', 'artifacts');
+    expect(result.items).toEqual([]);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('emits diagnostic warning when content lines exist but 0 items parsed', () => {
+    const content = `---
+must_haves:
+  artifacts:
+  some badly formatted content
+---
+`;
+    const result = parseMustHavesBlock(content, 'artifacts');
+    expect(result.items).toEqual([]);
+    expect(result.warnings.length).toBeGreaterThan(0);
+    expect(result.warnings[0]).toContain('artifacts');
   });
 });
