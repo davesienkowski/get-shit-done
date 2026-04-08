@@ -60,19 +60,19 @@ Requirements for SDK-First Migration. Each maps to roadmap phases.
 
 ### Composition
 
-- [ ] **COMP-01**: SDK replaces 16 compound init commands with composable typed query chains (init execute-phase, init plan-phase, etc.)
-- [ ] **COMP-02**: SDK implements staged execution pipeline (prepare/execute/finalize) wrapping registry dispatch
-- [ ] **COMP-03**: SDK supports workspace-aware state resolution as first-class typed contexts
-- [ ] **COMP-04**: SDK supports dry-run mode for mutations (preview changes without writing)
+- [x] **COMP-01**: SDK replaces 16 compound init commands with composable typed query chains (init execute-phase, init plan-phase, etc.)
+- [x] **COMP-02**: SDK implements staged execution pipeline (prepare/execute/finalize) wrapping registry dispatch
+- [x] **COMP-03**: SDK supports workspace-aware state resolution as first-class typed contexts
+- [x] **COMP-04**: SDK supports dry-run mode for mutations (preview changes without writing)
 
 ### Migration Infrastructure
 
 - [x] **MIGR-01**: Golden file tests validate SDK output matches gsd-tools.cjs output for all migrated commands
 - [x] **MIGR-02**: Wrapper tracking metric counts remaining gsd-tools.cjs bridge calls in SDK
-- [ ] **MIGR-03**: All 65 workflow markdown files updated from `node gsd-tools.cjs` to `gsd-sdk query` calls
-- [ ] **MIGR-04**: gsd-tools.cjs fully retired -- removed from tree, GSDTools bridge class removed from SDK
-- [ ] **MIGR-05**: All new SDK query functions have unit tests via Vitest
-- [ ] **MIGR-06**: SDK passes CI on all platforms (Ubuntu, macOS, Windows x Node 22, 24)
+- [x] **MIGR-03**: All 65 workflow markdown files updated from `node gsd-tools.cjs` to `gsd-sdk query` calls
+- [x] **MIGR-04**: gsd-tools.cjs fully retired -- removed from tree, GSDTools bridge class removed from SDK
+- [x] **MIGR-05**: All new SDK query functions have unit tests via Vitest
+- [x] **MIGR-06**: SDK passes CI on all platforms (Ubuntu, macOS, Windows x Node 22, 24)
 
 ## v4.0 Requirements
 
@@ -137,16 +137,16 @@ Deferred to future release. Tracked but not in current roadmap.
 | LIFE-04 | Phase 13 | Complete |
 | LIFE-05 | Phase 13 | Complete |
 | LIFE-06 | Phase 13 | Complete |
-| COMP-01 | Phase 14 | Pending |
-| COMP-02 | Phase 14 | Pending |
-| COMP-03 | Phase 14 | Pending |
-| COMP-04 | Phase 14 | Pending |
+| COMP-01 | Phase 14 | Complete |
+| COMP-02 | Phase 14 | Complete |
+| COMP-03 | Phase 14 | Complete |
+| COMP-04 | Phase 14 | Complete |
 | MIGR-01 | Phase 9 | Complete |
 | MIGR-02 | Phase 9 | Complete |
-| MIGR-03 | Phase 14 | Pending |
-| MIGR-04 | Phase 14 | Pending |
-| MIGR-05 | Phase 14 | Pending |
-| MIGR-06 | Phase 14 | Pending |
+| MIGR-03 | Phase 14 | Complete |
+| MIGR-04 | Phase 14 | Complete |
+| MIGR-05 | Phase 14 | Complete |
+| MIGR-06 | Phase 14 | Complete |
 
 **Coverage:**
 - v3.0 requirements: 40 total
