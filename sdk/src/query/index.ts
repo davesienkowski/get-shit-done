@@ -33,11 +33,12 @@ import {
 } from './config-mutation.js';
 import { commit, checkCommit } from './commit.js';
 import { templateFill, templateSelect } from './template.js';
-import { verifyPlanStructure, verifyPhaseCompleteness, verifyArtifacts } from './verify.js';
+import { verifyPlanStructure, verifyPhaseCompleteness, verifyArtifacts, verifyCommits, verifyReferences, verifySummary, verifyPathExists } from './verify.js';
 import { verifyKeyLinks, validateConsistency, validateHealth } from './validate.js';
 import {
   phaseAdd, phaseInsert, phaseRemove, phaseComplete,
   phaseScaffold, phasesClear, phasesArchive,
+  phasesList, phaseNextDecimal,
 } from './phase-lifecycle.js';
 import {
   initExecutePhase, initPlanPhase, initNewMilestone, initQuick,
@@ -45,21 +46,29 @@ import {
   initMapCodebase, initNewWorkspace, initListWorkspaces, initRemoveWorkspace,
 } from './init.js';
 import { initNewProject, initProgress, initManager } from './init-complex.js';
+import { agentSkills } from './skills.js';
+import { roadmapUpdatePlanProgress, requirementsMarkComplete } from './roadmap.js';
+import { statePlannedPhase } from './state-mutation.js';
+import { verifySchemaDrift } from './verify.js';
+import { todoMatchPhase, statsJson, progressBar, listTodos, todoComplete } from './progress.js';
+import { milestoneComplete } from './phase-lifecycle.js';
+import { summaryExtract, historyDigest } from './summary.js';
+import { commitToSubrepo } from './commit.js';
 import {
-  agentSkills, roadmapUpdatePlanProgress, requirementsMarkComplete,
-  statePlannedPhase, verifySchemaDrift, todoMatchPhase, milestoneComplete,
-  summaryExtract, historyDigest, statsJson, commitToSubrepo, progressBar,
   workstreamList, workstreamCreate, workstreamSet, workstreamStatus,
-  workstreamComplete, workstreamProgress, docsInit,
-  uatRenderCheckpoint, websearch,
-} from './stubs.js';
+  workstreamComplete, workstreamProgress,
+} from './workstream.js';
+import { docsInit } from './init.js';
+import { uatRenderCheckpoint, auditUat } from './uat.js';
+import { websearch } from './websearch.js';
 import {
   intelStatus, intelDiff, intelSnapshot, intelValidate, intelQuery,
   intelExtractExports, intelPatchMeta,
-  learningsCopy, auditUat,
-  scanSessions, profileSample, profileQuestionnaire, writeProfile,
-  generateClaudeProfile, generateDevPreferences, generateClaudeMd,
-} from './advanced.js';
+} from './intel.js';
+import {
+  learningsCopy, learningsQuery, extractMessages, scanSessions, profileSample, profileQuestionnaire,
+  writeProfile, generateClaudeProfile, generateDevPreferences, generateClaudeMd,
+} from './profile.js';
 import { GSDEventStream } from '../event-stream.js';
 import {
   GSDEventType,
@@ -251,6 +260,16 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('verify artifacts', verifyArtifacts);
   registry.register('verify.key-links', verifyKeyLinks);
   registry.register('verify key-links', verifyKeyLinks);
+  registry.register('verify.commits', verifyCommits);
+  registry.register('verify commits', verifyCommits);
+  registry.register('verify.references', verifyReferences);
+  registry.register('verify references', verifyReferences);
+  registry.register('verify-summary', verifySummary);
+  registry.register('verify.summary', verifySummary);
+  registry.register('verify summary', verifySummary);
+  registry.register('verify-path-exists', verifyPathExists);
+  registry.register('verify.path-exists', verifyPathExists);
+  registry.register('verify path-exists', verifyPathExists);
   registry.register('validate.consistency', validateConsistency);
   registry.register('validate consistency', validateConsistency);
   registry.register('validate.health', validateHealth);
@@ -264,6 +283,8 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('phase.scaffold', phaseScaffold);
   registry.register('phases.clear', phasesClear);
   registry.register('phases.archive', phasesArchive);
+  registry.register('phases.list', phasesList);
+  registry.register('phase.next-decimal', phaseNextDecimal);
   // Space-delimited aliases for CJS compatibility
   registry.register('phase add', phaseAdd);
   registry.register('phase insert', phaseInsert);
@@ -272,6 +293,8 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('phase scaffold', phaseScaffold);
   registry.register('phases clear', phasesClear);
   registry.register('phases archive', phasesArchive);
+  registry.register('phases list', phasesList);
+  registry.register('phase next-decimal', phaseNextDecimal);
 
   // Init composition handlers
   registry.register('init.execute-phase', initExecutePhase);
@@ -310,7 +333,7 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('init progress', initProgress);
   registry.register('init manager', initManager);
 
-  // Stub handlers — functional + v4.0 deferred
+  // Domain-specific handlers (fully implemented)
   registry.register('agent-skills', agentSkills);
   registry.register('roadmap.update-plan-progress', roadmapUpdatePlanProgress);
   registry.register('roadmap update-plan-progress', roadmapUpdatePlanProgress);
@@ -322,6 +345,10 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('verify schema-drift', verifySchemaDrift);
   registry.register('todo.match-phase', todoMatchPhase);
   registry.register('todo match-phase', todoMatchPhase);
+  registry.register('list-todos', listTodos);
+  registry.register('list.todos', listTodos);
+  registry.register('todo.complete', todoComplete);
+  registry.register('todo complete', todoComplete);
   registry.register('milestone.complete', milestoneComplete);
   registry.register('milestone complete', milestoneComplete);
   registry.register('summary.extract', summaryExtract);
@@ -350,6 +377,10 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('websearch', websearch);
   registry.register('learnings.copy', learningsCopy);
   registry.register('learnings copy', learningsCopy);
+  registry.register('learnings.query', learningsQuery);
+  registry.register('learnings query', learningsQuery);
+  registry.register('extract-messages', extractMessages);
+  registry.register('extract.messages', extractMessages);
   registry.register('audit-uat', auditUat);
   registry.register('uat.render-checkpoint', uatRenderCheckpoint);
   registry.register('uat render-checkpoint', uatRenderCheckpoint);

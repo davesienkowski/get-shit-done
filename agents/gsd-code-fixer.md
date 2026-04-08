@@ -308,7 +308,7 @@ For each finding in sorted order:
 
 **If verification passed:**
 
-Use gsd-tools commit command with conventional format:
+Use gsd-sdk commit command with conventional format:
 ```bash
 gsd-sdk query commit \
   "fix({padded_phase}): {finding_id} {short_description}" \

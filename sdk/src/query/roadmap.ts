@@ -17,7 +17,7 @@
  * ```
  */
 
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile, writeFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { GSDError, ErrorClassification } from '../errors.js';
 import {
@@ -412,4 +412,59 @@ export const roadmapAnalyze: QueryHandler = async (_args, projectDir) => {
   };
 
   return { data: result };
+};
+
+// ─── roadmapUpdatePlanProgress ────────────────────────────────────────────
+
+export const roadmapUpdatePlanProgress: QueryHandler = async (args, projectDir) => {
+  const phase = args[0];
+  const paths = planningPaths(projectDir);
+
+  if (!phase) {
+    return { data: { updated: false, reason: 'phase argument required' } };
+  }
+
+  try {
+    let content = await readFile(paths.roadmap, 'utf-8');
+    const phaseNum = normalizePhaseName(phase);
+    const updated = content.replace(
+      /(-\s*\[\s*\]\s*(?:Plan\s+\d+|plan\s+\d+|\*\*Plan))/gi,
+      (match) => match.replace('[ ]', '[x]'),
+    );
+    if (updated !== content) {
+      await writeFile(paths.roadmap, updated, 'utf-8');
+      return { data: { updated: true, phase: phaseNum } };
+    }
+    return { data: { updated: false, phase: phaseNum, reason: 'no matching checkbox found' } };
+  } catch {
+    return { data: { updated: false, reason: 'ROADMAP.md not found or unreadable' } };
+  }
+};
+
+// ─── requirementsMarkComplete ─────────────────────────────────────────────
+
+export const requirementsMarkComplete: QueryHandler = async (args, projectDir) => {
+  const reqIds = args;
+  const paths = planningPaths(projectDir);
+
+  if (reqIds.length === 0) {
+    return { data: { marked: false, reason: 'requirement IDs required' } };
+  }
+
+  try {
+    let content = await readFile(paths.requirements, 'utf-8');
+    let changeCount = 0;
+
+    for (const id of reqIds) {
+      const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = new RegExp(`(-\\s*\\[\\s*\\]\\s*)([^\\n]*${escaped})`, 'gi');
+      content = content.replace(pattern, (_m, _bracket, rest) => `- [x] ${rest}`.trim() + '\n' || `- [x] ${rest}`);
+      if (content.includes(`[x]`) && content.includes(id)) changeCount++;
+    }
+
+    await writeFile(paths.requirements, content, 'utf-8');
+    return { data: { marked: true, ids: reqIds, changed: changeCount } };
+  } catch {
+    return { data: { marked: false, reason: 'REQUIREMENTS.md not found or unreadable' } };
+  }
 };

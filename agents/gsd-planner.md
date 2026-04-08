@@ -1008,7 +1008,13 @@ Read the most recent milestone retrospective and cross-milestone trends. Extract
 </step>
 
 <step name="inject_global_learnings">
-If `features.global_learnings` is `true`: run `gsd-tools learnings query --tag <phase_tags> --limit 5`, prefix matches with `[Prior learning from <project>]` as weak priors. Project-local decisions take precedence. Skip silently if disabled or no matches. For tags, use PLAN.md frontmatter `tags` field or keywords from the phase objective, comma-separated (e.g. `--tag auth,database,api`).
+If `features.global_learnings` is `true`:
+
+```bash
+LEARNINGS=$(gsd-sdk query learnings.query --tag <phase_tags> --limit 5)
+```
+
+Prefix matches with `[Prior learning from <project>]` as weak priors. Project-local decisions take precedence. Skip silently if disabled or no matches. For tags, use PLAN.md frontmatter `tags` field or keywords from the phase objective, comma-separated (e.g. `--tag auth,database,api`).
 </step>
 
 <step name="gather_phase_context">
@@ -1120,7 +1126,7 @@ The filename MUST follow the exact pattern: `{padded_phase}-{NN}-PLAN.md`
 - Phase 3, Plan 2 → `03-02-PLAN.md`
 - Phase 2.1, Plan 1 → `02.1-01-PLAN.md`
 
-**Incorrect (will break gsd-tools detection):**
+**Incorrect (will break gsd-sdk detection):**
 - ❌ `PLAN-01-auth.md`
 - ❌ `01-PLAN-01.md`
 - ❌ `plan-01.md`
@@ -1132,7 +1138,7 @@ Include all frontmatter fields.
 </step>
 
 <step name="validate_plan">
-Validate each created PLAN.md using gsd-tools:
+Validate each created PLAN.md using gsd-sdk:
 
 ```bash
 VALID=$(gsd-sdk query frontmatter.validate "$PLAN_PATH" --schema plan)

@@ -369,7 +369,7 @@ Execute each selected wave in sequence. Within a wave: parallel if `PARALLELIZAT
        You are running as a PARALLEL executor agent. Use --no-verify on all git
        commits to avoid pre-commit hook contention with other agents. The
        orchestrator validates hooks once after all agents complete.
-       For gsd-tools commits: add --no-verify flag.
+       For gsd-sdk commits: add --no-verify flag.
        For direct git commits: use git commit --no-verify -m "..."
        </parallel_execution>
 

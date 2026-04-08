@@ -24,7 +24,7 @@ Then proceed to Step 1.
 
 Check if intel is enabled by reading `.planning/config.json` directly using the Read tool.
 
-**DO NOT use the gsd-tools config get-value command** -- it hard-exits on missing keys.
+**DO NOT use the gsd-sdk config get-value command** -- it hard-exits on missing keys.
 
 1. Read `.planning/config.json` using the Read tool
 2. If the file does not exist: display the disabled message below and **STOP**
@@ -137,15 +137,14 @@ Task(
   prompt="You are the gsd-intel-updater agent. Your job is to analyze this codebase and write/update intelligence files in .planning/intel/.
 
 Project root: ${CWD}
-gsd-tools path: $HOME/.claude/get-shit-done/bin/gsd-tools.cjs
 
 Instructions:
 1. Analyze the codebase structure, dependencies, APIs, and architecture
 2. Write JSON intel files to .planning/intel/ (stack.json, api-map.json, dependency-graph.json, file-roles.json, arch-decisions.json)
 3. Each file must have a _meta object with updated_at timestamp
-4. Use gsd-tools intel extract-exports <file> to analyze source files
-5. Use gsd-tools intel patch-meta <file> to update timestamps after writing
-6. Use gsd-tools intel validate to check your output
+4. Use gsd-sdk query intel.extract-exports <file> to analyze source files
+5. Use gsd-sdk query intel.patch-meta <file> to update timestamps after writing
+6. Use gsd-sdk query intel.validate to check your output
 
 When complete, output: ## INTEL UPDATE COMPLETE
 If something fails, output: ## INTEL UPDATE FAILED with details."
@@ -176,4 +175,4 @@ Display a summary showing:
 1. DO NOT spawn an agent for query/status/diff operations -- these are inline CLI calls
 2. DO NOT modify intel files directly -- the agent handles writes during refresh
 3. DO NOT skip the config gate check
-4. DO NOT use the gsd-tools config get-value CLI for the config gate -- it exits on missing keys
+4. DO NOT use the gsd-sdk config get-value CLI for the config gate -- it exits on missing keys

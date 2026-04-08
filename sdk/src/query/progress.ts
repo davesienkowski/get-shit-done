@@ -15,9 +15,10 @@
  */
 
 import { readFile, readdir } from 'node:fs/promises';
-import { join } from 'node:path';
-import { comparePhaseNum, planningPaths } from './helpers.js';
-import { getMilestoneInfo } from './roadmap.js';
+import { existsSync, readdirSync, readFileSync, mkdirSync, writeFileSync, unlinkSync } from 'node:fs';
+import { join, relative } from 'node:path';
+import { comparePhaseNum, normalizePhaseName, planningPaths, toPosixPath } from './helpers.js';
+import { getMilestoneInfo, roadmapAnalyze } from './roadmap.js';
 import type { QueryHandler } from './utils.js';
 
 // ─── Internal helpers ─────────────────────────────────────────────────────
@@ -111,4 +112,161 @@ export const progressJson: QueryHandler = async (_args, projectDir) => {
       percent,
     },
   };
+};
+
+// ─── progressBar ─────────────────────────────────────────────────────────
+
+export const progressBar: QueryHandler = async (_args, projectDir) => {
+  const analysis = await roadmapAnalyze([], projectDir);
+  const data = analysis.data as Record<string, unknown>;
+  const percent = (data.progress_percent as number) || 0;
+  const total = 20;
+  const filled = Math.round((percent / 100) * total);
+  const bar = '[' + '#'.repeat(filled) + '-'.repeat(total - filled) + ']';
+  return { data: { bar: `${bar} ${percent}%`, percent } };
+};
+
+// ─── statsJson ───────────────────────────────────────────────────────────
+
+export const statsJson: QueryHandler = async (_args, projectDir) => {
+  const paths = planningPaths(projectDir);
+  let phasesTotal = 0;
+  let plansTotal = 0;
+  let summariesTotal = 0;
+  let completedPhases = 0;
+
+  if (existsSync(paths.phases)) {
+    try {
+      const entries = readdirSync(paths.phases, { withFileTypes: true }) as unknown as Array<{ isDirectory(): boolean; name: string }>;
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        phasesTotal++;
+        const phaseDir = join(paths.phases, entry.name);
+        const files = readdirSync(phaseDir);
+        const plans = files.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md');
+        const summaries = files.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
+        plansTotal += plans.length;
+        summariesTotal += summaries.length;
+        if (summaries.length >= plans.length && plans.length > 0) completedPhases++;
+      }
+    } catch { /* skip */ }
+  }
+
+  const progressPercent = phasesTotal > 0 ? Math.round((completedPhases / phasesTotal) * 100) : 0;
+
+  return {
+    data: {
+      phases_total: phasesTotal,
+      plans_total: plansTotal,
+      summaries_total: summariesTotal,
+      completed_phases: completedPhases,
+      in_progress_phases: phasesTotal - completedPhases,
+      progress_percent: progressPercent,
+    },
+  };
+};
+
+// ─── todoMatchPhase ──────────────────────────────────────────────────────
+
+export const todoMatchPhase: QueryHandler = async (args, projectDir) => {
+  const phase = args[0];
+  const todosDir = join(projectDir, '.planning', 'todos');
+  const todos: Array<{ file: string; phase: string }> = [];
+
+  if (!existsSync(todosDir)) {
+    return { data: { todos: [], count: 0, phase: phase || null } };
+  }
+
+  try {
+    const files = readdirSync(todosDir).filter(f => f.endsWith('.md') || f.endsWith('.json'));
+    for (const file of files) {
+      if (!phase || file.includes(normalizePhaseName(phase)) || file.includes(phase)) {
+        todos.push({ file: toPosixPath(join('.planning', 'todos', file)), phase: phase || 'all' });
+      }
+    }
+  } catch { /* skip */ }
+
+  return { data: { todos, count: todos.length, phase: phase || null } };
+};
+
+// ─── listTodos ──────────────────────────────────────────────────────────
+
+/**
+ * List pending todos from .planning/todos/pending/, optionally filtered by area.
+ *
+ * Port of `cmdListTodos` from commands.cjs lines 74-109.
+ *
+ * @param args - args[0]: optional area filter
+ */
+export const listTodos: QueryHandler = async (args, projectDir) => {
+  const area = args[0] || null;
+  const pendingDir = join(projectDir, '.planning', 'todos', 'pending');
+
+  const todos: Array<{ file: string; created: string; title: string; area: string; path: string }> = [];
+
+  try {
+    const files = readdirSync(pendingDir).filter(f => f.endsWith('.md'));
+    for (const file of files) {
+      try {
+        const content = readFileSync(join(pendingDir, file), 'utf-8');
+        const createdMatch = content.match(/^created:\s*(.+)$/m);
+        const titleMatch = content.match(/^title:\s*(.+)$/m);
+        const areaMatch = content.match(/^area:\s*(.+)$/m);
+
+        const todoArea = areaMatch ? areaMatch[1].trim() : 'general';
+        if (area && todoArea !== area) continue;
+
+        todos.push({
+          file,
+          created: createdMatch ? createdMatch[1].trim() : 'unknown',
+          title: titleMatch ? titleMatch[1].trim() : 'Untitled',
+          area: todoArea,
+          path: toPosixPath(relative(projectDir, join(pendingDir, file))),
+        });
+      } catch { /* skip */ }
+    }
+  } catch { /* skip */ }
+
+  return { data: { count: todos.length, todos } };
+};
+
+// ─── todoComplete ───────────────────────────────────────────────────────
+
+/**
+ * Move a todo from pending to completed, adding a completion timestamp.
+ *
+ * Port of `cmdTodoComplete` from commands.cjs lines 724-749.
+ *
+ * @param args - args[0]: filename (required)
+ */
+export const todoComplete: QueryHandler = async (args, projectDir) => {
+  const filename = args[0];
+  if (!filename) {
+    throw new (await import('../errors.js')).GSDError(
+      'filename required for todo complete',
+      (await import('../errors.js')).ErrorClassification.Validation,
+    );
+  }
+
+  const pendingDir = join(projectDir, '.planning', 'todos', 'pending');
+  const completedDir = join(projectDir, '.planning', 'todos', 'completed');
+  const sourcePath = join(pendingDir, filename);
+
+  if (!existsSync(sourcePath)) {
+    throw new (await import('../errors.js')).GSDError(
+      `Todo not found: ${filename}`,
+      (await import('../errors.js')).ErrorClassification.Validation,
+    );
+  }
+
+  mkdirSync(completedDir, { recursive: true });
+
+  let content = readFileSync(sourcePath, 'utf-8');
+  const today = new Date().toISOString().split('T')[0];
+  content = `completed: ${today}\n` + content;
+
+  writeFileSync(join(completedDir, filename), content, 'utf-8');
+  unlinkSync(sourcePath);
+
+  return { data: { completed: true, file: filename, date: today } };
 };

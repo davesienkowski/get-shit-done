@@ -15,6 +15,7 @@
  */
 
 import { readFile, readdir } from 'node:fs/promises';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, isAbsolute } from 'node:path';
 import { GSDError, ErrorClassification } from '../errors.js';
 import { extractFrontmatter, parseMustHavesBlock } from './frontmatter.js';
@@ -301,4 +302,287 @@ export const verifyArtifacts: QueryHandler = async (args, projectDir) => {
       artifacts: results,
     },
   };
+};
+
+// ─── verifyCommits ────────────────────────────────────────────────────────
+
+/**
+ * Verify that commit hashes referenced in SUMMARY.md files actually exist.
+ *
+ * Port of `cmdVerifyCommits` from `verify.cjs` lines 262-282.
+ * Used by gsd-verifier agent to confirm commits mentioned in summaries
+ * are real commits in the git history.
+ *
+ * @param args - One or more commit hashes
+ * @param projectDir - Project root directory
+ * @returns QueryResult with { all_valid, valid, invalid, total }
+ */
+export const verifyCommits: QueryHandler = async (args, projectDir) => {
+  if (args.length === 0) {
+    throw new GSDError('At least one commit hash required', ErrorClassification.Validation);
+  }
+
+  const { execGit } = await import('./commit.js');
+  const valid: string[] = [];
+  const invalid: string[] = [];
+
+  for (const hash of args) {
+    const result = execGit(projectDir, ['cat-file', '-t', hash]);
+    if (result.exitCode === 0 && result.stdout.trim() === 'commit') {
+      valid.push(hash);
+    } else {
+      invalid.push(hash);
+    }
+  }
+
+  return {
+    data: {
+      all_valid: invalid.length === 0,
+      valid,
+      invalid,
+      total: args.length,
+    },
+  };
+};
+
+// ─── verifyReferences ─────────────────────────────────────────────────────
+
+/**
+ * Verify that @-references and backtick file paths in a document resolve.
+ *
+ * Port of `cmdVerifyReferences` from `verify.cjs` lines 217-260.
+ *
+ * @param args - args[0]: file path (required)
+ * @param projectDir - Project root directory
+ * @returns QueryResult with { valid, found, missing }
+ */
+export const verifyReferences: QueryHandler = async (args, projectDir) => {
+  const filePath = args[0];
+  if (!filePath) {
+    throw new GSDError('file path required', ErrorClassification.Validation);
+  }
+
+  const fullPath = isAbsolute(filePath) ? filePath : join(projectDir, filePath);
+
+  let content: string;
+  try {
+    content = await readFile(fullPath, 'utf-8');
+  } catch {
+    return { data: { error: 'File not found', path: filePath } };
+  }
+
+  const found: string[] = [];
+  const missing: string[] = [];
+
+  const atRefs = content.match(/@([^\s\n,)]+\/[^\s\n,)]+)/g) || [];
+  for (const ref of atRefs) {
+    const cleanRef = ref.slice(1);
+    const resolved = cleanRef.startsWith('~/')
+      ? join(process.env.HOME || '', cleanRef.slice(2))
+      : join(projectDir, cleanRef);
+    if (existsSync(resolved)) {
+      found.push(cleanRef);
+    } else {
+      missing.push(cleanRef);
+    }
+  }
+
+  const backtickRefs = content.match(/`([^`]+\/[^`]+\.[a-zA-Z]{1,10})`/g) || [];
+  for (const ref of backtickRefs) {
+    const cleanRef = ref.slice(1, -1);
+    if (cleanRef.startsWith('http') || cleanRef.includes('${') || cleanRef.includes('{{')) continue;
+    if (found.includes(cleanRef) || missing.includes(cleanRef)) continue;
+    const resolved = join(projectDir, cleanRef);
+    if (existsSync(resolved)) {
+      found.push(cleanRef);
+    } else {
+      missing.push(cleanRef);
+    }
+  }
+
+  return {
+    data: {
+      valid: missing.length === 0,
+      found: found.length,
+      missing,
+    },
+  };
+};
+
+// ─── verifySummary ────────────────────────────────────────────────────────
+
+/**
+ * Verify a SUMMARY.md file: existence, file spot-checks, commit refs, self-check section.
+ *
+ * Port of `cmdVerifySummary` from verify.cjs lines 13-107.
+ *
+ * @param args - args[0]: summary path (required), args[1]: optional --check-count N
+ */
+export const verifySummary: QueryHandler = async (args, projectDir) => {
+  const summaryPath = args[0];
+  if (!summaryPath) {
+    throw new GSDError('summary-path required', ErrorClassification.Validation);
+  }
+
+  const checkCountIdx = args.indexOf('--check-count');
+  const checkCount = checkCountIdx !== -1 ? parseInt(args[checkCountIdx + 1], 10) || 2 : 2;
+
+  const fullPath = join(projectDir, summaryPath);
+
+  if (!existsSync(fullPath)) {
+    return {
+      data: {
+        passed: false,
+        checks: {
+          summary_exists: false,
+          files_created: { checked: 0, found: 0, missing: [] },
+          commits_exist: false,
+          self_check: 'not_found',
+        },
+        errors: ['SUMMARY.md not found'],
+      },
+    };
+  }
+
+  const content = readFileSync(fullPath, 'utf-8');
+  const errors: string[] = [];
+
+  const mentionedFiles = new Set<string>();
+  const patterns = [
+    /`([^`]+\.[a-zA-Z]+)`/g,
+    /(?:Created|Modified|Added|Updated|Edited):\s*`?([^\s`]+\.[a-zA-Z]+)`?/gi,
+  ];
+  for (const pattern of patterns) {
+    let m;
+    while ((m = pattern.exec(content)) !== null) {
+      const filePath = m[1];
+      if (filePath && !filePath.startsWith('http') && filePath.includes('/')) {
+        mentionedFiles.add(filePath);
+      }
+    }
+  }
+
+  const filesToCheck = Array.from(mentionedFiles).slice(0, checkCount);
+  const missing: string[] = [];
+  for (const file of filesToCheck) {
+    if (!existsSync(join(projectDir, file))) {
+      missing.push(file);
+    }
+  }
+
+  const { execGit } = await import('./commit.js');
+  const commitHashPattern = /\b[0-9a-f]{7,40}\b/g;
+  const hashes = content.match(commitHashPattern) || [];
+  let commitsExist = false;
+  for (const hash of hashes.slice(0, 3)) {
+    const result = execGit(projectDir, ['cat-file', '-t', hash]);
+    if (result.exitCode === 0 && result.stdout.trim() === 'commit') {
+      commitsExist = true;
+      break;
+    }
+  }
+
+  let selfCheck = 'not_found';
+  const selfCheckPattern = /##\s*(?:Self[- ]?Check|Verification|Quality Check)/i;
+  if (selfCheckPattern.test(content)) {
+    const passPattern = /(?:all\s+)?(?:pass|✓|✅|complete|succeeded)/i;
+    const failPattern = /(?:fail|✗|❌|incomplete|blocked)/i;
+    const checkSection = content.slice(content.search(selfCheckPattern));
+    if (failPattern.test(checkSection)) {
+      selfCheck = 'failed';
+    } else if (passPattern.test(checkSection)) {
+      selfCheck = 'passed';
+    }
+  }
+
+  if (missing.length > 0) errors.push('Missing files: ' + missing.join(', '));
+  if (!commitsExist && hashes.length > 0) errors.push('Referenced commit hashes not found in git history');
+  if (selfCheck === 'failed') errors.push('Self-check section indicates failure');
+
+  const passed = missing.length === 0 && selfCheck !== 'failed';
+  return {
+    data: {
+      passed,
+      checks: {
+        summary_exists: true,
+        files_created: { checked: filesToCheck.length, found: filesToCheck.length - missing.length, missing },
+        commits_exist: commitsExist,
+        self_check: selfCheck,
+      },
+      errors,
+    },
+  };
+};
+
+// ─── verifyPathExists ─────────────────────────────────────────────────────
+
+/**
+ * Check file/directory existence and return type.
+ *
+ * Port of `cmdVerifyPathExists` from commands.cjs lines 111-132.
+ *
+ * @param args - args[0]: path to check (required)
+ */
+export const verifyPathExists: QueryHandler = async (args, projectDir) => {
+  const targetPath = args[0];
+  if (!targetPath) {
+    throw new GSDError('path required for verification', ErrorClassification.Validation);
+  }
+  if (targetPath.includes('\0')) {
+    throw new GSDError('path contains null bytes', ErrorClassification.Validation);
+  }
+
+  const fullPath = isAbsolute(targetPath) ? targetPath : join(projectDir, targetPath);
+
+  try {
+    const stats = statSync(fullPath);
+    const type = stats.isDirectory() ? 'directory' : stats.isFile() ? 'file' : 'other';
+    return { data: { exists: true, type } };
+  } catch {
+    return { data: { exists: false, type: null } };
+  }
+};
+
+// ─── verifySchemaDrift ────────────────────────────────────────────────────
+
+export const verifySchemaDrift: QueryHandler = async (args, projectDir) => {
+  const phaseArg = args[0];
+  const paths = planningPaths(projectDir);
+
+  const issues: string[] = [];
+  const REQUIRED_FRONTMATTER = ['phase', 'plan', 'type', 'must_haves'];
+
+  try {
+    const phasesDir = paths.phases;
+    if (!existsSync(phasesDir)) {
+      return { data: { valid: true, issues: [], checked: 0 } };
+    }
+
+    const entries = readdirSync(phasesDir, { withFileTypes: true }) as unknown as Array<{ isDirectory(): boolean; name: string }>;
+    let checked = 0;
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (phaseArg && !entry.name.startsWith(normalizePhaseName(phaseArg))) continue;
+
+      const phaseDir = join(phasesDir, entry.name);
+      const files = readdirSync(phaseDir).filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md');
+
+      for (const planFile of files) {
+        checked++;
+        try {
+          const content = await readFile(join(phaseDir, planFile), 'utf-8');
+          for (const field of REQUIRED_FRONTMATTER) {
+            if (!new RegExp(`^${field}:`, 'm').test(content)) {
+              issues.push(`${planFile}: missing '${field}' in frontmatter`);
+            }
+          }
+        } catch { /* skip */ }
+      }
+    }
+
+    return { data: { valid: issues.length === 0, issues, checked } };
+  } catch {
+    return { data: { valid: true, issues: [], checked: 0 } };
+  }
 };

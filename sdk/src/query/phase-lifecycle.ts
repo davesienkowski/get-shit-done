@@ -1258,6 +1258,127 @@ export const phasesClear: QueryHandler = async (args, projectDir) => {
  * @param projectDir - Project root directory
  * @returns QueryResult with { archived: count, version, archive_directory }
  */
+export const phasesList: QueryHandler = async (args, projectDir) => {
+  const paths = planningPaths(projectDir);
+  const phasesDir = paths.phases;
+
+  const typeIdx = args.indexOf('--type');
+  const phaseIdx = args.indexOf('--phase');
+  const type = typeIdx !== -1 ? args[typeIdx + 1] : null;
+  const phase = phaseIdx !== -1 ? args[phaseIdx + 1] : null;
+  const includeArchived = args.includes('--include-archived');
+
+  if (!existsSync(phasesDir)) {
+    return { data: type ? { files: [], count: 0 } : { directories: [], count: 0 } };
+  }
+
+  const entries = await readdir(phasesDir, { withFileTypes: true });
+  let dirs = entries.filter(e => e.isDirectory()).map(e => e.name);
+
+  if (includeArchived) {
+    const milestonesDir = join(paths.planning, 'milestones');
+    if (existsSync(milestonesDir)) {
+      const milestoneEntries = await readdir(milestonesDir, { withFileTypes: true });
+      for (const mDir of milestoneEntries.filter(e => e.isDirectory() && e.name.endsWith('-phases'))) {
+        const milestone = mDir.name.replace(/-phases$/, '');
+        const archivedEntries = await readdir(join(milestonesDir, mDir.name), { withFileTypes: true });
+        for (const a of archivedEntries.filter(e => e.isDirectory())) {
+          dirs.push(`${a.name} [${milestone}]`);
+        }
+      }
+    }
+  }
+
+  dirs.sort((a, b) => comparePhaseNum(a, b));
+
+  if (phase) {
+    const normalized = normalizePhaseName(phase);
+    const match = dirs.find(d => phaseTokenMatches(d, normalized));
+    if (!match) {
+      return { data: { files: [], count: 0, phase_dir: null, error: 'Phase not found' } };
+    }
+    dirs = [match];
+  }
+
+  if (type) {
+    const files: string[] = [];
+    for (const dir of dirs) {
+      const dirPath = join(phasesDir, dir);
+      if (!existsSync(dirPath)) continue;
+      const dirFiles = await readdir(dirPath);
+      let filtered: string[];
+      if (type === 'plans') {
+        filtered = dirFiles.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md');
+      } else if (type === 'summaries') {
+        filtered = dirFiles.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
+      } else {
+        filtered = dirFiles;
+      }
+      files.push(...filtered.sort());
+    }
+    return { data: { files, count: files.length, phase_dir: phase ? dirs[0]?.replace(/^\d+(?:\.\d+)*-?/, '') : null } };
+  }
+
+  return { data: { directories: dirs, count: dirs.length } };
+};
+
+export const phaseNextDecimal: QueryHandler = async (args, projectDir) => {
+  const basePhase = args[0];
+  if (!basePhase) {
+    throw new GSDError('base phase number required', ErrorClassification.Validation);
+  }
+  assertNoNullBytes(basePhase, 'basePhase');
+
+  const paths = planningPaths(projectDir);
+  const phasesDir = paths.phases;
+  const normalized = normalizePhaseName(basePhase);
+  const decimalSet = new Set<number>();
+  let baseExists = false;
+
+  if (existsSync(phasesDir)) {
+    const entries = await readdir(phasesDir, { withFileTypes: true });
+    const dirNames = entries.filter(e => e.isDirectory()).map(e => e.name);
+    baseExists = dirNames.some(d => phaseTokenMatches(d, normalized));
+
+    const dirPattern = new RegExp(`^(?:[A-Z]{1,6}-)?${escapeRegex(normalized)}\\.(\\d+)`);
+    for (const dir of dirNames) {
+      const match = dir.match(dirPattern);
+      if (match) decimalSet.add(parseInt(match[1], 10));
+    }
+  }
+
+  const roadmapPath = paths.roadmap;
+  if (existsSync(roadmapPath)) {
+    try {
+      const roadmapContent = await readFile(roadmapPath, 'utf-8');
+      const phasePattern = new RegExp(
+        `#{2,4}\\s*Phase\\s+0*${escapeRegex(normalized)}\\.(\\d+)\\s*:`, 'gi',
+      );
+      let pm;
+      while ((pm = phasePattern.exec(roadmapContent)) !== null) {
+        decimalSet.add(parseInt(pm[1], 10));
+      }
+    } catch { /* ROADMAP.md read failure is non-fatal */ }
+  }
+
+  const existingDecimals = Array.from(decimalSet)
+    .sort((a, b) => a - b)
+    .map(n => `${normalized}.${n}`);
+
+  const nextDecimal = decimalSet.size === 0
+    ? `${normalized}.1`
+    : `${normalized}.${Math.max(...decimalSet) + 1}`;
+
+  return {
+    data: {
+      found: baseExists,
+      base_phase: normalized,
+      next: nextDecimal,
+      existing: existingDecimals,
+    },
+  };
+};
+
 export const phasesArchive: QueryHandler = async (args, projectDir) => {
   const version = args[0];
   if (!version) {
@@ -1291,4 +1412,22 @@ export const phasesArchive: QueryHandler = async (args, projectDir) => {
       archive_directory: toPosixPath(relative(projectDir, archiveDir)),
     },
   };
+};
+
+// ─── milestoneComplete ────────────────────────────────────────────────────
+
+export const milestoneComplete: QueryHandler = async (args, projectDir) => {
+  const version = args[0] || 'current';
+  try {
+    const archiveResult = await phasesArchive([], projectDir);
+    return {
+      data: {
+        completed: true,
+        version,
+        archive: archiveResult.data,
+      },
+    };
+  } catch (err) {
+    return { data: { completed: false, reason: String(err) } };
+  }
 };

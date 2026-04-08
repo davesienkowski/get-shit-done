@@ -1,46 +1,29 @@
 /**
- * Unit tests for stub handlers.
+ * Unit tests for handlers decomposed from the former stubs.ts.
  *
- * Verifies that:
- * - Each stub returns a valid QueryResult (not an error/undefined)
- * - v4.0 stubs include reason/deferred fields
- * - Functional stubs return correct shape with mock filesystem
+ * Tests are organized by domain module — each import references the
+ * handler's new home after the stubs.ts → domain file decomposition.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtemp, writeFile, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+
+import { agentSkills } from './skills.js';
+import { roadmapUpdatePlanProgress, requirementsMarkComplete } from './roadmap.js';
+import { statePlannedPhase } from './state-mutation.js';
+import { verifySchemaDrift } from './verify.js';
+import { todoMatchPhase, statsJson, progressBar } from './progress.js';
+import { milestoneComplete } from './phase-lifecycle.js';
+import { summaryExtract, historyDigest } from './summary.js';
+import { commitToSubrepo } from './commit.js';
 import {
-  agentSkills,
-  roadmapUpdatePlanProgress,
-  requirementsMarkComplete,
-  statePlannedPhase,
-  verifySchemaDrift,
-  todoMatchPhase,
-  milestoneComplete,
-  summaryExtract,
-  historyDigest,
-  statsJson,
-  commitToSubrepo,
-  progressBar,
-  workstreamList,
-  workstreamCreate,
-  workstreamSet,
-  workstreamStatus,
-  workstreamComplete,
-  docsInit,
-  learningsCopy,
-  uatRenderCheckpoint,
-  auditUat,
-  intelDiff,
-  intelSnapshot,
-  intelStatus,
-  generateClaudeProfile,
-  profileQuestionnaire,
-  scanSessions,
-  websearch,
-} from './stubs.js';
+  workstreamList, workstreamCreate, workstreamSet,
+  workstreamStatus, workstreamComplete,
+} from './workstream.js';
+import { docsInit } from './init.js';
+import { websearch } from './websearch.js';
 
 let tmpDir: string;
 
@@ -72,10 +55,8 @@ beforeEach(async () => {
     '- [x] REQ-03: Already done',
   ].join('\n'));
 
-  // Phase 09: complete
   await writeFile(join(tmpDir, '.planning', 'phases', '09-foundation', '09-01-PLAN.md'), '---\nphase: 09\nplan: 01\ntype: execute\nmust_haves:\n  truths: []\n---');
   await writeFile(join(tmpDir, '.planning', 'phases', '09-foundation', '09-01-SUMMARY.md'), '# Done');
-  // Phase 10: in progress
   await writeFile(join(tmpDir, '.planning', 'phases', '10-queries', '10-01-PLAN.md'), '---\nphase: 10\nplan: 01\ntype: execute\nmust_haves:\n  truths: []\n---');
 });
 
@@ -83,7 +64,7 @@ afterEach(async () => {
   await rm(tmpDir, { recursive: true, force: true });
 });
 
-// ─── Functional stubs ─────────────────────────────────────────────────────
+// ─── skills.ts ───────────────────────────────────────────────────────────
 
 describe('agentSkills', () => {
   it('returns valid QueryResult with skills array', async () => {
@@ -94,6 +75,8 @@ describe('agentSkills', () => {
     expect(data.agent_type).toBe('gsd-executor');
   });
 });
+
+// ─── roadmap.ts ──────────────────────────────────────────────────────────
 
 describe('roadmapUpdatePlanProgress', () => {
   it('returns QueryResult without error', async () => {
@@ -125,6 +108,8 @@ describe('requirementsMarkComplete', () => {
   });
 });
 
+// ─── state-mutation.ts ───────────────────────────────────────────────────
+
 describe('statePlannedPhase', () => {
   it('updates STATE.md and returns success', async () => {
     const result = await statePlannedPhase(['--phase', '10', '--name', 'queries', '--plans', '2'], tmpDir);
@@ -139,6 +124,8 @@ describe('statePlannedPhase', () => {
   });
 });
 
+// ─── verify.ts ───────────────────────────────────────────────────────────
+
 describe('verifySchemaDrift', () => {
   it('returns valid/issues shape', async () => {
     const result = await verifySchemaDrift([], tmpDir);
@@ -149,37 +136,14 @@ describe('verifySchemaDrift', () => {
   });
 });
 
+// ─── progress.ts ─────────────────────────────────────────────────────────
+
 describe('todoMatchPhase', () => {
   it('returns todos array (empty when no todos dir)', async () => {
     const result = await todoMatchPhase(['9'], tmpDir);
     const data = result.data as Record<string, unknown>;
     expect(Array.isArray(data.todos)).toBe(true);
     expect(data.phase).toBe('9');
-  });
-});
-
-describe('summaryExtract', () => {
-  it('returns error when file not found', async () => {
-    const result = await summaryExtract(['.planning/nonexistent.md'], tmpDir);
-    const data = result.data as Record<string, unknown>;
-    expect(data.error).toBeDefined();
-  });
-
-  it('extracts sections from an existing summary file', async () => {
-    const summaryPath = join(tmpDir, '.planning', 'phases', '09-foundation', '09-01-SUMMARY.md');
-    await writeFile(summaryPath, '# Summary\n\n## What Was Done\nBuilt it.\n\n## Tests\nAll pass.\n');
-    const result = await summaryExtract(['.planning/phases/09-foundation/09-01-SUMMARY.md'], tmpDir);
-    const data = result.data as Record<string, unknown>;
-    expect(data.sections).toBeDefined();
-  });
-});
-
-describe('historyDigest', () => {
-  it('returns phases array with completed summaries', async () => {
-    const result = await historyDigest([], tmpDir);
-    const data = result.data as Record<string, unknown>;
-    expect(Array.isArray(data.phases)).toBe(true);
-    expect(typeof data.count).toBe('number');
   });
 });
 
@@ -204,7 +168,37 @@ describe('progressBar', () => {
   });
 });
 
-describe('workstream stubs', () => {
+// ─── summary.ts ──────────────────────────────────────────────────────────
+
+describe('summaryExtract', () => {
+  it('returns error when file not found', async () => {
+    const result = await summaryExtract(['.planning/nonexistent.md'], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    expect(data.error).toBeDefined();
+  });
+
+  it('extracts sections from an existing summary file', async () => {
+    const summaryPath = join(tmpDir, '.planning', 'phases', '09-foundation', '09-01-SUMMARY.md');
+    await writeFile(summaryPath, '# Summary\n\n## What Was Done\nBuilt it.\n\n## Tests\nAll pass.\n');
+    const result = await summaryExtract(['.planning/phases/09-foundation/09-01-SUMMARY.md'], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    expect(data.sections).toBeDefined();
+  });
+});
+
+describe('historyDigest', () => {
+  it('returns phases object with completed summaries', async () => {
+    const result = await historyDigest([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    expect(typeof data.phases).toBe('object');
+    expect(Array.isArray(data.decisions)).toBe(true);
+    expect(Array.isArray(data.tech_stack)).toBe(true);
+  });
+});
+
+// ─── workstream.ts ───────────────────────────────────────────────────────
+
+describe('workstream handlers', () => {
   it('workstreamList returns workstreams array', async () => {
     const result = await workstreamList([], tmpDir);
     const data = result.data as Record<string, unknown>;
@@ -223,10 +217,12 @@ describe('workstream stubs', () => {
     expect(data.created).toBe(false);
   });
 
-  it('workstreamSet returns set=true', async () => {
+  it('workstreamSet returns set=true for existing workstream', async () => {
+    await mkdir(join(tmpDir, '.planning', 'workstreams', 'backend'), { recursive: true });
     const result = await workstreamSet(['backend'], tmpDir);
     const data = result.data as Record<string, unknown>;
     expect(data.set).toBe(true);
+    expect(data.active).toBe('backend');
   });
 
   it('workstreamStatus returns found boolean', async () => {
@@ -235,12 +231,17 @@ describe('workstream stubs', () => {
     expect(typeof data.found).toBe('boolean');
   });
 
-  it('workstreamComplete returns completed boolean', async () => {
+  it('workstreamComplete archives existing workstream', async () => {
+    await mkdir(join(tmpDir, '.planning', 'workstreams', 'my-ws', 'phases'), { recursive: true });
+    await writeFile(join(tmpDir, '.planning', 'workstreams', 'my-ws', 'STATE.md'), '# State\n');
     const result = await workstreamComplete(['my-ws'], tmpDir);
     const data = result.data as Record<string, unknown>;
     expect(data.completed).toBe(true);
+    expect(data.archived_to).toBeDefined();
   });
 });
+
+// ─── init.ts ─────────────────────────────────────────────────────────────
 
 describe('docsInit', () => {
   it('returns docs context', async () => {
@@ -251,7 +252,7 @@ describe('docsInit', () => {
   });
 });
 
-// ─── websearch ────────────────────────────────────────────────────────────
+// ─── websearch.ts ────────────────────────────────────────────────────────
 
 describe('websearch', () => {
   const originalEnv = process.env.BRAVE_API_KEY;
@@ -346,65 +347,5 @@ describe('websearch', () => {
     const data = result.data as Record<string, unknown>;
     expect(data.available).toBe(false);
     expect(data.error).toBe('ECONNREFUSED');
-  });
-});
-
-// ─── v4.0 stubs ───────────────────────────────────────────────────────────
-
-describe('v4.0 stubs', () => {
-  it('learningsCopy returns deferred result', async () => {
-    const result = await learningsCopy([], tmpDir);
-    const data = result.data as Record<string, unknown>;
-    expect(data.deferred).toBe(true);
-    expect(data.version).toBe('v4.0');
-    expect(typeof data.reason).toBe('string');
-  });
-
-  it('uatRenderCheckpoint returns deferred result', async () => {
-    const result = await uatRenderCheckpoint([], tmpDir);
-    const data = result.data as Record<string, unknown>;
-    expect(data.deferred).toBe(true);
-  });
-
-  it('auditUat returns deferred result', async () => {
-    const result = await auditUat([], tmpDir);
-    const data = result.data as Record<string, unknown>;
-    expect(data.deferred).toBe(true);
-  });
-
-  it('intelDiff returns deferred result', async () => {
-    const result = await intelDiff([], tmpDir);
-    const data = result.data as Record<string, unknown>;
-    expect(data.deferred).toBe(true);
-  });
-
-  it('intelSnapshot returns deferred result', async () => {
-    const result = await intelSnapshot([], tmpDir);
-    const data = result.data as Record<string, unknown>;
-    expect(data.deferred).toBe(true);
-  });
-
-  it('intelStatus returns deferred result', async () => {
-    const result = await intelStatus([], tmpDir);
-    const data = result.data as Record<string, unknown>;
-    expect(data.deferred).toBe(true);
-  });
-
-  it('generateClaudeProfile returns deferred result', async () => {
-    const result = await generateClaudeProfile([], tmpDir);
-    const data = result.data as Record<string, unknown>;
-    expect(data.deferred).toBe(true);
-  });
-
-  it('profileQuestionnaire returns deferred result', async () => {
-    const result = await profileQuestionnaire([], tmpDir);
-    const data = result.data as Record<string, unknown>;
-    expect(data.deferred).toBe(true);
-  });
-
-  it('scanSessions returns deferred result', async () => {
-    const result = await scanSessions([], tmpDir);
-    const data = result.data as Record<string, unknown>;
-    expect(data.deferred).toBe(true);
   });
 });

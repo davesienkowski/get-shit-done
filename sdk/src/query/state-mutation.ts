@@ -707,3 +707,31 @@ export const stateRecordSession: QueryHandler = async (args, projectDir) => {
 
   return { data: { recorded: updated.length > 0, updated } };
 };
+
+// ─── statePlannedPhase ────────────────────────────────────────────────────
+
+export const statePlannedPhase: QueryHandler = async (args, projectDir) => {
+  const phaseArg = args.find((a, i) => args[i - 1] === '--phase') || args[0];
+  const nameArg = args.find((a, i) => args[i - 1] === '--name') || '';
+  const plansArg = args.find((a, i) => args[i - 1] === '--plans') || '0';
+  const paths = planningPaths(projectDir);
+
+  if (!phaseArg) {
+    return { data: { updated: false, reason: '--phase argument required' } };
+  }
+
+  try {
+    let content = await readFile(paths.state, 'utf-8');
+    const timestamp = new Date().toISOString();
+    const record = `\n**Planned Phase:** ${phaseArg} (${nameArg}) — ${plansArg} plans — ${timestamp}\n`;
+    if (/\*\*Planned Phase:\*\*/.test(content)) {
+      content = content.replace(/\*\*Planned Phase:\*\*[^\n]*\n/, record);
+    } else {
+      content += record;
+    }
+    await writeFile(paths.state, content, 'utf-8');
+    return { data: { updated: true, phase: phaseArg, name: nameArg, plans: plansArg } };
+  } catch {
+    return { data: { updated: false, reason: 'STATE.md not found or unreadable' } };
+  }
+};

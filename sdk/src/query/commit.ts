@@ -18,6 +18,7 @@
  */
 
 import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { planningPaths } from './helpers.js';
 import type { QueryHandler } from './utils.js';
@@ -213,4 +214,45 @@ export const checkCommit: QueryHandler = async (_args, projectDir) => {
       staged_files: stagedFiles,
     },
   };
+};
+
+// ─── commitToSubrepo ─────────────────────────────────────────────────────
+
+export const commitToSubrepo: QueryHandler = async (args, projectDir) => {
+  const message = args[0];
+  const filesIdx = args.indexOf('--files');
+  const files = filesIdx >= 0 ? args.slice(filesIdx + 1) : [];
+
+  if (!message) {
+    return { data: { committed: false, reason: 'commit message required' } };
+  }
+
+  try {
+    for (const file of files) {
+      const resolved = join(projectDir, file);
+      if (!resolved.startsWith(projectDir)) {
+        return { data: { committed: false, reason: `file path escapes project: ${file}` } };
+      }
+    }
+
+    const fileArgs = files.length > 0 ? files : ['.'];
+    spawnSync('git', ['-C', projectDir, 'add', ...fileArgs], { stdio: 'pipe' });
+
+    const commitResult = spawnSync(
+      'git', ['-C', projectDir, 'commit', '-m', message],
+      { stdio: 'pipe', encoding: 'utf-8' },
+    );
+    if (commitResult.status !== 0) {
+      return { data: { committed: false, reason: commitResult.stderr || 'commit failed' } };
+    }
+
+    const hashResult = spawnSync(
+      'git', ['-C', projectDir, 'rev-parse', '--short', 'HEAD'],
+      { encoding: 'utf-8' },
+    );
+    const hash = hashResult.stdout.trim();
+    return { data: { committed: true, hash, message } };
+  } catch (err) {
+    return { data: { committed: false, reason: String(err) } };
+  }
 };

@@ -40,7 +40,7 @@ Find first PLAN without matching SUMMARY. Decimal phases supported (`01.1-hotfix
 
 ```bash
 PHASE=$(echo "$PLAN_PATH" | grep -oE '[0-9]+(\.[0-9]+)?-[0-9]+')
-# config settings can be fetched via gsd-tools config-get if needed
+# config settings can be fetched via gsd-sdk query config-get if needed
 ```
 
 <if mode="yolo">
@@ -404,7 +404,7 @@ Next: more plans → "Ready for {next-plan}" | last → "Phase complete, ready f
 </step>
 
 <step name="update_current_position">
-Update STATE.md using gsd-tools:
+Update STATE.md using gsd-sdk:
 
 ```bash
 # Advance plan counter (handles last-plan edge case)
@@ -435,7 +435,7 @@ gsd-sdk query state.add-blocker --text-file "${BLOCKER_TEXT_FILE}"
 </step>
 
 <step name="update_session_continuity">
-Update session info using gsd-tools:
+Update session info using gsd-sdk:
 
 ```bash
 gsd-sdk query state.record-session \

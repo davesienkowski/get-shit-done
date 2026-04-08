@@ -42,7 +42,7 @@ If missing both ROADMAP.md and PROJECT.md: suggest `/gsd-new-project`.
 </step>
 
 <step name="load">
-**Use structured extraction from gsd-tools:**
+**Use structured extraction from gsd-sdk:**
 
 Instead of reading full files, use targeted tools to get only the data needed for the report:
 - `ROADMAP=$(gsd-sdk query roadmap.analyze)`
@@ -84,12 +84,12 @@ Use this instead of manually reading/parsing ROADMAP.md.
 
 - Use `current_phase` and `next_phase` from `$ROADMAP`
 - Note `paused_at` if work was paused (from `$STATE`)
-- Count pending todos: use `init todos` or `list-todos`
+- Count pending todos: `gsd-sdk query list-todos` or `gsd-sdk query init.todos`
 - Check for active debug sessions: `(ls .planning/debug/*.md 2>/dev/null || true) | grep -v resolved | wc -l`
   </step>
 
 <step name="report">
-**Generate progress bar from gsd-tools, then present rich status report:**
+**Generate progress bar from gsd-sdk, then present rich status report:**
 
 ```bash
 # Get formatted progress bar
