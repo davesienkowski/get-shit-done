@@ -2,7 +2,10 @@
  * Unit tests for frontmatter parser and query handler.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import {
   splitInlineArray,
   extractFrontmatter,
@@ -118,36 +121,35 @@ describe('stripFrontmatter', () => {
 // ─── frontmatterGet ─────────────────────────────────────────────────────────
 
 describe('frontmatterGet', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
+  let tmpDir: string;
+
+  beforeEach(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'gsd-fm-'));
+  });
+
+  afterEach(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
   });
 
   it('returns parsed frontmatter from a file', async () => {
-    const fs = await import('node:fs/promises');
-    vi.spyOn(fs, 'readFile').mockResolvedValue('---\nkey: value\n---\nbody');
-
-    const result = await frontmatterGet(['test.md'], '/proj');
+    await writeFile(join(tmpDir, 'test.md'), '---\nkey: value\n---\nbody');
+    const result = await frontmatterGet(['test.md'], tmpDir);
     expect(result.data).toEqual({ key: 'value' });
   });
 
   it('returns single field when field arg provided', async () => {
-    const fs = await import('node:fs/promises');
-    vi.spyOn(fs, 'readFile').mockResolvedValue('---\nkey: value\n---\nbody');
-
-    const result = await frontmatterGet(['test.md', 'key'], '/proj');
+    await writeFile(join(tmpDir, 'test.md'), '---\nkey: value\n---\nbody');
+    const result = await frontmatterGet(['test.md', 'key'], tmpDir);
     expect(result.data).toEqual({ key: 'value' });
   });
 
   it('returns error for missing file', async () => {
-    const fs = await import('node:fs/promises');
-    vi.spyOn(fs, 'readFile').mockRejectedValue(new Error('ENOENT'));
-
-    const result = await frontmatterGet(['missing.md'], '/proj');
+    const result = await frontmatterGet(['missing.md'], tmpDir);
     expect(result.data).toEqual({ error: 'File not found', path: 'missing.md' });
   });
 
   it('throws GSDError for null bytes in path', async () => {
     const { GSDError } = await import('../errors.js');
-    await expect(frontmatterGet(['bad\0path.md'], '/proj')).rejects.toThrow(GSDError);
+    await expect(frontmatterGet(['bad\0path.md'], tmpDir)).rejects.toThrow(GSDError);
   });
 });

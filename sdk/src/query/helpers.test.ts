@@ -53,8 +53,9 @@ describe('normalizePhaseName', () => {
     expect(normalizePhaseName('12.1')).toBe('12.1');
   });
 
-  it('returns custom IDs as-is', () => {
-    expect(normalizePhaseName('PROJ-42')).toBe('PROJ-42');
+  it('strips project code and normalizes numeric part', () => {
+    // PROJ-42 -> strip PROJ- prefix -> 42 -> pad to 42
+    expect(normalizePhaseName('PROJ-42')).toBe('42');
   });
 
   it('handles already-padded numbers', () => {
