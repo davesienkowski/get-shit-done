@@ -47,7 +47,7 @@ Requirements for SDK-First Migration. Each maps to roadmap phases.
 
 - [x] **RECON-01**: SDK locking (acquireStateLock) reconciled with upstream v1.34.0 TOCTOU fixes — non-busy-wait, proper stale cleanup
 - [x] **RECON-02**: SDK config writes (atomicWriteConfig) aligned with upstream crash-safe patterns — temp+rename consistency
-- [ ] **RECON-03**: Phases 9-12 must-haves re-verified against current codebase post-merge — golden tests and acceptance criteria enforcement validated
+- [x] **RECON-03**: Phases 9-12 must-haves re-verified against current codebase post-merge — golden tests and acceptance criteria enforcement validated
 
 ### Phase Lifecycle
 
@@ -130,7 +130,7 @@ Deferred to future release. Tracked but not in current roadmap.
 | VERIFY-06 | Phase 12 | Complete |
 | RECON-01 | Phase 13.1 | Complete |
 | RECON-02 | Phase 13.1 | Complete |
-| RECON-03 | Phase 13.1 | Pending |
+| RECON-03 | Phase 13.1 | Complete |
 | LIFE-01 | Phase 13 | Complete |
 | LIFE-02 | Phase 13 | Complete |
 | LIFE-03 | Phase 13 | Complete |

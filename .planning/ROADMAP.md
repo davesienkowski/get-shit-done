@@ -130,11 +130,11 @@ Plans:
   3. All 17 golden integration tests pass against the updated gsd-tools.cjs (v1.34.0)
   4. Phase 9-12 VERIFICATION.md must-haves re-checked against current codebase — all still pass
   5. Acceptance criteria enforcement from PR #1959 verified in execute-plan workflow
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 13.1-01-PLAN.md — Fix locking divergences (D2, D3) and config divergences (D4-D9, D11)
-- [ ] 13.1-02-PLAN.md — Re-run golden tests and re-verify Phase 9-12 must-haves
+- [x] 13.1-02-PLAN.md — Re-run golden tests and re-verify Phase 9-12 must-haves
 
 ### Phase 14: Composition and Retirement
 **Goal**: SDK replaces all 16 compound init commands with composable typed query chains, implements staged execution, and gsd-tools.cjs is fully deleted from the tree with all 65 workflows migrated to `gsd-sdk query`
