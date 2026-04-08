@@ -20,6 +20,7 @@ import { readFile } from 'node:fs/promises';
 import { join, isAbsolute } from 'node:path';
 import { GSDError, ErrorClassification } from '../errors.js';
 import type { QueryHandler } from './utils.js';
+import { escapeRegex } from './helpers.js';
 
 // ─── splitInlineArray ───────────────────────────────────────────────────────
 
@@ -212,7 +213,7 @@ export function parseMustHavesBlock(content: string, blockName: string): MustHav
   const mustHavesIndent = mustHavesMatch[1].length;
 
   // Find the block (e.g., "artifacts:", "key_links:") under must_haves
-  const blockPattern = new RegExp(`^(\\s+)${blockName}:\\s*$`, 'm');
+  const blockPattern = new RegExp(`^(\\s+)${escapeRegex(blockName)}:\\s*$`, 'm');
   const blockMatch = yaml.match(blockPattern);
   if (!blockMatch) return { items: [], warnings };
 
