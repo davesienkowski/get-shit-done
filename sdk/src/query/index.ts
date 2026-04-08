@@ -51,12 +51,15 @@ import {
   summaryExtract, historyDigest, statsJson, commitToSubrepo, progressBar,
   workstreamList, workstreamCreate, workstreamSet, workstreamStatus,
   workstreamComplete, workstreamProgress, docsInit,
-  learningsCopy, uatRenderCheckpoint, auditUat,
-  intelDiff, intelSnapshot, intelValidate, intelStatus, intelQuery,
-  intelExtractExports, intelPatchMeta,
-  generateClaudeProfile, generateDevPreferences, writeProfile,
-  profileQuestionnaire, profileSample, scanSessions, generateClaudeMd,
+  uatRenderCheckpoint,
 } from './stubs.js';
+import {
+  intelStatus, intelDiff, intelSnapshot, intelValidate, intelQuery,
+  intelExtractExports, intelPatchMeta,
+  learningsCopy, auditUat,
+  scanSessions, profileSample, profileQuestionnaire, writeProfile,
+  generateClaudeProfile, generateDevPreferences, generateClaudeMd,
+} from './advanced.js';
 import { GSDEventStream } from '../event-stream.js';
 import {
   GSDEventType,
