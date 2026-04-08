@@ -147,7 +147,13 @@ Plans:
   3. gsd-tools.cjs, the GSDTools bridge class, and all lib/*.cjs files are deleted from the repository
   4. Running any existing GSD command (`/gsd-plan-phase`, `/gsd-execute-phase`, `/gsd-next`, etc.) works correctly end-to-end using only the SDK
   5. SDK CI passes on all platforms (Ubuntu, macOS, Windows) with Node 22 and 24
-**Plans**: TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 14-01-PLAN.md — Init composition handlers (13 simple/medium) and registry wiring
+- [ ] 14-02-PLAN.md — Complex init handlers, pipeline middleware, workspace resolution, dry-run
+- [ ] 14-03-PLAN.md — Stub handlers and workflow/agent/command migration sweep
+- [ ] 14-04-PLAN.md — Bridge removal, CJS deprecation, installer update, verification checkpoint
 
 ## Progress
 
@@ -162,4 +168,4 @@ Phases execute in numeric order: 9 -> 10 -> 11 -> 12 -> 13 -> 14
 | 12. Verification Suite | v3.0 | 3/3 | Complete    | 2026-04-08 |
 | 13. Phase Lifecycle | v3.0 | 3/3 | Complete    | 2026-04-08 |
 | 13.1. Upstream Reconciliation | v3.0 | 2/2 | Complete    | 2026-04-08 |
-| 14. Composition and Retirement | v3.0 | 0/0 | Not started | - |
+| 14. Composition and Retirement | v3.0 | 0/4 | Not started | - |
