@@ -375,61 +375,53 @@ export const stateBeginPhase: QueryHandler = async (args, projectDir) => {
  * @returns QueryResult with { advanced, current_plan, total_plans }
  */
 export const stateAdvancePlan: QueryHandler = async (_args, projectDir) => {
-  const statePath = planningPaths(projectDir).state;
-
-  let fileContent: string;
-  try {
-    fileContent = await readFile(statePath, 'utf-8');
-  } catch {
-    return { data: { error: 'STATE.md not found' } };
-  }
-
   const today = new Date().toISOString().split('T')[0];
+  let result: Record<string, unknown> = { error: 'STATE.md not found' };
 
-  // Parse current plan info
-  const legacyPlan = stateExtractField(fileContent, 'Current Plan');
-  const legacyTotal = stateExtractField(fileContent, 'Total Plans in Phase');
-  const planField = stateExtractField(fileContent, 'Plan');
+  await readModifyWriteStateMd(projectDir, (content) => {
+    // Parse current plan info (content already has frontmatter stripped)
+    const legacyPlan = stateExtractField(content, 'Current Plan');
+    const legacyTotal = stateExtractField(content, 'Total Plans in Phase');
+    const planField = stateExtractField(content, 'Plan');
 
-  let currentPlan: number;
-  let totalPlans: number;
-  let useCompoundFormat = false;
-  let compoundPlanField: string | null = null;
+    let currentPlan: number;
+    let totalPlans: number;
+    let useCompoundFormat = false;
+    let compoundPlanField: string | null = null;
 
-  if (legacyPlan && legacyTotal) {
-    currentPlan = parseInt(legacyPlan, 10);
-    totalPlans = parseInt(legacyTotal, 10);
-  } else if (planField) {
-    currentPlan = parseInt(planField, 10);
-    const ofMatch = planField.match(/of\s+(\d+)/);
-    totalPlans = ofMatch ? parseInt(ofMatch[1], 10) : NaN;
-    useCompoundFormat = true;
-    compoundPlanField = planField;
-  } else {
-    return { data: { error: 'Cannot parse Current Plan or Total Plans from STATE.md' } };
-  }
+    if (legacyPlan && legacyTotal) {
+      currentPlan = parseInt(legacyPlan, 10);
+      totalPlans = parseInt(legacyTotal, 10);
+    } else if (planField) {
+      currentPlan = parseInt(planField, 10);
+      const ofMatch = planField.match(/of\s+(\d+)/);
+      totalPlans = ofMatch ? parseInt(ofMatch[1], 10) : NaN;
+      useCompoundFormat = true;
+      compoundPlanField = planField;
+    } else {
+      result = { error: 'Cannot parse Current Plan or Total Plans from STATE.md' };
+      return content;
+    }
 
-  if (isNaN(currentPlan) || isNaN(totalPlans)) {
-    return { data: { error: 'Cannot parse Current Plan or Total Plans from STATE.md' } };
-  }
+    if (isNaN(currentPlan) || isNaN(totalPlans)) {
+      result = { error: 'Cannot parse Current Plan or Total Plans from STATE.md' };
+      return content;
+    }
 
-  if (currentPlan >= totalPlans) {
-    // Phase complete
-    await readModifyWriteStateMd(projectDir, (content) => {
+    if (currentPlan >= totalPlans) {
+      // Phase complete
       content = stateReplaceFieldWithFallback(content, 'Status', null, 'Phase complete — ready for verification');
       content = stateReplaceFieldWithFallback(content, 'Last Activity', 'Last activity', today);
       content = updateCurrentPositionFields(content, {
         status: 'Phase complete — ready for verification',
         lastActivity: today,
       });
+      result = { advanced: false, reason: 'last_plan', current_plan: currentPlan, total_plans: totalPlans };
       return content;
-    });
-    return { data: { advanced: false, reason: 'last_plan', current_plan: currentPlan, total_plans: totalPlans } };
-  }
+    }
 
-  // Advance to next plan
-  const newPlan = currentPlan + 1;
-  await readModifyWriteStateMd(projectDir, (content) => {
+    // Advance to next plan
+    const newPlan = currentPlan + 1;
     let planDisplayValue: string;
     if (useCompoundFormat && compoundPlanField) {
       planDisplayValue = compoundPlanField.replace(/^\d+/, String(newPlan));
@@ -445,10 +437,11 @@ export const stateAdvancePlan: QueryHandler = async (_args, projectDir) => {
       lastActivity: today,
       plan: planDisplayValue,
     });
+    result = { advanced: true, previous_plan: currentPlan, current_plan: newPlan, total_plans: totalPlans };
     return content;
   });
 
-  return { data: { advanced: true, previous_plan: currentPlan, current_plan: newPlan, total_plans: totalPlans } };
+  return { data: result };
 };
 
 /**
