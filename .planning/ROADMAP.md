@@ -33,7 +33,7 @@ See MILESTONES.md for details.
 - [ ] **Phase 9: Foundation and Test Infrastructure** - Error classification, query registry, CLI extension, utilities, golden file test harness
 - [x] **Phase 10: Read-Only Queries** - Config, state, phase finder, roadmap, progress, and frontmatter read operations (completed 2026-04-08)
 - [x] **Phase 11: State Mutations** - State updates, frontmatter writes, config writes, git commits, template fills, event emission (completed 2026-04-08)
-- [ ] **Phase 12: Verification Suite** - Plan structure validation, phase completeness, artifact checks, key-link verification, consistency and health checks
+- [x] **Phase 12: Verification Suite** - Plan structure validation, phase completeness, artifact checks, key-link verification, consistency and health checks (completed 2026-04-08)
 - [ ] **Phase 13: Phase Lifecycle** - Phase add, insert, remove, complete, scaffold, and archive operations
 - [ ] **Phase 14: Composition and Retirement** - Composable init chains, staged execution, workspace contexts, dry-run mode, workflow migration, gsd-tools.cjs deletion
 
@@ -97,11 +97,11 @@ Plans:
   3. Running `gsd-sdk query verify.key-links <plan-path>` validates integration points referenced in plan must-haves
   4. Running `gsd-sdk query validate.consistency` detects drift between STATE.md, ROADMAP.md, and phase directories on disk
   5. Running `gsd-sdk query validate.health --repair` fixes recoverable inconsistencies and reports what was repaired
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 12-01-PLAN.md — Plan structure validation, phase completeness, artifact checks, and parseMustHavesBlock utility
 - [x] 12-02-PLAN.md — Key-link verification and consistency validation
-- [ ] 12-03-PLAN.md — Health checks with repair mode, registry wiring, and golden tests
+- [x] 12-03-PLAN.md — Health checks with repair mode, registry wiring, and golden tests
 
 ### Phase 13: Phase Lifecycle
 **Goal**: SDK can manage the full phase lifecycle -- adding, inserting, removing, completing, scaffolding, and archiving phases -- with all tracking artifacts updated atomically
@@ -137,6 +137,6 @@ Phases execute in numeric order: 9 -> 10 -> 11 -> 12 -> 13 -> 14
 | 9. Foundation and Test Infrastructure | v3.0 | 0/3 | Not started | - |
 | 10. Read-Only Queries | v3.0 | 3/3 | Complete    | 2026-04-08 |
 | 11. State Mutations | v3.0 | 3/3 | Complete    | 2026-04-08 |
-| 12. Verification Suite | v3.0 | 2/3 | In Progress|  |
+| 12. Verification Suite | v3.0 | 3/3 | Complete   | 2026-04-08 |
 | 13. Phase Lifecycle | v3.0 | 0/0 | Not started | - |
 | 14. Composition and Retirement | v3.0 | 0/0 | Not started | - |

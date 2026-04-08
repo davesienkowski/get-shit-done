@@ -295,7 +295,7 @@ export const verifyArtifacts: QueryHandler = async (args, projectDir) => {
   const passed = results.filter(r => r.passed).length;
   return {
     data: {
-      all_passed: passed === results.length,
+      all_passed: results.length > 0 && passed === results.length,
       passed,
       total: results.length,
       artifacts: results,
