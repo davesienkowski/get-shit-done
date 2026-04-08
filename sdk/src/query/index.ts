@@ -18,6 +18,7 @@ import { QueryRegistry } from './registry.js';
 import { generateSlug, currentTimestamp } from './utils.js';
 import { frontmatterGet } from './frontmatter.js';
 import { configGet, resolveModel } from './config-query.js';
+import { stateLoad, stateGet, stateSnapshot } from './state.js';
 
 // ─── Re-exports ────────────────────────────────────────────────────────────
 
@@ -39,6 +40,10 @@ export function createRegistry(): QueryRegistry {
   registry.register('frontmatter.get', frontmatterGet);
   registry.register('config-get', configGet);
   registry.register('resolve-model', resolveModel);
+  registry.register('state.load', stateLoad);
+  registry.register('state.json', stateLoad);
+  registry.register('state.get', stateGet);
+  registry.register('state-snapshot', stateSnapshot);
 
   return registry;
 }
