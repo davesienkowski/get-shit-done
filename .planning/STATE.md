@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: SDK-First Migration
 status: executing
-stopped_at: Completed 13-02-PLAN.md
-last_updated: "2026-04-08T09:21:36.364Z"
+stopped_at: Completed 13.1-01-PLAN.md
+last_updated: "2026-04-08T09:54:46.182Z"
 last_activity: 2026-04-08
 progress:
   total_phases: 7
-  completed_phases: 4
-  total_plans: 15
-  completed_plans: 14
-  percent: 93
+  completed_phases: 5
+  total_plans: 17
+  completed_plans: 16
+  percent: 94
 ---
 
 # Project State
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Systematically improve GSD's workflow quality, power-user configuration, and developer experience by adopting battle-tested patterns from PBR -- without breaking existing GSD workflows or philosophy.
-**Current focus:** Phase 13 — Phase Lifecycle
+**Current focus:** Phase 13.1 — Upstream Reconciliation
 
 ## Current Position
 
-Phase: 13 (Phase Lifecycle) — EXECUTING
-Plan: 3 of 3
+Phase: 13.1 (Upstream Reconciliation) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
 Last activity: 2026-04-08
 
@@ -36,7 +36,7 @@ Progress: [░░░░░░░░░░] 0%
 
 **Velocity:**
 
-- Total plans completed: 12
+- Total plans completed: 15
 - Average duration: --
 - Total execution time: 0 hours
 
@@ -68,6 +68,8 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 12 P03 | 17min | 2 tasks | 4 files |
 | Phase 13 P01 | 4min | 1 tasks | 2 files |
 | Phase 13 P02 | 4min | 1 tasks | 2 files |
+| Phase 13 P03 | 6min | 2 tasks | 3 files |
+| Phase 13.1 P01 | 4min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -95,6 +97,11 @@ Recent decisions affecting current work:
 - [Phase 13]: Inlined generateSlugInternal rather than importing generateSlug handler to avoid QueryResult unwrapping
 - [Phase 13]: Used acquireStateLock/releaseStateLock with ROADMAP.md path for per-file locking
 - [Phase 13]: Used direct lock+read+write for STATE.md in phaseRemove since readModifyWriteStateMd is module-private
+- [Phase 13]: Reimplemented stateReplaceFieldWithFallback inline since state-mutation.ts keeps it module-private
+- [Phase 13]: Split STATE.md into frontmatter/body before field replacements to prevent regex matching YAML keys
+- [Phase 13.1]: Reused acquireStateLock/releaseStateLock for config lock protection rather than implementing separate lock
+- [Phase 13.1]: Added CONFIG_KEY_SUGGESTIONS as first-pass check before LCP fallback for more precise typo correction
+- [Phase 13.1]: Global defaults merge uses three-level pattern: hardcoded <- globalDefaults <- userChoices
 
 ### Roadmap Evolution
 
@@ -112,6 +119,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-08T09:21:36.360Z
-Stopped at: Completed 13-02-PLAN.md
+Last session: 2026-04-08T09:54:46.178Z
+Stopped at: Completed 13.1-01-PLAN.md
 Resume file: None
