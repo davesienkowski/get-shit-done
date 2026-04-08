@@ -31,7 +31,7 @@ See MILESTONES.md for details.
 **Milestone Goal:** Replace gsd-tools.cjs with typed TypeScript SDK, retiring the CJS monolith entirely.
 
 - [ ] **Phase 9: Foundation and Test Infrastructure** - Error classification, query registry, CLI extension, utilities, golden file test harness
-- [ ] **Phase 10: Read-Only Queries** - Config, state, phase finder, roadmap, progress, and frontmatter read operations
+- [x] **Phase 10: Read-Only Queries** - Config, state, phase finder, roadmap, progress, and frontmatter read operations (completed 2026-04-08)
 - [ ] **Phase 11: State Mutations** - State updates, frontmatter writes, config writes, git commits, template fills, event emission
 - [ ] **Phase 12: Verification Suite** - Plan structure validation, phase completeness, artifact checks, key-link verification, consistency and health checks
 - [ ] **Phase 13: Phase Lifecycle** - Phase add, insert, remove, complete, scaffold, and archive operations
@@ -65,11 +65,11 @@ Plans:
   3. Running `gsd-sdk query phase.find 9` locates the phase directory on disk and returns its path and metadata
   4. Running `gsd-sdk query roadmap.analyze` returns phase list with disk status correlation matching gsd-tools.cjs output
   5. Running `gsd-sdk query frontmatter.get <path>` returns parsed YAML frontmatter from any .planning artifact
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 10-01-PLAN.md — Shared helpers, frontmatter parser, and config query handlers
 - [x] 10-02-PLAN.md — State query handlers and phase finding
-- [ ] 10-03-PLAN.md — Roadmap analysis, progress rendering, and golden file tests
+- [x] 10-03-PLAN.md — Roadmap analysis, progress rendering, and golden file tests
 
 ### Phase 11: State Mutations
 **Goal**: SDK can write to all .planning/ state artifacts -- updating STATE.md fields, writing frontmatter, setting config values, creating git commits, filling templates -- with typed event emission on every mutation
@@ -127,7 +127,7 @@ Phases execute in numeric order: 9 -> 10 -> 11 -> 12 -> 13 -> 14
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 9. Foundation and Test Infrastructure | v3.0 | 0/3 | Not started | - |
-| 10. Read-Only Queries | v3.0 | 2/3 | In Progress|  |
+| 10. Read-Only Queries | v3.0 | 3/3 | Complete   | 2026-04-08 |
 | 11. State Mutations | v3.0 | 0/0 | Not started | - |
 | 12. Verification Suite | v3.0 | 0/0 | Not started | - |
 | 13. Phase Lifecycle | v3.0 | 0/0 | Not started | - |

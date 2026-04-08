@@ -24,113 +24,10 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { extractFrontmatter, stripFrontmatter } from './frontmatter.js';
 import { stateExtractField, planningPaths, escapeRegex } from './helpers.js';
+import { getMilestoneInfo, extractCurrentMilestone } from './roadmap.js';
 import type { QueryHandler } from './utils.js';
 
 // ─── Internal helpers ──────────────────────────────────────────────────────
-
-/**
- * Strip <details>...</details> blocks from content (shipped milestones).
- */
-function stripShippedMilestones(content: string): string {
-  return content.replace(/<details>[\s\S]*?<\/details>/gi, '');
-}
-
-/**
- * Get milestone version and name from ROADMAP.md.
- *
- * Port of getMilestoneInfo from core.cjs lines 1367-1402.
- */
-async function getMilestoneInfo(projectDir: string): Promise<{ version: string; name: string }> {
-  try {
-    const roadmap = await readFile(planningPaths(projectDir).roadmap, 'utf-8');
-
-    // First: check for list-format using in-progress marker
-    const inProgressMatch = roadmap.match(/🚧\s*\*\*v(\d+(?:\.\d+)+)\s+([^*]+)\*\*/);
-    if (inProgressMatch) {
-      return { version: 'v' + inProgressMatch[1], name: inProgressMatch[2].trim() };
-    }
-
-    // Second: heading-format — strip shipped milestones
-    const cleaned = stripShippedMilestones(roadmap);
-    const headingMatch = cleaned.match(/## .*v(\d+(?:\.\d+)+)[:\s]+([^\n(]+)/);
-    if (headingMatch) {
-      return { version: 'v' + headingMatch[1], name: headingMatch[2].trim() };
-    }
-
-    // Fallback: bare version match
-    const versionMatch = cleaned.match(/v(\d+(?:\.\d+)+)/);
-    return {
-      version: versionMatch ? versionMatch[0] : 'v1.0',
-      name: 'milestone',
-    };
-  } catch {
-    return { version: 'v1.0', name: 'milestone' };
-  }
-}
-
-/**
- * Extract the current milestone section from ROADMAP.md.
- *
- * Port of extractCurrentMilestone from core.cjs lines 1102-1170.
- */
-async function extractCurrentMilestone(content: string, projectDir: string): Promise<string> {
-  // Get version from STATE.md frontmatter
-  let version: string | null = null;
-  try {
-    const stateRaw = await readFile(planningPaths(projectDir).state, 'utf-8');
-    const milestoneMatch = stateRaw.match(/^milestone:\s*(.+)/m);
-    if (milestoneMatch) {
-      version = milestoneMatch[1].trim();
-    }
-  } catch { /* intentionally empty */ }
-
-  // Fallback: derive from ROADMAP in-progress marker
-  if (!version) {
-    const inProgressMatch = content.match(/🚧\s*\*\*v(\d+\.\d+)\s/);
-    if (inProgressMatch) {
-      version = 'v' + inProgressMatch[1];
-    }
-  }
-
-  if (!version) return stripShippedMilestones(content);
-
-  // Find section matching this version
-  const escapedVersion = escapeRegex(version);
-  const sectionPattern = new RegExp(
-    `(^#{1,3}\\s+.*${escapedVersion}[^\\n]*)`,
-    'mi'
-  );
-  const sectionMatch = content.match(sectionPattern);
-
-  if (!sectionMatch || sectionMatch.index === undefined) return stripShippedMilestones(content);
-
-  const sectionStart = sectionMatch.index;
-
-  // Find end: next milestone heading at same or higher level, or EOF
-  const headingLevelMatch = sectionMatch[1].match(/^(#{1,3})\s/);
-  const headingLevel = headingLevelMatch ? headingLevelMatch[1].length : 2;
-  const restContent = content.slice(sectionStart + sectionMatch[0].length);
-  const nextMilestonePattern = new RegExp(
-    `^#{1,${headingLevel}}\\s+(?:.*v\\d+\\.\\d+|✅|📋|🚧)`,
-    'mi'
-  );
-  const nextMatch = restContent.match(nextMilestonePattern);
-
-  let sectionEnd: number;
-  if (nextMatch && nextMatch.index !== undefined) {
-    sectionEnd = sectionStart + sectionMatch[0].length + nextMatch.index;
-  } else {
-    sectionEnd = content.length;
-  }
-
-  const beforeMilestones = content.slice(0, sectionStart);
-  const currentSection = content.slice(sectionStart, sectionEnd);
-
-  // Strip <details> from preamble
-  const preamble = beforeMilestones.replace(/<details>[\s\S]*?<\/details>/gi, '');
-
-  return preamble + currentSection;
-}
 
 /**
  * Build a filter function that checks if a phase directory belongs to the current milestone.
@@ -421,7 +318,10 @@ export const stateSnapshot: QueryHandler = async (_args, projectDir) => {
   // Parse numeric fields
   const totalPhases = totalPhasesRaw ? parseInt(totalPhasesRaw, 10) : null;
   const totalPlansInPhase = totalPlansRaw ? parseInt(totalPlansRaw, 10) : null;
-  const progressPercent = progressRaw ? parseInt(progressRaw.replace('%', ''), 10) : null;
+  const progressPercent = progressRaw ? (() => {
+    const m = progressRaw.match(/(\d+)%/);
+    return m ? parseInt(m[1], 10) : null;
+  })() : null;
 
   // Extract decisions table
   const decisions: Array<{ phase: string; summary: string; rationale: string }> = [];

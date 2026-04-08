@@ -79,7 +79,12 @@ export const configGet: QueryHandler = async (args, projectDir) => {
     throw new GSDError(`No config.json found at ${paths.config}`, ErrorClassification.Validation);
   }
 
-  const config = JSON.parse(raw) as Record<string, unknown>;
+  let config: Record<string, unknown>;
+  try {
+    config = JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    throw new GSDError(`Malformed config.json at ${paths.config}`, ErrorClassification.Validation);
+  }
 
   const keys = keyPath.split('.');
   let current: unknown = config;

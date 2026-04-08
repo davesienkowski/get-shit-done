@@ -21,8 +21,8 @@ Requirements for SDK-First Migration. Each maps to roadmap phases.
 - [x] **QUERY-01**: SDK can load and parse STATE.md into typed structure (state json, state get, state-snapshot)
 - [x] **QUERY-02**: SDK can find phase directories on disk and list phases with metadata (find-phase, phases list, phase-plan-index)
 - [x] **QUERY-03**: SDK can read config.json with typed access to all config keys (config-get, resolve-model, config-ensure-section)
-- [ ] **QUERY-04**: SDK can parse and analyze ROADMAP.md with disk status correlation (roadmap analyze, roadmap get-phase)
-- [ ] **QUERY-05**: SDK can render progress information in JSON format (progress json)
+- [x] **QUERY-04**: SDK can parse and analyze ROADMAP.md with disk status correlation (roadmap analyze, roadmap get-phase)
+- [x] **QUERY-05**: SDK can render progress information in JSON format (progress json)
 - [x] **QUERY-06**: SDK can parse YAML frontmatter from any .planning artifact (frontmatter get)
 
 ### State Mutations
@@ -107,8 +107,8 @@ Deferred to future release. Tracked but not in current roadmap.
 | QUERY-01 | Phase 10 | Complete |
 | QUERY-02 | Phase 10 | Complete |
 | QUERY-03 | Phase 10 | Complete |
-| QUERY-04 | Phase 10 | Pending |
-| QUERY-05 | Phase 10 | Pending |
+| QUERY-04 | Phase 10 | Complete |
+| QUERY-05 | Phase 10 | Complete |
 | QUERY-06 | Phase 10 | Complete |
 | MUTATE-01 | Phase 11 | Pending |
 | MUTATE-02 | Phase 11 | Pending |
