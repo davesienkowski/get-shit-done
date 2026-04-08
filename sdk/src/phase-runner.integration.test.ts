@@ -12,9 +12,12 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { GSDTools, resolveGsdToolsPath } from './gsd-tools.js';
 import { PhaseRunner } from './phase-runner.js';
-import type { PhaseRunnerDeps } from './phase-runner.js';
+import type { PhaseRunnerDeps, PhaseRunnerTools } from './phase-runner.js';
+import { initPhaseOp } from './query/init.js';
+import { phasePlanIndex } from './query/phase.js';
+import { phaseComplete } from './query/phase-lifecycle.js';
+import type { PhaseOpInfo, PhasePlanIndex } from './types.js';
 import { ContextEngine } from './context-engine.js';
 import { PromptFactory } from './phase-prompt.js';
 import { GSDEventStream } from './event-stream.js';
@@ -24,8 +27,21 @@ import { GSDEventType, PhaseStepType } from './types.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const GSD_TOOLS_PATH = resolveGsdToolsPath(process.cwd());
-const gsdToolsAvailable = existsSync(GSD_TOOLS_PATH);
+function createNativeTools(projectDir: string): PhaseRunnerTools {
+  return {
+    initPhaseOp: async (phaseNumber: string) => {
+      const r = await initPhaseOp([phaseNumber], projectDir);
+      return r.data as PhaseOpInfo;
+    },
+    phasePlanIndex: async (phaseNumber: string) => {
+      const r = await phasePlanIndex([phaseNumber], projectDir);
+      return r.data as PhasePlanIndex;
+    },
+    phaseComplete: async (phaseNumber: string) => {
+      await phaseComplete([phaseNumber], projectDir);
+    },
+  };
+}
 
 async function createTempPlanningDir(): Promise<string> {
   const tmpDir = await mkdtemp(join(tmpdir(), 'gsd-sdk-phase-int-'));
@@ -66,17 +82,13 @@ async function createTempPlanningDir(): Promise<string> {
 
 // ─── Test suite ──────────────────────────────────────────────────────────────
 
-describe.skipIf(!gsdToolsAvailable)('Integration: PhaseRunner against real gsd-tools.cjs', () => {
+describe('Integration: PhaseRunner against real gsd-tools.cjs', () => {
   let tmpDir: string;
-  let tools: GSDTools;
+  let tools: PhaseRunnerTools;
 
   beforeAll(async () => {
     tmpDir = await createTempPlanningDir();
-    tools = new GSDTools({
-      projectDir: tmpDir,
-      gsdToolsPath: GSD_TOOLS_PATH,
-      timeoutMs: 10_000,
-    });
+    tools = createNativeTools(tmpDir);
   });
 
   afterAll(async () => {
@@ -304,17 +316,13 @@ must_haves:
   return tmpDir;
 }
 
-describe.skipIf(!gsdToolsAvailable)('Integration: phasePlanIndex and wave execution', () => {
+describe('Integration: phasePlanIndex and wave execution', () => {
   let tmpDir: string;
-  let tools: GSDTools;
+  let tools: PhaseRunnerTools;
 
   beforeAll(async () => {
     tmpDir = await createMultiWavePlanningDir();
-    tools = new GSDTools({
-      projectDir: tmpDir,
-      gsdToolsPath: GSD_TOOLS_PATH,
-      timeoutMs: 10_000,
-    });
+    tools = createNativeTools(tmpDir);
   });
 
   afterAll(async () => {

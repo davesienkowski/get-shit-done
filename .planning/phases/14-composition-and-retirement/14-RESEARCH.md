@@ -23,7 +23,7 @@ The 16 init commands in `init.cjs` (1,537 lines) follow a consistent pattern: lo
 - Results are flat JSON matching CJS output exactly -- golden tests validate this shape, workflows parse these keys
 - Always compute full bundle (no lazy loading) -- CJS returns everything, workflows may rely on any field
 - Domain-by-domain sweep: group workflow files by which init command they call, migrate all callers of one init command together
-- No CJS shim -- migrate everything now. For v4.0 features (intel, learnings, uat, security, profile), implement minimal SDK pass-through handlers or update workflows to not call them
+- No CJS shim -- migrate everything now. For v4.0 features (intel, learnings, uat, security, profile) fully migrate.
 - Golden tests updated per init command -- each composition handler gets its own golden test validating CJS output parity
 - GSDTools bridge class deleted from SDK -- the bridge was the migration path; init.ts replaces it
 - All workflows migrated to `gsd-sdk query`, CJS files marked deprecated (not deleted)

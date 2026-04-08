@@ -21,10 +21,13 @@ import { fileURLToPath } from 'node:url';
 
 import { GSD } from './index.js';
 import { InitRunner } from './init-runner.js';
-import { GSDTools, resolveGsdToolsPath } from './gsd-tools.js';
+import type { InitRunnerTools } from './init-runner.js';
 import { GSDEventStream } from './event-stream.js';
 import { GSDEventType, PhaseStepType } from './types.js';
-import type { GSDEvent, PhaseRunnerResult, RoadmapAnalysis } from './types.js';
+import type { GSDEvent, PhaseRunnerResult, RoadmapAnalysis, InitNewProjectInfo } from './types.js';
+import { initNewProject } from './query/init-complex.js';
+import { configSet } from './query/config-mutation.js';
+import { commit } from './query/commit.js';
 
 // ─── CLI availability check ─────────────────────────────────────────────────
 
@@ -38,8 +41,23 @@ try {
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const sdkPromptsDir = join(__dirname, '..', 'prompts');
-const GSD_TOOLS_PATH = resolveGsdToolsPath(process.cwd());
-const gsdToolsAvailable = existsSync(GSD_TOOLS_PATH);
+function createInitTools(projectDir: string): InitRunnerTools {
+  return {
+    initNewProject: async () => {
+      const r = await initNewProject([], projectDir);
+      return r.data as InitNewProjectInfo;
+    },
+    configSet: async (key: string, value: string) => {
+      const r = await configSet([key, value], projectDir);
+      return r.data;
+    },
+    commit: async (message: string, files?: string[]) => {
+      const args = files ? [message, '--files', ...files] : [message];
+      const r = await commit(args, projectDir);
+      return r.data;
+    },
+  };
+}
 
 // ─── Lifecycle step ordering for monotonicity check ──────────────────────────
 
@@ -55,11 +73,11 @@ const STEP_ORDER: Record<string, number> = {
 
 // ─── Test suite ──────────────────────────────────────────────────────────────
 
-describe.skipIf(!cliAvailable || !gsdToolsAvailable)('E2E Lifecycle: InitRunner → GSD.runPhase() full lifecycle', () => {
+describe.skipIf(!cliAvailable)('E2E Lifecycle: InitRunner → GSD.runPhase() full lifecycle', () => {
   let tmpDir: string;
   let initSuccess: boolean = false;
   let phase1Number: string | null = null;
-  let tools: GSDTools;
+  let tools: InitRunnerTools;
 
   // ── Bootstrap: create temp dir, git init, run InitRunner ──────────────
   beforeAll(async () => {
@@ -70,11 +88,7 @@ describe.skipIf(!cliAvailable || !gsdToolsAvailable)('E2E Lifecycle: InitRunner 
     execSync('git config user.email "test@test.com"', { cwd: tmpDir, stdio: 'ignore' });
     execSync('git config user.name "Test"', { cwd: tmpDir, stdio: 'ignore' });
 
-    tools = new GSDTools({
-      projectDir: tmpDir,
-      gsdToolsPath: GSD_TOOLS_PATH,
-      timeoutMs: 30_000,
-    });
+    tools = createInitTools(tmpDir);
 
     // Run InitRunner to bootstrap the project
     const initEventStream = new GSDEventStream();

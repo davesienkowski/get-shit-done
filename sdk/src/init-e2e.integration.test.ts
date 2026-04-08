@@ -19,8 +19,12 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 import { InitRunner } from './init-runner.js';
-import { GSDTools, resolveGsdToolsPath } from './gsd-tools.js';
+import type { InitRunnerTools } from './init-runner.js';
 import { GSDEventStream } from './event-stream.js';
+import { initNewProject } from './query/init-complex.js';
+import { configSet } from './query/config-mutation.js';
+import { commit } from './query/commit.js';
+import type { InitNewProjectInfo } from './types.js';
 import { GSDEventType } from './types.js';
 import type { GSDEvent } from './types.js';
 
@@ -36,12 +40,27 @@ try {
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const sdkPromptsDir = join(__dirname, '..', 'prompts');
-const GSD_TOOLS_PATH = resolveGsdToolsPath(process.cwd());
-const gsdToolsAvailable = existsSync(GSD_TOOLS_PATH);
+function createInitTools(projectDir: string): InitRunnerTools {
+  return {
+    initNewProject: async () => {
+      const r = await initNewProject([], projectDir);
+      return r.data as InitNewProjectInfo;
+    },
+    configSet: async (key: string, value: string) => {
+      const r = await configSet([key, value], projectDir);
+      return r.data;
+    },
+    commit: async (message: string, files?: string[]) => {
+      const args = files ? [message, '--files', ...files] : [message];
+      const r = await commit(args, projectDir);
+      return r.data;
+    },
+  };
+}
 
 // ─── Test suite ──────────────────────────────────────────────────────────────
 
-describe.skipIf(!cliAvailable || !gsdToolsAvailable)('E2E: InitRunner.run() full workflow', () => {
+describe.skipIf(!cliAvailable)('E2E: InitRunner.run() full workflow', () => {
   let tmpDir: string;
   let events: GSDEvent[];
 
@@ -65,11 +84,7 @@ describe.skipIf(!cliAvailable || !gsdToolsAvailable)('E2E: InitRunner.run() full
     const eventStream = new GSDEventStream();
     eventStream.on('event', (e: GSDEvent) => events.push(e));
 
-    const tools = new GSDTools({
-      projectDir: tmpDir,
-      gsdToolsPath: GSD_TOOLS_PATH,
-      timeoutMs: 30_000,
-    });
+    const tools = createInitTools(tmpDir);
 
     const runner = new InitRunner({
       projectDir: tmpDir,
