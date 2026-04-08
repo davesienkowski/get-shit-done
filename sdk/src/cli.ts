@@ -81,12 +81,14 @@ Usage: gsd-sdk <command> [args] [options]
 
 Commands:
   run <prompt>          Run a full milestone from a text prompt
-  auto                  Run the full autonomous lifecycle (discover → execute → advance)
+  auto                  Run the full autonomous lifecycle (discover -> execute -> advance)
   init [input]          Bootstrap a new project from a PRD or description
                         input can be:
                           @path/to/prd.md   Read input from a file
                           "description"     Use text directly
                           (empty)           Read from stdin
+  query <command>       Execute a query command (native or bridged to gsd-tools)
+                        Use --pick <field> to extract a specific field
 
 Options:
   --init <input>        Bootstrap from a PRD before running (auto only)
@@ -194,8 +196,53 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     return;
   }
 
-  if (args.command !== 'run' && args.command !== 'init' && args.command !== 'auto') {
-    console.error('Error: Expected "gsd-sdk run <prompt>", "gsd-sdk auto", or "gsd-sdk init [input]"');
+  // ─── Query command ──────────────────────────────────────────────────────
+  if (args.command === 'query') {
+    const { createRegistry } = await import('./query/index.js');
+    const { extractField } = await import('./query/registry.js');
+    const { GSDError, exitCodeFor } = await import('./errors.js');
+
+    const queryArgs = argv.slice(1); // everything after 'query'
+    const queryCommand = queryArgs[0];
+
+    if (!queryCommand) {
+      console.error('Error: "gsd-sdk query" requires a command');
+      process.exitCode = 10;
+      return;
+    }
+
+    // Extract --pick before dispatch
+    const pickIdx = queryArgs.indexOf('--pick');
+    let pickField: string | undefined;
+    if (pickIdx !== -1) {
+      pickField = queryArgs[pickIdx + 1];
+      queryArgs.splice(pickIdx, 2);
+    }
+
+    try {
+      const registry = createRegistry();
+      const result = await registry.dispatch(queryCommand, queryArgs.slice(1), args.projectDir);
+      let output: unknown = result.data;
+
+      if (pickField) {
+        output = extractField(output, pickField);
+      }
+
+      console.log(JSON.stringify(output, null, 2));
+    } catch (err) {
+      if (err instanceof GSDError) {
+        console.error(`Error: ${err.message}`);
+        process.exitCode = exitCodeFor(err.classification);
+      } else {
+        console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
+        process.exitCode = 1;
+      }
+    }
+    return;
+  }
+
+  if (args.command !== 'run' && args.command !== 'init' && args.command !== 'auto' && args.command !== 'query') {
+    console.error('Error: Expected "gsd-sdk run <prompt>", "gsd-sdk auto", "gsd-sdk init [input]", or "gsd-sdk query <command>"');
     console.error(USAGE);
     process.exitCode = 1;
     return;

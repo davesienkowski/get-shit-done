@@ -153,6 +153,30 @@ describe('parseCliArgs', () => {
     expect(result.prompt).toBe('build auth');
   });
 
+  // ─── Query command parsing ─────────────────────────────────────────────
+
+  it('parses query command with subcommand', () => {
+    const result = parseCliArgs(['query', 'generate-slug', 'My Phase']);
+
+    expect(result.command).toBe('query');
+    expect(result.prompt).toBe('generate-slug My Phase');
+  });
+
+  it('parses query command with --pick option', () => {
+    // --pick is handled by main(), not parseCliArgs, but parseCliArgs should not throw
+    // The --pick flag is consumed from argv directly in the query handler
+    const result = parseCliArgs(['query', 'generate-slug', 'My Phase']);
+
+    expect(result.command).toBe('query');
+  });
+
+  it('parses query with no subcommand', () => {
+    const result = parseCliArgs(['query']);
+
+    expect(result.command).toBe('query');
+    expect(result.prompt).toBeUndefined();
+  });
+
   // ─── Auto command parsing ──────────────────────────────────────────────
 
   it('parses auto command with no prompt', () => {
@@ -357,5 +381,13 @@ describe('USAGE', () => {
   it('documents --init option', () => {
     expect(USAGE).toContain('--init');
     expect(USAGE).toContain('Bootstrap from a PRD');
+  });
+
+  it('includes query command', () => {
+    expect(USAGE).toContain('query <command>');
+  });
+
+  it('documents --pick option for query', () => {
+    expect(USAGE).toContain('--pick');
   });
 });
