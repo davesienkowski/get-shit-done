@@ -1,0 +1,6 @@
+{
+  "_note": "Structure-only golden file. Exact timestamp values vary per invocation.",
+  "full": { "keys": ["timestamp"], "format": "ISO8601" },
+  "date": { "keys": ["timestamp"], "format": "YYYY-MM-DD" },
+  "filename": { "keys": ["timestamp"], "format": "ISO8601-no-colons" }
+}
