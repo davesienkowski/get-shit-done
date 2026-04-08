@@ -97,7 +97,11 @@ Plans:
   3. Running `gsd-sdk query verify.key-links <plan-path>` validates integration points referenced in plan must-haves
   4. Running `gsd-sdk query validate.consistency` detects drift between STATE.md, ROADMAP.md, and phase directories on disk
   5. Running `gsd-sdk query validate.health --repair` fixes recoverable inconsistencies and reports what was repaired
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 12-01-PLAN.md — Plan structure validation, phase completeness, artifact checks, and parseMustHavesBlock utility
+- [ ] 12-02-PLAN.md — Key-link verification and consistency validation
+- [ ] 12-03-PLAN.md — Health checks with repair mode, registry wiring, and golden tests
 
 ### Phase 13: Phase Lifecycle
 **Goal**: SDK can manage the full phase lifecycle -- adding, inserting, removing, completing, scaffolding, and archiving phases -- with all tracking artifacts updated atomically
@@ -132,7 +136,7 @@ Phases execute in numeric order: 9 -> 10 -> 11 -> 12 -> 13 -> 14
 |-------|-----------|----------------|--------|-----------|
 | 9. Foundation and Test Infrastructure | v3.0 | 0/3 | Not started | - |
 | 10. Read-Only Queries | v3.0 | 3/3 | Complete    | 2026-04-08 |
-| 11. State Mutations | v3.0 | 3/3 | Complete   | 2026-04-08 |
-| 12. Verification Suite | v3.0 | 0/0 | Not started | - |
+| 11. State Mutations | v3.0 | 3/3 | Complete    | 2026-04-08 |
+| 12. Verification Suite | v3.0 | 0/3 | Not started | - |
 | 13. Phase Lifecycle | v3.0 | 0/0 | Not started | - |
 | 14. Composition and Retirement | v3.0 | 0/0 | Not started | - |
