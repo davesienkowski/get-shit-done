@@ -34,6 +34,7 @@ import {
 import { commit, checkCommit } from './commit.js';
 import { templateFill, templateSelect } from './template.js';
 import { verifyPlanStructure, verifyPhaseCompleteness, verifyArtifacts } from './verify.js';
+import { verifyKeyLinks, validateConsistency } from './validate.js';
 import { GSDEventStream } from '../event-stream.js';
 import {
   GSDEventType,
@@ -198,6 +199,10 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('verify phase-completeness', verifyPhaseCompleteness);
   registry.register('verify.artifacts', verifyArtifacts);
   registry.register('verify artifacts', verifyArtifacts);
+  registry.register('verify.key-links', verifyKeyLinks);
+  registry.register('verify key-links', verifyKeyLinks);
+  registry.register('validate.consistency', validateConsistency);
+  registry.register('validate consistency', validateConsistency);
 
   // Wire event emission for mutation commands
   if (eventStream) {

@@ -14,10 +14,11 @@
  * ```
  */
 
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { join, isAbsolute } from 'node:path';
 import { GSDError, ErrorClassification } from '../errors.js';
-import { parseMustHavesBlock } from './frontmatter.js';
+import { extractFrontmatter, parseMustHavesBlock } from './frontmatter.js';
+import { normalizePhaseName, planningPaths } from './helpers.js';
 import type { QueryHandler } from './utils.js';
 
 // ─── verifyKeyLinks ───────────────────────────────────────────────────────
@@ -126,6 +127,163 @@ export const verifyKeyLinks: QueryHandler = async (args, projectDir) => {
       verified,
       total: results.length,
       links: results,
+    },
+  };
+};
+
+// ─── validateConsistency ─────────────────────────────────────────────────
+
+/**
+ * Validate consistency between ROADMAP.md, disk phases, and plan frontmatter.
+ *
+ * Port of `cmdValidateConsistency` from `verify.cjs` lines 398-519.
+ * Checks ROADMAP/disk phase sync, sequential numbering, plan numbering gaps,
+ * summary/plan orphans, and frontmatter completeness.
+ *
+ * @param _args - No required args (operates on projectDir)
+ * @param projectDir - Project root directory
+ * @returns QueryResult with { passed, errors, warnings, warning_count }
+ */
+export const validateConsistency: QueryHandler = async (_args, projectDir) => {
+  const paths = planningPaths(projectDir);
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // Read ROADMAP.md
+  let roadmapContent: string;
+  try {
+    roadmapContent = await readFile(paths.roadmap, 'utf-8');
+  } catch {
+    return { data: { passed: false, errors: ['ROADMAP.md not found'], warnings: [], warning_count: 0 } };
+  }
+
+  // Strip shipped milestone <details> blocks
+  const activeContent = roadmapContent.replace(/<details>[\s\S]*?<\/details>/gi, '');
+
+  // Extract phase numbers from ROADMAP headings
+  const roadmapPhases = new Set<string>();
+  const phasePattern = /#{2,4}\s*Phase\s+(\d+[A-Z]?(?:\.\d+)*)\s*:/gi;
+  let m: RegExpExecArray | null;
+  while ((m = phasePattern.exec(activeContent)) !== null) {
+    roadmapPhases.add(m[1]);
+  }
+
+  // Get phases on disk
+  const diskPhases = new Set<string>();
+  let diskDirs: string[] = [];
+  try {
+    const entries = await readdir(paths.phases, { withFileTypes: true });
+    diskDirs = entries.filter(e => e.isDirectory()).map(e => e.name).sort();
+    for (const dir of diskDirs) {
+      const dm = dir.match(/^(\d+[A-Z]?(?:\.\d+)*)/i);
+      if (dm) diskPhases.add(dm[1]);
+    }
+  } catch {
+    // phases directory doesn't exist
+  }
+
+  // Check: phases in ROADMAP but not on disk
+  for (const p of roadmapPhases) {
+    if (!diskPhases.has(p) && !diskPhases.has(normalizePhaseName(p))) {
+      warnings.push(`Phase ${p} in ROADMAP.md but no directory on disk`);
+    }
+  }
+
+  // Check: phases on disk but not in ROADMAP
+  for (const p of diskPhases) {
+    const unpadded = String(parseInt(p, 10));
+    if (!roadmapPhases.has(p) && !roadmapPhases.has(unpadded)) {
+      warnings.push(`Phase ${p} exists on disk but not in ROADMAP.md`);
+    }
+  }
+
+  // Check sequential phase numbering (skip in custom naming mode)
+  let config: Record<string, unknown> = {};
+  try {
+    const configContent = await readFile(paths.config, 'utf-8');
+    config = JSON.parse(configContent) as Record<string, unknown>;
+  } catch {
+    // config not found or invalid — proceed with defaults
+  }
+
+  if (config.phase_naming !== 'custom') {
+    const integerPhases = [...diskPhases]
+      .filter(p => !p.includes('.'))
+      .map(p => parseInt(p, 10))
+      .sort((a, b) => a - b);
+
+    for (let i = 1; i < integerPhases.length; i++) {
+      if (integerPhases[i] !== integerPhases[i - 1] + 1) {
+        warnings.push(`Gap in phase numbering: ${integerPhases[i - 1]} \u2192 ${integerPhases[i]}`);
+      }
+    }
+  }
+
+  // Check plan numbering and summaries within each phase
+  for (const dir of diskDirs) {
+    let phaseFiles: string[];
+    try {
+      phaseFiles = await readdir(join(paths.phases, dir));
+    } catch {
+      continue;
+    }
+
+    const plans = phaseFiles.filter(f => f.endsWith('-PLAN.md')).sort();
+    const summaries = phaseFiles.filter(f => f.endsWith('-SUMMARY.md'));
+
+    // Extract plan numbers and check for gaps
+    const planNums = plans.map(p => {
+      const pm = p.match(/-(\d{2})-PLAN\.md$/);
+      return pm ? parseInt(pm[1], 10) : null;
+    }).filter((n): n is number => n !== null);
+
+    for (let i = 1; i < planNums.length; i++) {
+      if (planNums[i] !== planNums[i - 1] + 1) {
+        warnings.push(`Gap in plan numbering in ${dir}: plan ${planNums[i - 1]} \u2192 ${planNums[i]}`);
+      }
+    }
+
+    // Check: summaries without matching plans
+    const planIds = new Set(plans.map(p => p.replace('-PLAN.md', '')));
+    const summaryIds = new Set(summaries.map(s => s.replace('-SUMMARY.md', '')));
+
+    for (const sid of summaryIds) {
+      if (!planIds.has(sid)) {
+        warnings.push(`Summary ${sid}-SUMMARY.md in ${dir} has no matching PLAN.md`);
+      }
+    }
+  }
+
+  // Check frontmatter completeness in plans
+  for (const dir of diskDirs) {
+    let phaseFiles: string[];
+    try {
+      phaseFiles = await readdir(join(paths.phases, dir));
+    } catch {
+      continue;
+    }
+
+    const plans = phaseFiles.filter(f => f.endsWith('-PLAN.md'));
+    for (const plan of plans) {
+      try {
+        const content = await readFile(join(paths.phases, dir, plan), 'utf-8');
+        const fm = extractFrontmatter(content);
+        if (!fm.wave) {
+          warnings.push(`${dir}/${plan}: missing 'wave' in frontmatter`);
+        }
+      } catch {
+        // Cannot read plan file
+      }
+    }
+  }
+
+  const passed = errors.length === 0;
+  return {
+    data: {
+      passed,
+      errors,
+      warnings,
+      warning_count: warnings.length,
     },
   };
 };

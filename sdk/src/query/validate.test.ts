@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { GSDError } from '../errors.js';
 
-import { verifyKeyLinks } from './validate.js';
+import { verifyKeyLinks, validateConsistency } from './validate.js';
 
 // ─── verifyKeyLinks ────────────────────────────────────────────────────────
 
@@ -246,5 +246,180 @@ autonomous: true
     const result = await verifyKeyLinks(['plan.md'], tmpDir);
     const data = result.data as Record<string, unknown>;
     expect(data.error).toBe('No must_haves.key_links found in frontmatter');
+  });
+});
+
+// ─── validateConsistency ──────────────────────────────────────────────────
+
+describe('validateConsistency', () => {
+  let tmpDir: string;
+
+  beforeEach(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'gsd-consistency-'));
+  });
+
+  afterEach(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  /** Helper: create a .planning directory structure */
+  async function createPlanning(opts: {
+    roadmap?: string;
+    phases?: Array<{ dir: string; plans?: string[]; summaries?: string[]; planContents?: Record<string, string> }>;
+    config?: Record<string, unknown>;
+  }): Promise<void> {
+    const planning = join(tmpDir, '.planning');
+    await mkdir(planning, { recursive: true });
+
+    if (opts.roadmap !== undefined) {
+      await writeFile(join(planning, 'ROADMAP.md'), opts.roadmap);
+    }
+
+    if (opts.config) {
+      await writeFile(join(planning, 'config.json'), JSON.stringify(opts.config));
+    }
+
+    if (opts.phases) {
+      const phasesDir = join(planning, 'phases');
+      await mkdir(phasesDir, { recursive: true });
+      for (const phase of opts.phases) {
+        const phaseDir = join(phasesDir, phase.dir);
+        await mkdir(phaseDir, { recursive: true });
+        if (phase.plans) {
+          for (const plan of phase.plans) {
+            const content = phase.planContents?.[plan] ?? `---\nphase: ${phase.dir}\nplan: 01\ntype: execute\nwave: 1\ndepends_on: []\nfiles_modified: []\nautonomous: true\n---\n\n# Plan\n`;
+            await writeFile(join(phaseDir, plan), content);
+          }
+        }
+        if (phase.summaries) {
+          for (const summary of phase.summaries) {
+            await writeFile(join(phaseDir, summary), '# Summary\n');
+          }
+        }
+      }
+    }
+  }
+
+  it('returns passed true when ROADMAP phases match disk', async () => {
+    await createPlanning({
+      roadmap: '# Roadmap\n\n## Phase 1: Foundation\n\nGoal here.\n\n## Phase 2: Features\n\nMore goals.\n',
+      phases: [
+        { dir: '01-foundation', plans: ['01-01-PLAN.md'], summaries: ['01-01-SUMMARY.md'] },
+        { dir: '02-features', plans: ['02-01-PLAN.md'], summaries: ['02-01-SUMMARY.md'] },
+      ],
+      config: { phase_naming: 'sequential' },
+    });
+
+    const result = await validateConsistency([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    expect(data.passed).toBe(true);
+    expect((data.errors as string[]).length).toBe(0);
+    expect((data.warnings as string[]).length).toBe(0);
+  });
+
+  it('warns when phase in ROADMAP but not on disk', async () => {
+    await createPlanning({
+      roadmap: '# Roadmap\n\n## Phase 1: Foundation\n\n## Phase 2: Features\n\n## Phase 3: Polish\n',
+      phases: [
+        { dir: '01-foundation', plans: ['01-01-PLAN.md'] },
+        { dir: '02-features', plans: ['02-01-PLAN.md'] },
+      ],
+      config: { phase_naming: 'sequential' },
+    });
+
+    const result = await validateConsistency([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    const warnings = data.warnings as string[];
+    expect(warnings.some(w => w.includes('Phase 3') && w.includes('ROADMAP') && w.includes('no directory'))).toBe(true);
+  });
+
+  it('warns when phase on disk but not in ROADMAP', async () => {
+    await createPlanning({
+      roadmap: '# Roadmap\n\n## Phase 1: Foundation\n',
+      phases: [
+        { dir: '01-foundation', plans: ['01-01-PLAN.md'] },
+        { dir: '02-features', plans: ['02-01-PLAN.md'] },
+      ],
+      config: { phase_naming: 'sequential' },
+    });
+
+    const result = await validateConsistency([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    const warnings = data.warnings as string[];
+    expect(warnings.some(w => w.includes('02') && w.includes('disk') && w.includes('not in ROADMAP'))).toBe(true);
+  });
+
+  it('warns on gap in sequential phase numbering', async () => {
+    await createPlanning({
+      roadmap: '# Roadmap\n\n## Phase 1: Foundation\n\n## Phase 3: Polish\n',
+      phases: [
+        { dir: '01-foundation', plans: ['01-01-PLAN.md'] },
+        { dir: '03-polish', plans: ['03-01-PLAN.md'] },
+      ],
+      config: { phase_naming: 'sequential' },
+    });
+
+    const result = await validateConsistency([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    const warnings = data.warnings as string[];
+    expect(warnings.some(w => w.includes('Gap in phase numbering'))).toBe(true);
+  });
+
+  it('warns on plan numbering gap within phase', async () => {
+    await createPlanning({
+      roadmap: '# Roadmap\n\n## Phase 1: Foundation\n',
+      phases: [
+        { dir: '01-foundation', plans: ['01-01-PLAN.md', '01-03-PLAN.md'] },
+      ],
+      config: { phase_naming: 'sequential' },
+    });
+
+    const result = await validateConsistency([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    const warnings = data.warnings as string[];
+    expect(warnings.some(w => w.includes('Gap in plan numbering'))).toBe(true);
+  });
+
+  it('warns on summary without matching plan', async () => {
+    await createPlanning({
+      roadmap: '# Roadmap\n\n## Phase 1: Foundation\n',
+      phases: [
+        { dir: '01-foundation', plans: ['01-01-PLAN.md'], summaries: ['01-01-SUMMARY.md', '01-02-SUMMARY.md'] },
+      ],
+      config: { phase_naming: 'sequential' },
+    });
+
+    const result = await validateConsistency([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    const warnings = data.warnings as string[];
+    expect(warnings.some(w => w.includes('Summary') && w.includes('no matching PLAN'))).toBe(true);
+  });
+
+  it('warns when plan missing wave in frontmatter', async () => {
+    const noWavePlan = `---\nphase: 01\nplan: 01\ntype: execute\ndepends_on: []\nfiles_modified: []\nautonomous: true\n---\n\n# Plan\n`;
+    await createPlanning({
+      roadmap: '# Roadmap\n\n## Phase 1: Foundation\n',
+      phases: [
+        { dir: '01-foundation', plans: ['01-01-PLAN.md'], planContents: { '01-01-PLAN.md': noWavePlan } },
+      ],
+      config: { phase_naming: 'sequential' },
+    });
+
+    const result = await validateConsistency([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    const warnings = data.warnings as string[];
+    expect(warnings.some(w => w.includes('wave') && w.includes('frontmatter'))).toBe(true);
+  });
+
+  it('returns passed false with error when ROADMAP.md missing', async () => {
+    await createPlanning({
+      phases: [{ dir: '01-foundation', plans: ['01-01-PLAN.md'] }],
+      config: { phase_naming: 'sequential' },
+    });
+
+    const result = await validateConsistency([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    expect(data.passed).toBe(false);
+    expect((data.errors as string[])).toContain('ROADMAP.md not found');
   });
 });
