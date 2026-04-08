@@ -11,9 +11,9 @@ Requirements for SDK-First Migration. Each maps to roadmap phases.
 
 - [x] **FOUND-01**: SDK defines error classification enum (validation, execution, blocked, interruption) extending existing GSDToolsError/PhaseRunnerError
 - [x] **FOUND-02**: SDK defines exit code semantics (0=success, 1=execution error, 10=validation error, 11=blocked) for CLI mode
-- [ ] **FOUND-03**: SDK exposes `gsd-sdk query` subcommand in cli.ts with flat command registry routing
-- [ ] **FOUND-04**: SDK query commands return structured JSON with `--pick` field extraction support
-- [ ] **FOUND-05**: SDK query registry uses one-file-per-domain module structure under sdk/src/query/
+- [x] **FOUND-03**: SDK exposes `gsd-sdk query` subcommand in cli.ts with flat command registry routing
+- [x] **FOUND-04**: SDK query commands return structured JSON with `--pick` field extraction support
+- [x] **FOUND-05**: SDK query registry uses one-file-per-domain module structure under sdk/src/query/
 - [x] **FOUND-06**: SDK provides slug generation and timestamp utilities as typed functions
 
 ### State Queries
@@ -100,9 +100,9 @@ Deferred to future release. Tracked but not in current roadmap.
 |-------------|-------|--------|
 | FOUND-01 | Phase 9 | Complete |
 | FOUND-02 | Phase 9 | Complete |
-| FOUND-03 | Phase 9 | Pending |
-| FOUND-04 | Phase 9 | Pending |
-| FOUND-05 | Phase 9 | Pending |
+| FOUND-03 | Phase 9 | Complete |
+| FOUND-04 | Phase 9 | Complete |
+| FOUND-05 | Phase 9 | Complete |
 | FOUND-06 | Phase 9 | Complete |
 | QUERY-01 | Phase 10 | Pending |
 | QUERY-02 | Phase 10 | Pending |

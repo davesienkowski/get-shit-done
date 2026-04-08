@@ -52,7 +52,7 @@ See MILESTONES.md for details.
 **Plans:** 3 plans
 Plans:
 - [x] 09-01-PLAN.md — Error classification system and utility query handlers
-- [ ] 09-02-PLAN.md — Query registry, CLI subcommand routing, and --pick extraction
+- [x] 09-02-PLAN.md — Query registry, CLI subcommand routing, and --pick extraction
 - [ ] 09-03-PLAN.md — Golden file test harness and wrapper-count metric script
 
 ### Phase 10: Read-Only Queries
