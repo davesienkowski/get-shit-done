@@ -256,6 +256,11 @@ export enum GSDEventType {
   InitStepComplete = 'init_step_complete',
   InitComplete = 'init_complete',
   InitResearchSpawn = 'init_research_spawn',
+  StateMutation = 'state_mutation',
+  ConfigMutation = 'config_mutation',
+  FrontmatterMutation = 'frontmatter_mutation',
+  GitCommit = 'git_commit',
+  TemplateFill = 'template_fill',
 }
 
 /**
@@ -684,6 +689,57 @@ export interface GSDInitResearchSpawnEvent extends GSDEventBase {
 }
 
 /**
+ * State mutation completed — emitted after STATE.md write operations.
+ */
+export interface GSDStateMutationEvent extends GSDEventBase {
+  type: GSDEventType.StateMutation;
+  command: string;
+  fields: string[];
+  success: boolean;
+}
+
+/**
+ * Config mutation completed — emitted after config.json write operations.
+ */
+export interface GSDConfigMutationEvent extends GSDEventBase {
+  type: GSDEventType.ConfigMutation;
+  command: string;
+  key: string;
+  success: boolean;
+}
+
+/**
+ * Frontmatter mutation completed — emitted after frontmatter write operations.
+ */
+export interface GSDFrontmatterMutationEvent extends GSDEventBase {
+  type: GSDEventType.FrontmatterMutation;
+  command: string;
+  file: string;
+  fields: string[];
+  success: boolean;
+}
+
+/**
+ * Git commit completed — emitted after commit or check-commit operations.
+ */
+export interface GSDGitCommitEvent extends GSDEventBase {
+  type: GSDEventType.GitCommit;
+  hash: string | null;
+  committed: boolean;
+  reason: string;
+}
+
+/**
+ * Template fill completed — emitted after template.fill or template.select operations.
+ */
+export interface GSDTemplateFillEvent extends GSDEventBase {
+  type: GSDEventType.TemplateFill;
+  templateType: string;
+  path: string;
+  created: boolean;
+}
+
+/**
  * Discriminated union of all GSD events.
  */
 export type GSDEvent =
@@ -715,7 +771,12 @@ export type GSDEvent =
   | GSDInitStepStartEvent
   | GSDInitStepCompleteEvent
   | GSDInitCompleteEvent
-  | GSDInitResearchSpawnEvent;
+  | GSDInitResearchSpawnEvent
+  | GSDStateMutationEvent
+  | GSDConfigMutationEvent
+  | GSDFrontmatterMutationEvent
+  | GSDGitCommitEvent
+  | GSDTemplateFillEvent;
 
 /**
  * Transport handler interface for consuming GSD events.

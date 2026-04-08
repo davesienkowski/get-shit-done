@@ -85,6 +85,16 @@ export class QueryRegistry {
   }
 
   /**
+   * Get the handler for a command without dispatching.
+   *
+   * @param command - The command name to look up
+   * @returns The handler function, or undefined if not registered
+   */
+  getHandler(command: string): QueryHandler | undefined {
+    return this.handlers.get(command);
+  }
+
+  /**
    * Dispatch a command to its handler, falling back to gsd-tools.cjs.
    *
    * @param command - The command name to dispatch

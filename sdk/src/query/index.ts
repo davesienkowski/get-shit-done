@@ -32,20 +32,113 @@ import {
   configSet, configSetModelProfile, configNewProject, configEnsureSection,
 } from './config-mutation.js';
 import { commit, checkCommit } from './commit.js';
+import { templateFill, templateSelect } from './template.js';
+import { GSDEventStream } from '../event-stream.js';
+import {
+  GSDEventType,
+  type GSDEvent,
+  type GSDStateMutationEvent,
+  type GSDConfigMutationEvent,
+  type GSDFrontmatterMutationEvent,
+  type GSDGitCommitEvent,
+  type GSDTemplateFillEvent,
+} from '../types.js';
+import type { QueryHandler, QueryResult } from './utils.js';
 
 // ─── Re-exports ────────────────────────────────────────────────────────────
 
 export type { QueryResult, QueryHandler } from './utils.js';
 export { extractField } from './registry.js';
 
+// ─── Mutation commands set ────────────────────────────────────────────────
+
+/**
+ * Set of command names that represent mutation operations.
+ * Used to wire event emission after successful dispatch.
+ */
+const MUTATION_COMMANDS = new Set([
+  'state.update', 'state.patch', 'state.begin-phase', 'state.advance-plan',
+  'state.record-metric', 'state.update-progress', 'state.add-decision',
+  'state.add-blocker', 'state.resolve-blocker', 'state.record-session',
+  'frontmatter.set', 'frontmatter.merge', 'frontmatter.validate',
+  'config-set', 'config-set-model-profile', 'config-new-project', 'config-ensure-section',
+  'commit', 'check-commit',
+  'template.fill', 'template.select',
+]);
+
+// ─── Event builder ────────────────────────────────────────────────────────
+
+/**
+ * Build a mutation event based on the command prefix and result.
+ */
+function buildMutationEvent(cmd: string, args: string[], result: QueryResult): GSDEvent {
+  const base = {
+    timestamp: new Date().toISOString(),
+    sessionId: '',
+  };
+
+  if (cmd.startsWith('state.')) {
+    return {
+      ...base,
+      type: GSDEventType.StateMutation,
+      command: cmd,
+      fields: args.slice(0, 2),
+      success: true,
+    } as GSDStateMutationEvent;
+  }
+
+  if (cmd.startsWith('config-')) {
+    return {
+      ...base,
+      type: GSDEventType.ConfigMutation,
+      command: cmd,
+      key: args[0] ?? '',
+      success: true,
+    } as GSDConfigMutationEvent;
+  }
+
+  if (cmd.startsWith('frontmatter.')) {
+    return {
+      ...base,
+      type: GSDEventType.FrontmatterMutation,
+      command: cmd,
+      file: args[0] ?? '',
+      fields: args.slice(1),
+      success: true,
+    } as GSDFrontmatterMutationEvent;
+  }
+
+  if (cmd === 'commit' || cmd === 'check-commit') {
+    const data = result.data as Record<string, unknown> | null;
+    return {
+      ...base,
+      type: GSDEventType.GitCommit,
+      hash: (data?.hash as string) ?? null,
+      committed: (data?.committed as boolean) ?? false,
+      reason: (data?.reason as string) ?? '',
+    } as GSDGitCommitEvent;
+  }
+
+  // template.fill / template.select
+  const data = result.data as Record<string, unknown> | null;
+  return {
+    ...base,
+    type: GSDEventType.TemplateFill,
+    templateType: (data?.template as string) ?? args[0] ?? '',
+    path: (data?.path as string) ?? args[1] ?? '',
+    created: (data?.created as boolean) ?? false,
+  } as GSDTemplateFillEvent;
+}
+
 // ─── Factory ───────────────────────────────────────────────────────────────
 
 /**
  * Create a fully-wired QueryRegistry with all native handlers registered.
  *
- * @returns A QueryRegistry instance with generate-slug and current-timestamp handlers
+ * @param eventStream - Optional event stream for mutation event emission
+ * @returns A QueryRegistry instance with all handlers registered
  */
-export function createRegistry(): QueryRegistry {
+export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   const registry = new QueryRegistry();
 
   registry.register('generate-slug', generateSlug);
@@ -91,6 +184,30 @@ export function createRegistry(): QueryRegistry {
   // Git commit handlers
   registry.register('commit', commit);
   registry.register('check-commit', checkCommit);
+
+  // Template handlers
+  registry.register('template.fill', templateFill);
+  registry.register('template.select', templateSelect);
+  registry.register('template select', templateSelect);
+
+  // Wire event emission for mutation commands
+  if (eventStream) {
+    for (const cmd of MUTATION_COMMANDS) {
+      const original = registry.getHandler(cmd);
+      if (original) {
+        registry.register(cmd, async (args: string[], projectDir: string) => {
+          const result = await original(args, projectDir);
+          try {
+            const event = buildMutationEvent(cmd, args, result);
+            eventStream.emitEvent(event);
+          } catch {
+            // T-11-12: Event emission is fire-and-forget; never block mutation success
+          }
+          return result;
+        });
+      }
+    }
+  }
 
   return registry;
 }
