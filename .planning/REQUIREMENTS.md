@@ -39,8 +39,8 @@ Requirements for SDK-First Migration. Each maps to roadmap phases.
 - [x] **VERIFY-01**: SDK can validate plan structure against schema (verify plan-structure)
 - [x] **VERIFY-02**: SDK can check phase completeness and artifact presence (verify phase-completeness)
 - [x] **VERIFY-03**: SDK can verify artifact file existence and content (verify artifacts)
-- [ ] **VERIFY-04**: SDK can verify key-link integration points (verify key-links)
-- [ ] **VERIFY-05**: SDK can validate consistency between STATE.md, ROADMAP.md, and disk (validate consistency)
+- [x] **VERIFY-04**: SDK can verify key-link integration points (verify key-links)
+- [x] **VERIFY-05**: SDK can validate consistency between STATE.md, ROADMAP.md, and disk (validate consistency)
 - [ ] **VERIFY-06**: SDK can run health checks with optional repair mode (validate health --repair)
 
 ### Phase Lifecycle
@@ -119,8 +119,8 @@ Deferred to future release. Tracked but not in current roadmap.
 | VERIFY-01 | Phase 12 | Complete |
 | VERIFY-02 | Phase 12 | Complete |
 | VERIFY-03 | Phase 12 | Complete |
-| VERIFY-04 | Phase 12 | Pending |
-| VERIFY-05 | Phase 12 | Pending |
+| VERIFY-04 | Phase 12 | Complete |
+| VERIFY-05 | Phase 12 | Complete |
 | VERIFY-06 | Phase 12 | Pending |
 | LIFE-01 | Phase 13 | Pending |
 | LIFE-02 | Phase 13 | Pending |
