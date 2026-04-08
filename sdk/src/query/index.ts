@@ -39,6 +39,11 @@ import {
   phaseAdd, phaseInsert, phaseRemove, phaseComplete,
   phaseScaffold, phasesClear, phasesArchive,
 } from './phase-lifecycle.js';
+import {
+  initExecutePhase, initPlanPhase, initNewMilestone, initQuick,
+  initResume, initVerifyWork, initPhaseOp, initTodos, initMilestoneOp,
+  initMapCodebase, initNewWorkspace, initListWorkspaces, initRemoveWorkspace,
+} from './init.js';
 import { GSDEventStream } from '../event-stream.js';
 import {
   GSDEventType,
@@ -251,6 +256,35 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('phase scaffold', phaseScaffold);
   registry.register('phases clear', phasesClear);
   registry.register('phases archive', phasesArchive);
+
+  // Init composition handlers
+  registry.register('init.execute-phase', initExecutePhase);
+  registry.register('init.plan-phase', initPlanPhase);
+  registry.register('init.new-milestone', initNewMilestone);
+  registry.register('init.quick', initQuick);
+  registry.register('init.resume', initResume);
+  registry.register('init.verify-work', initVerifyWork);
+  registry.register('init.phase-op', initPhaseOp);
+  registry.register('init.todos', initTodos);
+  registry.register('init.milestone-op', initMilestoneOp);
+  registry.register('init.map-codebase', initMapCodebase);
+  registry.register('init.new-workspace', initNewWorkspace);
+  registry.register('init.list-workspaces', initListWorkspaces);
+  registry.register('init.remove-workspace', initRemoveWorkspace);
+  // Space-delimited aliases for CJS compatibility
+  registry.register('init execute-phase', initExecutePhase);
+  registry.register('init plan-phase', initPlanPhase);
+  registry.register('init new-milestone', initNewMilestone);
+  registry.register('init quick', initQuick);
+  registry.register('init resume', initResume);
+  registry.register('init verify-work', initVerifyWork);
+  registry.register('init phase-op', initPhaseOp);
+  registry.register('init todos', initTodos);
+  registry.register('init milestone-op', initMilestoneOp);
+  registry.register('init map-codebase', initMapCodebase);
+  registry.register('init new-workspace', initNewWorkspace);
+  registry.register('init list-workspaces', initListWorkspaces);
+  registry.register('init remove-workspace', initRemoveWorkspace);
 
   // Wire event emission for mutation commands
   if (eventStream) {

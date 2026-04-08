@@ -254,6 +254,94 @@ describe('Golden file tests', () => {
     });
   });
 
+  // ─── Init composition handler golden tests ─────────────────────────────
+
+  describe('init.execute-phase', () => {
+    it('SDK output matches gsd-tools.cjs output for stable fields', async () => {
+      const gsdOutput = await captureGsdToolsOutput('init', ['execute-phase', '9'], REPO_ROOT) as Record<string, unknown>;
+      const registry = createRegistry();
+      const sdkResult = await registry.dispatch('init.execute-phase', ['9'], REPO_ROOT);
+      const sdkData = sdkResult.data as Record<string, unknown>;
+      // Compare stable fields (not timestamps or dynamic paths)
+      expect(sdkData.phase_number).toBe(gsdOutput.phase_number);
+      expect(sdkData.phase_name).toBe(gsdOutput.phase_name);
+      expect(sdkData.phase_found).toBe(gsdOutput.phase_found);
+      expect(sdkData.executor_model).toBe(gsdOutput.executor_model);
+      expect(sdkData.verifier_model).toBe(gsdOutput.verifier_model);
+      expect(sdkData.commit_docs).toBe(gsdOutput.commit_docs);
+      expect(sdkData.branching_strategy).toBe(gsdOutput.branching_strategy);
+      expect(sdkData.verifier_enabled).toBe(gsdOutput.verifier_enabled);
+      expect(sdkData.plan_count).toBe(gsdOutput.plan_count);
+      expect(sdkData.milestone_version).toBe(gsdOutput.milestone_version);
+      expect(sdkData.state_exists).toBe(gsdOutput.state_exists);
+    });
+  });
+
+  describe('init.plan-phase', () => {
+    it('SDK output matches gsd-tools.cjs output for stable fields', async () => {
+      const gsdOutput = await captureGsdToolsOutput('init', ['plan-phase', '9'], REPO_ROOT) as Record<string, unknown>;
+      const registry = createRegistry();
+      const sdkResult = await registry.dispatch('init.plan-phase', ['9'], REPO_ROOT);
+      const sdkData = sdkResult.data as Record<string, unknown>;
+      expect(sdkData.phase_number).toBe(gsdOutput.phase_number);
+      expect(sdkData.phase_found).toBe(gsdOutput.phase_found);
+      expect(sdkData.researcher_model).toBe(gsdOutput.researcher_model);
+      expect(sdkData.planner_model).toBe(gsdOutput.planner_model);
+      expect(sdkData.checker_model).toBe(gsdOutput.checker_model);
+      expect(sdkData.research_enabled).toBe(gsdOutput.research_enabled);
+      expect(sdkData.commit_docs).toBe(gsdOutput.commit_docs);
+      expect(sdkData.has_research).toBe(gsdOutput.has_research);
+      expect(sdkData.has_context).toBe(gsdOutput.has_context);
+      expect(sdkData.plan_count).toBe(gsdOutput.plan_count);
+    });
+  });
+
+  describe('init.quick', () => {
+    it('SDK output matches gsd-tools.cjs output for stable fields', async () => {
+      const gsdOutput = await captureGsdToolsOutput('init', ['quick', 'test-task'], REPO_ROOT) as Record<string, unknown>;
+      const registry = createRegistry();
+      const sdkResult = await registry.dispatch('init.quick', ['test-task'], REPO_ROOT);
+      const sdkData = sdkResult.data as Record<string, unknown>;
+      // Stable fields (not quick_id which is time-dependent)
+      expect(sdkData.slug).toBe(gsdOutput.slug);
+      expect(sdkData.description).toBe(gsdOutput.description);
+      expect(sdkData.planner_model).toBe(gsdOutput.planner_model);
+      expect(sdkData.executor_model).toBe(gsdOutput.executor_model);
+      expect(sdkData.commit_docs).toBe(gsdOutput.commit_docs);
+      expect(sdkData.quick_dir).toBe(gsdOutput.quick_dir);
+    });
+  });
+
+  describe('init.resume', () => {
+    it('SDK output matches gsd-tools.cjs output for stable fields', async () => {
+      const gsdOutput = await captureGsdToolsOutput('init', ['resume'], REPO_ROOT) as Record<string, unknown>;
+      const registry = createRegistry();
+      const sdkResult = await registry.dispatch('init.resume', [], REPO_ROOT);
+      const sdkData = sdkResult.data as Record<string, unknown>;
+      expect(sdkData.state_exists).toBe(gsdOutput.state_exists);
+      expect(sdkData.roadmap_exists).toBe(gsdOutput.roadmap_exists);
+      expect(sdkData.planning_exists).toBe(gsdOutput.planning_exists);
+      expect(sdkData.commit_docs).toBe(gsdOutput.commit_docs);
+      expect(sdkData.has_interrupted_agent).toBe(gsdOutput.has_interrupted_agent);
+    });
+  });
+
+  describe('init.verify-work', () => {
+    it('SDK output matches gsd-tools.cjs output for stable fields', async () => {
+      const gsdOutput = await captureGsdToolsOutput('init', ['verify-work', '9'], REPO_ROOT) as Record<string, unknown>;
+      const registry = createRegistry();
+      const sdkResult = await registry.dispatch('init.verify-work', ['9'], REPO_ROOT);
+      const sdkData = sdkResult.data as Record<string, unknown>;
+      expect(sdkData.phase_found).toBe(gsdOutput.phase_found);
+      expect(sdkData.phase_number).toBe(gsdOutput.phase_number);
+      expect(sdkData.phase_name).toBe(gsdOutput.phase_name);
+      expect(sdkData.planner_model).toBe(gsdOutput.planner_model);
+      expect(sdkData.checker_model).toBe(gsdOutput.checker_model);
+      expect(sdkData.commit_docs).toBe(gsdOutput.commit_docs);
+      expect(sdkData.has_verification).toBe(gsdOutput.has_verification);
+    });
+  });
+
   describe('verify.phase-completeness', () => {
     it('SDK output matches gsd-tools.cjs output shape for completed phase', async () => {
       const gsdOutput = await captureGsdToolsOutput('verify', ['phase-completeness', '9'], REPO_ROOT) as Record<string, unknown>;
