@@ -34,7 +34,7 @@ import type { QueryHandler } from './utils.js';
  *
  * Port of getMilestonePhaseFilter from core.cjs lines 1409-1442.
  */
-async function getMilestonePhaseFilter(projectDir: string): Promise<((dirName: string) => boolean) & { phaseCount: number }> {
+export async function getMilestonePhaseFilter(projectDir: string): Promise<((dirName: string) => boolean) & { phaseCount: number }> {
   const milestonePhaseNums = new Set<string>();
   try {
     const roadmapContent = await readFile(planningPaths(projectDir).roadmap, 'utf-8');
@@ -47,7 +47,8 @@ async function getMilestonePhaseFilter(projectDir: string): Promise<((dirName: s
   } catch { /* intentionally empty */ }
 
   if (milestonePhaseNums.size === 0) {
-    const passAll = (() => true) as ((dirName: string) => boolean) & { phaseCount: number };
+    const passAllFn = (_dirName: string): boolean => true;
+    const passAll = passAllFn as typeof passAllFn & { phaseCount: number };
     passAll.phaseCount = 0;
     return passAll;
   }
@@ -76,7 +77,7 @@ async function getMilestonePhaseFilter(projectDir: string): Promise<((dirName: s
  * Port of buildStateFrontmatter from state.cjs lines 650-760.
  * HIGH complexity: extracts fields, scans disk, computes progress.
  */
-async function buildStateFrontmatter(bodyContent: string, projectDir: string): Promise<Record<string, unknown>> {
+export async function buildStateFrontmatter(bodyContent: string, projectDir: string): Promise<Record<string, unknown>> {
   const currentPhase = stateExtractField(bodyContent, 'Current Phase');
   const currentPhaseName = stateExtractField(bodyContent, 'Current Phase Name');
   const currentPlan = stateExtractField(bodyContent, 'Current Plan');
