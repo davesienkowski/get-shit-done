@@ -27,8 +27,8 @@ Requirements for SDK-First Migration. Each maps to roadmap phases.
 
 ### State Mutations
 
-- [ ] **MUTATE-01**: SDK can update STATE.md fields atomically (state update, state patch, state begin-phase, state advance-plan)
-- [ ] **MUTATE-02**: SDK can write YAML frontmatter to .planning artifacts (frontmatter set, merge, validate)
+- [x] **MUTATE-01**: SDK can update STATE.md fields atomically (state update, state patch, state begin-phase, state advance-plan)
+- [x] **MUTATE-02**: SDK can write YAML frontmatter to .planning artifacts (frontmatter set, merge, validate)
 - [ ] **MUTATE-03**: SDK can write config.json values with schema validation (config-set, config-set-model-profile, config-new-project)
 - [ ] **MUTATE-04**: SDK can create git commits for planning artifacts (commit, check-commit)
 - [ ] **MUTATE-05**: SDK can fill templates for summary, plan, and verification artifacts (template fill)
@@ -110,8 +110,8 @@ Deferred to future release. Tracked but not in current roadmap.
 | QUERY-04 | Phase 10 | Complete |
 | QUERY-05 | Phase 10 | Complete |
 | QUERY-06 | Phase 10 | Complete |
-| MUTATE-01 | Phase 11 | Pending |
-| MUTATE-02 | Phase 11 | Pending |
+| MUTATE-01 | Phase 11 | Complete |
+| MUTATE-02 | Phase 11 | Complete |
 | MUTATE-03 | Phase 11 | Pending |
 | MUTATE-04 | Phase 11 | Pending |
 | MUTATE-05 | Phase 11 | Pending |
