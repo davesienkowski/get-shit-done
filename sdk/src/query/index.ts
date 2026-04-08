@@ -34,7 +34,7 @@ import {
 import { commit, checkCommit } from './commit.js';
 import { templateFill, templateSelect } from './template.js';
 import { verifyPlanStructure, verifyPhaseCompleteness, verifyArtifacts } from './verify.js';
-import { verifyKeyLinks, validateConsistency } from './validate.js';
+import { verifyKeyLinks, validateConsistency, validateHealth } from './validate.js';
 import { GSDEventStream } from '../event-stream.js';
 import {
   GSDEventType,
@@ -66,6 +66,7 @@ const MUTATION_COMMANDS = new Set([
   'config-set', 'config-set-model-profile', 'config-new-project', 'config-ensure-section',
   'commit', 'check-commit',
   'template.fill', 'template.select',
+  'validate.health', 'validate health',
 ]);
 
 // ─── Event builder ────────────────────────────────────────────────────────
@@ -119,6 +120,16 @@ function buildMutationEvent(cmd: string, args: string[], result: QueryResult): G
       committed: (data?.committed as boolean) ?? false,
       reason: (data?.reason as string) ?? '',
     } as GSDGitCommitEvent;
+  }
+
+  if (cmd.startsWith('validate.') || cmd.startsWith('validate ')) {
+    return {
+      ...base,
+      type: GSDEventType.ConfigMutation,
+      command: cmd,
+      key: args[0] ?? '',
+      success: true,
+    } as GSDConfigMutationEvent;
   }
 
   // template.fill / template.select
@@ -203,6 +214,8 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('verify key-links', verifyKeyLinks);
   registry.register('validate.consistency', validateConsistency);
   registry.register('validate consistency', validateConsistency);
+  registry.register('validate.health', validateHealth);
+  registry.register('validate health', validateHealth);
 
   // Wire event emission for mutation commands
   if (eventStream) {

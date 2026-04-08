@@ -217,4 +217,58 @@ describe('Golden file tests', () => {
       expect(gsdOutput.timestamp).not.toContain(':');
     });
   });
+
+  // ─── Verification handler golden tests ──────────────────────────────────
+
+  describe('verify.plan-structure', () => {
+    it('SDK output matches gsd-tools.cjs output shape', async () => {
+      const testFile = '.planning/phases/09-foundation-and-test-infrastructure/09-01-PLAN.md';
+      const gsdOutput = await captureGsdToolsOutput('verify', ['plan-structure', testFile], REPO_ROOT) as Record<string, unknown>;
+      const registry = createRegistry();
+      const sdkResult = await registry.dispatch('verify.plan-structure', [testFile], REPO_ROOT);
+      const sdkData = sdkResult.data as Record<string, unknown>;
+      // Both should have same structural fields
+      expect(sdkData).toHaveProperty('valid');
+      expect(sdkData).toHaveProperty('errors');
+      expect(sdkData).toHaveProperty('warnings');
+      expect(sdkData).toHaveProperty('task_count');
+      // Both should agree on validity
+      expect(sdkData.valid).toBe(gsdOutput.valid);
+      expect(sdkData.task_count).toBe(gsdOutput.task_count);
+    });
+  });
+
+  describe('validate.consistency', () => {
+    it('SDK output matches gsd-tools.cjs output shape', async () => {
+      const gsdOutput = await captureGsdToolsOutput('validate', ['consistency'], REPO_ROOT) as Record<string, unknown>;
+      const registry = createRegistry();
+      const sdkResult = await registry.dispatch('validate.consistency', [], REPO_ROOT);
+      const sdkData = sdkResult.data as Record<string, unknown>;
+      // Both should have same structural fields
+      expect(sdkData).toHaveProperty('passed');
+      expect(sdkData).toHaveProperty('errors');
+      expect(sdkData).toHaveProperty('warnings');
+      expect(sdkData).toHaveProperty('warning_count');
+      // Both should agree on pass/fail
+      expect(sdkData.passed).toBe(gsdOutput.passed);
+    });
+  });
+
+  describe('verify.phase-completeness', () => {
+    it('SDK output matches gsd-tools.cjs output shape for completed phase', async () => {
+      const gsdOutput = await captureGsdToolsOutput('verify', ['phase-completeness', '9'], REPO_ROOT) as Record<string, unknown>;
+      const registry = createRegistry();
+      const sdkResult = await registry.dispatch('verify.phase-completeness', ['9'], REPO_ROOT);
+      const sdkData = sdkResult.data as Record<string, unknown>;
+      // Both should have same structural fields
+      expect(sdkData).toHaveProperty('complete');
+      expect(sdkData).toHaveProperty('phase');
+      expect(sdkData).toHaveProperty('plan_count');
+      expect(sdkData).toHaveProperty('summary_count');
+      // Both should agree on completeness and counts
+      expect(sdkData.complete).toBe(gsdOutput.complete);
+      expect(sdkData.plan_count).toBe(gsdOutput.plan_count);
+      expect(sdkData.summary_count).toBe(gsdOutput.summary_count);
+    });
+  });
 });
