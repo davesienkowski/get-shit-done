@@ -29,7 +29,7 @@ Exit.
 Load phase operation context:
 
 ```bash
-INIT=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" init phase-op "0")
+INIT=$(gsd-sdk query init.phase-op "0")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 
@@ -45,7 +45,7 @@ Exit.
 **Delegate the phase addition to gsd-tools:**
 
 ```bash
-RESULT=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" phase add "${description}")
+RESULT=$(gsd-sdk query phase.add "${description}")
 ```
 
 The CLI handles:

@@ -39,7 +39,7 @@ GSD > INTEL
 
 Intel system is disabled. To activate:
 
-  node $HOME/.claude/get-shit-done/bin/gsd-tools.cjs config-set intel.enabled true
+  gsd-sdk query config-set intel.enabled true
 
 Then run /gsd-intel refresh to build the initial index.
 ```
@@ -77,7 +77,7 @@ Modes:
 Run:
 
 ```bash
-node $HOME/.claude/get-shit-done/bin/gsd-tools.cjs intel query <term>
+gsd-sdk query intel.query <term>
 ```
 
 Parse the JSON output and display results:
@@ -92,7 +92,7 @@ Parse the JSON output and display results:
 Run:
 
 ```bash
-node $HOME/.claude/get-shit-done/bin/gsd-tools.cjs intel status
+gsd-sdk query intel.status
 ```
 
 Parse the JSON output and display each intel file with:
@@ -107,7 +107,7 @@ Parse the JSON output and display each intel file with:
 Run:
 
 ```bash
-node $HOME/.claude/get-shit-done/bin/gsd-tools.cjs intel diff
+gsd-sdk query intel.diff
 ```
 
 Parse the JSON output and display:
@@ -161,7 +161,7 @@ Wait for the agent to complete.
 After the agent completes, run:
 
 ```bash
-node $HOME/.claude/get-shit-done/bin/gsd-tools.cjs intel status
+gsd-sdk query intel.status
 ```
 
 Display a summary showing:

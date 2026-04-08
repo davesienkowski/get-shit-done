@@ -128,7 +128,7 @@ Display: "◆ Scanning sessions..."
 
 Run session scan:
 ```bash
-SCAN_RESULT=$(node $HOME/.claude/get-shit-done/bin/gsd-tools.cjs scan-sessions --json 2>/dev/null)
+SCAN_RESULT=$(gsd-sdk query scan-sessions --json 2>/dev/null)
 ```
 
 Parse the JSON output to get session count and project count.
@@ -148,7 +148,7 @@ Display: "◆ Sampling messages..."
 
 Run profile sampling:
 ```bash
-SAMPLE_RESULT=$(node $HOME/.claude/get-shit-done/bin/gsd-tools.cjs profile-sample --json 2>/dev/null)
+SAMPLE_RESULT=$(gsd-sdk query profile-sample --json 2>/dev/null)
 ```
 
 Parse the JSON output to get the temp directory path and message count.
@@ -199,7 +199,7 @@ Display: "Using questionnaire to build your profile."
 
 **Get questions:**
 ```bash
-QUESTIONS=$(node $HOME/.claude/get-shit-done/bin/gsd-tools.cjs profile-questionnaire --json 2>/dev/null)
+QUESTIONS=$(gsd-sdk query profile-questionnaire --json 2>/dev/null)
 ```
 
 Parse the questions JSON. It contains 8 questions, one per dimension.
@@ -222,7 +222,7 @@ Write the answers JSON to `$ANSWERS_PATH`.
 
 **Convert answers to analysis:**
 ```bash
-ANALYSIS_RESULT=$(node $HOME/.claude/get-shit-done/bin/gsd-tools.cjs profile-questionnaire --answers "$ANSWERS_PATH" --json 2>/dev/null)
+ANALYSIS_RESULT=$(gsd-sdk query profile-questionnaire --answers "$ANSWERS_PATH" --json 2>/dev/null)
 ```
 
 Parse the analysis JSON from the result.
@@ -269,7 +269,7 @@ Write updated analysis JSON back to `$ANALYSIS_PATH`.
 Display: "◆ Writing profile..."
 
 ```bash
-node $HOME/.claude/get-shit-done/bin/gsd-tools.cjs write-profile --input "$ANALYSIS_PATH" --json 2>/dev/null
+gsd-sdk query write-profile --input "$ANALYSIS_PATH" --json 2>/dev/null
 ```
 
 Display: "✓ Profile written to $HOME/.claude/get-shit-done/USER-PROFILE.md"
@@ -348,7 +348,7 @@ Generate selected artifacts sequentially (file I/O is fast, no benefit from para
 **For /gsd-dev-preferences (if selected):**
 
 ```bash
-node $HOME/.claude/get-shit-done/bin/gsd-tools.cjs generate-dev-preferences --analysis "$ANALYSIS_PATH" --json 2>/dev/null
+gsd-sdk query generate-dev-preferences --analysis "$ANALYSIS_PATH" --json 2>/dev/null
 ```
 
 Display: "✓ Generated /gsd-dev-preferences at $HOME/.claude/commands/gsd/dev-preferences.md"
@@ -356,7 +356,7 @@ Display: "✓ Generated /gsd-dev-preferences at $HOME/.claude/commands/gsd/dev-p
 **For CLAUDE.md profile section (if selected):**
 
 ```bash
-node $HOME/.claude/get-shit-done/bin/gsd-tools.cjs generate-claude-profile --analysis "$ANALYSIS_PATH" --json 2>/dev/null
+gsd-sdk query generate-claude-profile --analysis "$ANALYSIS_PATH" --json 2>/dev/null
 ```
 
 Display: "✓ Added profile section to CLAUDE.md"
@@ -364,7 +364,7 @@ Display: "✓ Added profile section to CLAUDE.md"
 **For Global CLAUDE.md (if selected):**
 
 ```bash
-node $HOME/.claude/get-shit-done/bin/gsd-tools.cjs generate-claude-profile --analysis "$ANALYSIS_PATH" --global --json 2>/dev/null
+gsd-sdk query generate-claude-profile --analysis "$ANALYSIS_PATH" --global --json 2>/dev/null
 ```
 
 Display: "✓ Added profile section to $HOME/.claude/CLAUDE.md"

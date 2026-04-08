@@ -45,6 +45,18 @@ import {
   initMapCodebase, initNewWorkspace, initListWorkspaces, initRemoveWorkspace,
 } from './init.js';
 import { initNewProject, initProgress, initManager } from './init-complex.js';
+import {
+  agentSkills, roadmapUpdatePlanProgress, requirementsMarkComplete,
+  statePlannedPhase, verifySchemaDrift, todoMatchPhase, milestoneComplete,
+  summaryExtract, historyDigest, statsJson, commitToSubrepo, progressBar,
+  workstreamList, workstreamCreate, workstreamSet, workstreamStatus,
+  workstreamComplete, workstreamProgress, docsInit,
+  learningsCopy, uatRenderCheckpoint, auditUat,
+  intelDiff, intelSnapshot, intelValidate, intelStatus, intelQuery,
+  intelExtractExports, intelPatchMeta,
+  generateClaudeProfile, generateDevPreferences, writeProfile,
+  profileQuestionnaire, profileSample, scanSessions, generateClaudeMd,
+} from './stubs.js';
 import { GSDEventStream } from '../event-stream.js';
 import {
   GSDEventType,
@@ -294,6 +306,70 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('init new-project', initNewProject);
   registry.register('init progress', initProgress);
   registry.register('init manager', initManager);
+
+  // Stub handlers — functional + v4.0 deferred
+  registry.register('agent-skills', agentSkills);
+  registry.register('roadmap.update-plan-progress', roadmapUpdatePlanProgress);
+  registry.register('roadmap update-plan-progress', roadmapUpdatePlanProgress);
+  registry.register('requirements.mark-complete', requirementsMarkComplete);
+  registry.register('requirements mark-complete', requirementsMarkComplete);
+  registry.register('state.planned-phase', statePlannedPhase);
+  registry.register('state planned-phase', statePlannedPhase);
+  registry.register('verify.schema-drift', verifySchemaDrift);
+  registry.register('verify schema-drift', verifySchemaDrift);
+  registry.register('todo.match-phase', todoMatchPhase);
+  registry.register('todo match-phase', todoMatchPhase);
+  registry.register('milestone.complete', milestoneComplete);
+  registry.register('milestone complete', milestoneComplete);
+  registry.register('summary.extract', summaryExtract);
+  registry.register('summary extract', summaryExtract);
+  registry.register('history.digest', historyDigest);
+  registry.register('history digest', historyDigest);
+  registry.register('history-digest', historyDigest);
+  registry.register('stats.json', statsJson);
+  registry.register('stats json', statsJson);
+  registry.register('commit-to-subrepo', commitToSubrepo);
+  registry.register('progress.bar', progressBar);
+  registry.register('progress bar', progressBar);
+  registry.register('workstream.list', workstreamList);
+  registry.register('workstream list', workstreamList);
+  registry.register('workstream.create', workstreamCreate);
+  registry.register('workstream create', workstreamCreate);
+  registry.register('workstream.set', workstreamSet);
+  registry.register('workstream set', workstreamSet);
+  registry.register('workstream.status', workstreamStatus);
+  registry.register('workstream status', workstreamStatus);
+  registry.register('workstream.complete', workstreamComplete);
+  registry.register('workstream complete', workstreamComplete);
+  registry.register('workstream.progress', workstreamProgress);
+  registry.register('workstream progress', workstreamProgress);
+  registry.register('docs-init', docsInit);
+  registry.register('learnings.copy', learningsCopy);
+  registry.register('learnings copy', learningsCopy);
+  registry.register('audit-uat', auditUat);
+  registry.register('uat.render-checkpoint', uatRenderCheckpoint);
+  registry.register('uat render-checkpoint', uatRenderCheckpoint);
+  registry.register('intel.diff', intelDiff);
+  registry.register('intel diff', intelDiff);
+  registry.register('intel.snapshot', intelSnapshot);
+  registry.register('intel snapshot', intelSnapshot);
+  registry.register('intel.validate', intelValidate);
+  registry.register('intel validate', intelValidate);
+  registry.register('intel.status', intelStatus);
+  registry.register('intel status', intelStatus);
+  registry.register('intel.query', intelQuery);
+  registry.register('intel query', intelQuery);
+  registry.register('intel.extract-exports', intelExtractExports);
+  registry.register('intel extract-exports', intelExtractExports);
+  registry.register('intel.patch-meta', intelPatchMeta);
+  registry.register('intel patch-meta', intelPatchMeta);
+  registry.register('generate-claude-profile', generateClaudeProfile);
+  registry.register('generate-dev-preferences', generateDevPreferences);
+  registry.register('write-profile', writeProfile);
+  registry.register('profile-questionnaire', profileQuestionnaire);
+  registry.register('profile-sample', profileSample);
+  registry.register('scan-sessions', scanSessions);
+  registry.register('generate-claude-md', generateClaudeMd);
 
   // Wire event emission for mutation commands
   if (eventStream) {

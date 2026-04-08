@@ -894,7 +894,7 @@ start of execution when `--reviews` flag is present or reviews mode is active.
 Load planning context:
 
 ```bash
-INIT=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" init plan-phase "${PHASE}")
+INIT=$(gsd-sdk query init.plan-phase "${PHASE}")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 
@@ -963,7 +963,7 @@ Apply discovery level protocol (see discovery_levels section).
 
 **Step 1 — Generate digest index:**
 ```bash
-node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" history-digest
+gsd-sdk query history-digest
 ```
 
 **Step 2 — Select relevant phases (typically 2-4):**
@@ -1135,7 +1135,7 @@ Include all frontmatter fields.
 Validate each created PLAN.md using gsd-tools:
 
 ```bash
-VALID=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" frontmatter validate "$PLAN_PATH" --schema plan)
+VALID=$(gsd-sdk query frontmatter.validate "$PLAN_PATH" --schema plan)
 ```
 
 Returns JSON: `{ valid, missing, present, schema }`
@@ -1148,7 +1148,7 @@ Required plan frontmatter fields:
 Also validate plan structure:
 
 ```bash
-STRUCTURE=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" verify plan-structure "$PLAN_PATH")
+STRUCTURE=$(gsd-sdk query verify.plan-structure "$PLAN_PATH")
 ```
 
 Returns JSON: `{ valid, errors, warnings, task_count, tasks }`
@@ -1185,7 +1185,7 @@ Plans:
 
 <step name="git_commit">
 ```bash
-node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" commit "docs($PHASE): create phase plan" --files .planning/phases/$PHASE-*/$PHASE-*-PLAN.md .planning/ROADMAP.md
+gsd-sdk query commit "docs($PHASE): create phase plan" --files .planning/phases/$PHASE-*/$PHASE-*-PLAN.md .planning/ROADMAP.md
 ```
 </step>
 

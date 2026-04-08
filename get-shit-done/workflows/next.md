@@ -14,7 +14,7 @@ Read project state to determine current position:
 
 ```bash
 # Get state snapshot
-node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" state json 2>/dev/null || echo "{}"
+gsd-sdk query state.json 2>/dev/null || echo "{}"
 ```
 
 Also read:
