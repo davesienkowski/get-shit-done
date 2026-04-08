@@ -35,6 +35,10 @@ import { commit, checkCommit } from './commit.js';
 import { templateFill, templateSelect } from './template.js';
 import { verifyPlanStructure, verifyPhaseCompleteness, verifyArtifacts } from './verify.js';
 import { verifyKeyLinks, validateConsistency, validateHealth } from './validate.js';
+import {
+  phaseAdd, phaseInsert, phaseRemove, phaseComplete,
+  phaseScaffold, phasesClear, phasesArchive,
+} from './phase-lifecycle.js';
 import { GSDEventStream } from '../event-stream.js';
 import {
   GSDEventType,
@@ -67,6 +71,10 @@ const MUTATION_COMMANDS = new Set([
   'commit', 'check-commit',
   'template.fill', 'template.select',
   'validate.health', 'validate health',
+  'phase.add', 'phase.insert', 'phase.remove', 'phase.complete',
+  'phase.scaffold', 'phases.clear', 'phases.archive',
+  'phase add', 'phase insert', 'phase remove', 'phase complete',
+  'phase scaffold', 'phases clear', 'phases archive',
 ]);
 
 // ─── Event builder ────────────────────────────────────────────────────────
@@ -120,6 +128,16 @@ function buildMutationEvent(cmd: string, args: string[], result: QueryResult): G
       committed: (data?.committed as boolean) ?? false,
       reason: (data?.reason as string) ?? '',
     } as GSDGitCommitEvent;
+  }
+
+  if (cmd.startsWith('phase.') || cmd.startsWith('phase ') || cmd.startsWith('phases.') || cmd.startsWith('phases ')) {
+    return {
+      ...base,
+      type: GSDEventType.StateMutation,
+      command: cmd,
+      fields: args.slice(0, 2),
+      success: true,
+    } as GSDStateMutationEvent;
   }
 
   if (cmd.startsWith('validate.') || cmd.startsWith('validate ')) {
@@ -216,6 +234,23 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('validate consistency', validateConsistency);
   registry.register('validate.health', validateHealth);
   registry.register('validate health', validateHealth);
+
+  // Phase lifecycle handlers
+  registry.register('phase.add', phaseAdd);
+  registry.register('phase.insert', phaseInsert);
+  registry.register('phase.remove', phaseRemove);
+  registry.register('phase.complete', phaseComplete);
+  registry.register('phase.scaffold', phaseScaffold);
+  registry.register('phases.clear', phasesClear);
+  registry.register('phases.archive', phasesArchive);
+  // Space-delimited aliases for CJS compatibility
+  registry.register('phase add', phaseAdd);
+  registry.register('phase insert', phaseInsert);
+  registry.register('phase remove', phaseRemove);
+  registry.register('phase complete', phaseComplete);
+  registry.register('phase scaffold', phaseScaffold);
+  registry.register('phases clear', phasesClear);
+  registry.register('phases archive', phasesArchive);
 
   // Wire event emission for mutation commands
   if (eventStream) {

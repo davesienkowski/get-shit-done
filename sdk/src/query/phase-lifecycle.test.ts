@@ -1043,3 +1043,37 @@ describe('phasesArchive', () => {
     expect(remainingDirs.length).toBe(0);
   });
 });
+
+// ─── Registry integration ──────────────────────────────────────────────────
+
+describe('lifecycle handlers in registry', () => {
+  it('registers all 7 lifecycle handlers with dot notation', async () => {
+    const { createRegistry } = await import('./index.js');
+    const registry = createRegistry();
+
+    const commands = [
+      'phase.add', 'phase.insert', 'phase.remove', 'phase.complete',
+      'phase.scaffold', 'phases.clear', 'phases.archive',
+    ];
+
+    for (const cmd of commands) {
+      const handler = registry.getHandler(cmd);
+      expect(handler, `${cmd} should be registered`).toBeDefined();
+    }
+  });
+
+  it('registers space-delimited aliases', async () => {
+    const { createRegistry } = await import('./index.js');
+    const registry = createRegistry();
+
+    const commands = [
+      'phase add', 'phase insert', 'phase remove', 'phase complete',
+      'phase scaffold', 'phases clear', 'phases archive',
+    ];
+
+    for (const cmd of commands) {
+      const handler = registry.getHandler(cmd);
+      expect(handler, `${cmd} should be registered`).toBeDefined();
+    }
+  });
+});
