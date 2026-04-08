@@ -43,13 +43,19 @@ Requirements for SDK-First Migration. Each maps to roadmap phases.
 - [x] **VERIFY-05**: SDK can validate consistency between STATE.md, ROADMAP.md, and disk (validate consistency)
 - [x] **VERIFY-06**: SDK can run health checks with optional repair mode (validate health --repair)
 
+### Upstream Reconciliation
+
+- [ ] **RECON-01**: SDK locking (acquireStateLock) reconciled with upstream v1.34.0 TOCTOU fixes — non-busy-wait, proper stale cleanup
+- [ ] **RECON-02**: SDK config writes (atomicWriteConfig) aligned with upstream crash-safe patterns — temp+rename consistency
+- [ ] **RECON-03**: Phases 9-12 must-haves re-verified against current codebase post-merge — golden tests and acceptance criteria enforcement validated
+
 ### Phase Lifecycle
 
-- [ ] **LIFE-01**: SDK can add a phase to the end of the current roadmap (phase add)
-- [ ] **LIFE-02**: SDK can insert a phase at a specific position with renumbering (phase insert)
+- [x] **LIFE-01**: SDK can add a phase to the end of the current roadmap (phase add)
+- [x] **LIFE-02**: SDK can insert a phase at a specific position with renumbering (phase insert)
 - [ ] **LIFE-03**: SDK can remove a phase with renumbering (phase remove)
 - [ ] **LIFE-04**: SDK can mark a phase complete and update all tracking artifacts (phase complete)
-- [ ] **LIFE-05**: SDK can scaffold new phase directories with required files (phase scaffold)
+- [x] **LIFE-05**: SDK can scaffold new phase directories with required files (phase scaffold)
 - [ ] **LIFE-06**: SDK can archive phase directories for milestone completion (phases clear, phases archive)
 
 ### Composition
@@ -122,11 +128,14 @@ Deferred to future release. Tracked but not in current roadmap.
 | VERIFY-04 | Phase 12 | Complete |
 | VERIFY-05 | Phase 12 | Complete |
 | VERIFY-06 | Phase 12 | Complete |
-| LIFE-01 | Phase 13 | Pending |
-| LIFE-02 | Phase 13 | Pending |
+| RECON-01 | Phase 13.1 | Pending |
+| RECON-02 | Phase 13.1 | Pending |
+| RECON-03 | Phase 13.1 | Pending |
+| LIFE-01 | Phase 13 | Complete |
+| LIFE-02 | Phase 13 | Complete |
 | LIFE-03 | Phase 13 | Pending |
 | LIFE-04 | Phase 13 | Pending |
-| LIFE-05 | Phase 13 | Pending |
+| LIFE-05 | Phase 13 | Complete |
 | LIFE-06 | Phase 13 | Pending |
 | COMP-01 | Phase 14 | Pending |
 | COMP-02 | Phase 14 | Pending |

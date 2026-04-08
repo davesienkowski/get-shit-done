@@ -406,3 +406,233 @@ describe('phaseScaffold', () => {
     await expect(phaseScaffold(['badtype', '9'], tmpDir)).rejects.toThrow('Unknown scaffold type');
   });
 });
+
+// ─── phaseRemove ─────────────────────────────────────────────────────────
+
+const ROADMAP_FOR_REMOVE = `# Roadmap
+
+## Current Milestone: v3.0 SDK-First Migration
+
+### Phase 5: Auth
+
+**Goal:** Build authentication
+**Requirements**: TBD
+**Depends on:** Phase 4
+**Plans:** 2 plans
+
+Plans:
+- [x] 05-01 (Auth setup)
+- [x] 05-02 (Auth complete)
+
+### Phase 6: Dashboard
+
+**Goal:** Build dashboard
+**Requirements**: TBD
+**Depends on:** Phase 5
+**Plans:** 3 plans
+
+Plans:
+- [ ] 06-01 (Dashboard setup)
+
+### Phase 7: API
+
+**Goal:** Build API layer
+**Requirements**: TBD
+**Depends on:** Phase 6
+**Plans:** 2 plans
+
+Plans:
+- [ ] 07-01 (API setup)
+
+---
+*Last updated: 2026-04-08*
+`;
+
+const STATE_FOR_REMOVE = `---
+gsd_state_version: 1.0
+milestone: v3.0
+milestone_name: SDK-First Migration
+status: executing
+progress:
+  total_phases: 7
+  completed_phases: 4
+  total_plans: 15
+  completed_plans: 12
+  percent: 80
+---
+
+# Project State
+
+## Current Position
+
+Phase: 6 (Dashboard) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 6
+
+## Session Continuity
+
+Last session: 2026-04-08T10:00:00.000Z
+Stopped at: Started
+`;
+
+describe('phaseRemove', () => {
+  it('removes integer phase directory and renumbers subsequent phases', async () => {
+    const { phaseRemove } = await import('./phase-lifecycle.js');
+    const phasesDir = join(tmpDir, '.planning', 'phases');
+    await setupTestProject(tmpDir, {
+      roadmap: ROADMAP_FOR_REMOVE,
+      state: STATE_FOR_REMOVE,
+      phases: ['05-auth', '06-dashboard', '07-api'],
+    });
+    // Create files inside directories to verify file renaming
+    await writeFile(join(phasesDir, '06-dashboard', '06-01-PLAN.md'), 'plan', 'utf-8');
+    await writeFile(join(phasesDir, '07-api', '07-01-PLAN.md'), 'plan', 'utf-8');
+
+    const result = await phaseRemove(['6'], tmpDir);
+    const data = result.data as Record<string, unknown>;
+
+    expect(data.removed).toBe('6');
+    expect(data.directory_deleted).toBeTruthy();
+    expect(data.roadmap_updated).toBe(true);
+    expect(data.state_updated).toBe(true);
+
+    // Phase 6 dir should be gone
+    const entries = await readdir(phasesDir, { withFileTypes: true });
+    const dirNames = entries.filter(e => e.isDirectory()).map(e => e.name);
+    expect(dirNames.find(d => d.includes('06-dashboard'))).toBeUndefined();
+
+    // Phase 7 should have been renamed to 06
+    const renamedDir = dirNames.find(d => d.includes('06-api'));
+    expect(renamedDir).toBeTruthy();
+
+    // Files inside renamed dir should also be renamed
+    const files = await readdir(join(phasesDir, renamedDir!));
+    expect(files.some(f => f.includes('06-01'))).toBe(true);
+    expect(files.some(f => f.includes('07-01'))).toBe(false);
+  });
+
+  it('removes decimal phase and renumbers sibling decimals', async () => {
+    const { phaseRemove } = await import('./phase-lifecycle.js');
+    const decimalRoadmap = ROADMAP_FOR_REMOVE.replace(
+      '### Phase 7: API',
+      '### Phase 6.1: Hotfix A\n\n**Goal:** Fix A\n**Plans:** 1 plans\n\n### Phase 6.2: Hotfix B\n\n**Goal:** Fix B\n**Plans:** 1 plans\n\n### Phase 6.3: Hotfix C\n\n**Goal:** Fix C\n**Plans:** 1 plans\n\n### Phase 7: API'
+    );
+    const phasesDir = join(tmpDir, '.planning', 'phases');
+    await setupTestProject(tmpDir, {
+      roadmap: decimalRoadmap,
+      state: STATE_FOR_REMOVE,
+      phases: ['05-auth', '06-dashboard', '06.1-hotfix-a', '06.2-hotfix-b', '06.3-hotfix-c', '07-api'],
+    });
+    // Create files with phase ID in name
+    await writeFile(join(phasesDir, '06.2-hotfix-b', '06.2-01-PLAN.md'), 'plan', 'utf-8');
+    await writeFile(join(phasesDir, '06.3-hotfix-c', '06.3-01-PLAN.md'), 'plan', 'utf-8');
+
+    const result = await phaseRemove(['6.1'], tmpDir);
+    const data = result.data as Record<string, unknown>;
+
+    expect(data.removed).toBe('6.1');
+
+    // 06.1 should be gone
+    const entries = await readdir(phasesDir, { withFileTypes: true });
+    const dirNames = entries.filter(e => e.isDirectory()).map(e => e.name);
+    expect(dirNames.find(d => d.includes('06.1-hotfix-a'))).toBeUndefined();
+
+    // 06.2 should become 06.1, 06.3 should become 06.2
+    expect(dirNames.find(d => d.includes('06.1-hotfix-b'))).toBeTruthy();
+    expect(dirNames.find(d => d.includes('06.2-hotfix-c'))).toBeTruthy();
+    expect(dirNames.find(d => d.includes('06.3'))).toBeUndefined();
+
+    // Files inside renamed dirs should be renamed
+    const dir1Files = await readdir(join(phasesDir, '06.1-hotfix-b'));
+    expect(dir1Files.some(f => f.includes('06.1-01'))).toBe(true);
+    const dir2Files = await readdir(join(phasesDir, '06.2-hotfix-c'));
+    expect(dir2Files.some(f => f.includes('06.2-01'))).toBe(true);
+  });
+
+  it('requires --force to remove phase with SUMMARY files', async () => {
+    const { phaseRemove } = await import('./phase-lifecycle.js');
+    const phasesDir = join(tmpDir, '.planning', 'phases');
+    await setupTestProject(tmpDir, {
+      roadmap: ROADMAP_FOR_REMOVE,
+      state: STATE_FOR_REMOVE,
+      phases: ['05-auth', '06-dashboard', '07-api'],
+    });
+    // Create a SUMMARY file to simulate executed work
+    await writeFile(join(phasesDir, '06-dashboard', '06-01-SUMMARY.md'), 'summary', 'utf-8');
+
+    await expect(phaseRemove(['6'], tmpDir)).rejects.toThrow('--force');
+  });
+
+  it('allows removal with --force even when SUMMARY files exist', async () => {
+    const { phaseRemove } = await import('./phase-lifecycle.js');
+    const phasesDir = join(tmpDir, '.planning', 'phases');
+    await setupTestProject(tmpDir, {
+      roadmap: ROADMAP_FOR_REMOVE,
+      state: STATE_FOR_REMOVE,
+      phases: ['05-auth', '06-dashboard', '07-api'],
+    });
+    await writeFile(join(phasesDir, '06-dashboard', '06-01-SUMMARY.md'), 'summary', 'utf-8');
+
+    const result = await phaseRemove(['6', '--force'], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    expect(data.removed).toBe('6');
+    expect(data.directory_deleted).toBeTruthy();
+  });
+
+  it('throws GSDError when ROADMAP.md is missing', async () => {
+    const { phaseRemove } = await import('./phase-lifecycle.js');
+    // Set up without ROADMAP.md
+    const planningDir = join(tmpDir, '.planning');
+    await mkdir(planningDir, { recursive: true });
+    const phasesDir = join(planningDir, 'phases');
+    await mkdir(phasesDir, { recursive: true });
+    await writeFile(join(planningDir, 'STATE.md'), STATE_FOR_REMOVE, 'utf-8');
+
+    await expect(phaseRemove(['6'], tmpDir)).rejects.toThrow('ROADMAP.md not found');
+  });
+
+  it('throws GSDError when phase number is missing', async () => {
+    const { phaseRemove } = await import('./phase-lifecycle.js');
+    await setupTestProject(tmpDir, {
+      roadmap: ROADMAP_FOR_REMOVE,
+      state: STATE_FOR_REMOVE,
+    });
+
+    await expect(phaseRemove([], tmpDir)).rejects.toThrow('phase number required');
+  });
+
+  it('updates ROADMAP.md by removing phase section and renumbering', async () => {
+    const { phaseRemove } = await import('./phase-lifecycle.js');
+    await setupTestProject(tmpDir, {
+      roadmap: ROADMAP_FOR_REMOVE,
+      state: STATE_FOR_REMOVE,
+      phases: ['05-auth', '06-dashboard', '07-api'],
+    });
+
+    await phaseRemove(['6'], tmpDir);
+
+    const roadmap = await readFile(join(tmpDir, '.planning', 'ROADMAP.md'), 'utf-8');
+    // Phase 6 section should be removed
+    expect(roadmap).not.toContain('### Phase 6: Dashboard');
+    // Phase 7 should be renumbered to 6
+    expect(roadmap).toContain('### Phase 6: API');
+    // Plan references should be renumbered
+    expect(roadmap).toContain('06-01');
+    expect(roadmap).not.toContain('07-01');
+  });
+
+  it('decrements total_phases in STATE.md frontmatter', async () => {
+    const { phaseRemove } = await import('./phase-lifecycle.js');
+    await setupTestProject(tmpDir, {
+      roadmap: ROADMAP_FOR_REMOVE,
+      state: STATE_FOR_REMOVE,
+      phases: ['05-auth', '06-dashboard', '07-api'],
+    });
+
+    await phaseRemove(['6'], tmpDir);
+
+    const stateContent = await readFile(join(tmpDir, '.planning', 'STATE.md'), 'utf-8');
+    // total_phases should be decremented from 7 to 6
+    expect(stateContent).toMatch(/total_phases:\s*6/);
+  });
+});
