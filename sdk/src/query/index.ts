@@ -44,6 +44,7 @@ import {
   initResume, initVerifyWork, initPhaseOp, initTodos, initMilestoneOp,
   initMapCodebase, initNewWorkspace, initListWorkspaces, initRemoveWorkspace,
 } from './init.js';
+import { initNewProject, initProgress, initManager } from './init-complex.js';
 import { GSDEventStream } from '../event-stream.js';
 import {
   GSDEventType,
@@ -285,6 +286,14 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('init new-workspace', initNewWorkspace);
   registry.register('init list-workspaces', initListWorkspaces);
   registry.register('init remove-workspace', initRemoveWorkspace);
+
+  // Complex init handlers
+  registry.register('init.new-project', initNewProject);
+  registry.register('init.progress', initProgress);
+  registry.register('init.manager', initManager);
+  registry.register('init new-project', initNewProject);
+  registry.register('init progress', initProgress);
+  registry.register('init manager', initManager);
 
   // Wire event emission for mutation commands
   if (eventStream) {
