@@ -30,11 +30,12 @@ See MILESTONES.md for details.
 
 **Milestone Goal:** Replace gsd-tools.cjs with typed TypeScript SDK, retiring the CJS monolith entirely.
 
-- [ ] **Phase 9: Foundation and Test Infrastructure** - Error classification, query registry, CLI extension, utilities, golden file test harness
+- [x] **Phase 9: Foundation and Test Infrastructure** - Error classification, query registry, CLI extension, utilities, golden file test harness (completed 2026-04-08)
 - [x] **Phase 10: Read-Only Queries** - Config, state, phase finder, roadmap, progress, and frontmatter read operations (completed 2026-04-08)
 - [x] **Phase 11: State Mutations** - State updates, frontmatter writes, config writes, git commits, template fills, event emission (completed 2026-04-08)
 - [x] **Phase 12: Verification Suite** - Plan structure validation, phase completeness, artifact checks, key-link verification, consistency and health checks (completed 2026-04-08)
 - [x] **Phase 13: Phase Lifecycle** - Phase add, insert, remove, complete, scaffold, and archive operations (completed 2026-04-08)
+- [x] **Phase 13.1: Upstream Reconciliation** - Locking TOCTOU fixes, config atomicity, acceptance criteria enforcement (completed 2026-04-08)
 - [ ] **Phase 14: Composition and Retirement** - Composable init chains, staged execution, workspace contexts, dry-run mode, workflow migration, gsd-tools.cjs deletion
 
 ## Phase Details
@@ -155,9 +156,10 @@ Phases execute in numeric order: 9 -> 10 -> 11 -> 12 -> 13 -> 14
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 9. Foundation and Test Infrastructure | v3.0 | 0/3 | Not started | - |
+| 9. Foundation and Test Infrastructure | v3.0 | 3/3 | Complete    | 2026-04-08 |
 | 10. Read-Only Queries | v3.0 | 3/3 | Complete    | 2026-04-08 |
 | 11. State Mutations | v3.0 | 3/3 | Complete    | 2026-04-08 |
 | 12. Verification Suite | v3.0 | 3/3 | Complete    | 2026-04-08 |
 | 13. Phase Lifecycle | v3.0 | 3/3 | Complete    | 2026-04-08 |
+| 13.1. Upstream Reconciliation | v3.0 | 2/2 | Complete    | 2026-04-08 |
 | 14. Composition and Retirement | v3.0 | 0/0 | Not started | - |
