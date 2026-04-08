@@ -210,12 +210,14 @@ No tasks here.
   });
 
   it('throws GSDError with Validation classification when no args', async () => {
-    await expect(verifyPlanStructure([], tmpDir)).rejects.toThrow(GSDError);
+    let caught: unknown;
     try {
       await verifyPlanStructure([], tmpDir);
     } catch (err) {
-      expect((err as GSDError).classification).toBe('validation');
+      caught = err;
     }
+    expect(caught).toBeInstanceOf(GSDError);
+    expect((caught as GSDError).classification).toBe('validation');
   });
 });
 

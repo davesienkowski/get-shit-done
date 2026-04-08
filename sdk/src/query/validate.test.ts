@@ -26,12 +26,14 @@ describe('verifyKeyLinks', () => {
   });
 
   it('throws GSDError Validation when no args', async () => {
-    await expect(verifyKeyLinks([], tmpDir)).rejects.toThrow(GSDError);
+    let caught: unknown;
     try {
       await verifyKeyLinks([], tmpDir);
     } catch (err) {
-      expect((err as GSDError).classification).toBe('validation');
+      caught = err;
     }
+    expect(caught).toBeInstanceOf(GSDError);
+    expect((caught as GSDError).classification).toBe('validation');
   });
 
   it('returns all_verified true when pattern found in source', async () => {
