@@ -84,17 +84,27 @@ describe('QueryRegistry', () => {
   it('dispatch falls back to GSDTools for unregistered command', async () => {
     const registry = new QueryRegistry();
 
-    // Mock the dynamic import of GSDTools
-    const mockExec = vi.fn().mockResolvedValue({ some: 'data' });
-    vi.mock('../gsd-tools.js', () => ({
+    // Mock GSDTools by replacing the fallback path with a spy
+    // We test the fallback contract: unregistered commands produce { data: result }
+    const mockResult = { some: 'data' };
+    const mockExec = vi.fn().mockResolvedValue(mockResult);
+
+    // Intercept the dynamic import by mocking at the module level
+    vi.doMock('../gsd-tools.js', () => ({
       GSDTools: vi.fn().mockImplementation(() => ({
         exec: mockExec,
       })),
     }));
 
-    const result = await registry.dispatch('unknown-cmd', ['arg1'], '/tmp/project');
+    // Re-import to pick up the mock
+    const { QueryRegistry: MockedRegistry } = await import('./registry.js');
+    const mockedRegistry = new MockedRegistry();
+
+    const result = await mockedRegistry.dispatch('unknown-cmd', ['arg1'], '/tmp/project');
 
     expect(result).toEqual({ data: { some: 'data' } });
+
+    vi.restoreAllMocks();
   });
 });
 
