@@ -33,6 +33,7 @@ import {
 } from './config-mutation.js';
 import { commit, checkCommit } from './commit.js';
 import { templateFill, templateSelect } from './template.js';
+import { verifyPlanStructure, verifyPhaseCompleteness, verifyArtifacts } from './verify.js';
 import { GSDEventStream } from '../event-stream.js';
 import {
   GSDEventType,
@@ -189,6 +190,14 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('template.fill', templateFill);
   registry.register('template.select', templateSelect);
   registry.register('template select', templateSelect);
+
+  // Verification handlers
+  registry.register('verify.plan-structure', verifyPlanStructure);
+  registry.register('verify plan-structure', verifyPlanStructure);
+  registry.register('verify.phase-completeness', verifyPhaseCompleteness);
+  registry.register('verify phase-completeness', verifyPhaseCompleteness);
+  registry.register('verify.artifacts', verifyArtifacts);
+  registry.register('verify artifacts', verifyArtifacts);
 
   // Wire event emission for mutation commands
   if (eventStream) {
