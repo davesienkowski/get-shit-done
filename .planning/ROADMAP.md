@@ -81,7 +81,11 @@ Plans:
   3. Running `gsd-sdk query config.set model_profile quality` validates the value against the config schema before writing
   4. Running `gsd-sdk query commit "phase 10 complete"` creates a git commit for .planning/ artifacts identical to gsd-tools.cjs behavior
   5. Every state-mutating query emits a typed event through the SDK event stream that a WebSocket listener can observe
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 11-01-PLAN.md — STATE.md mutations and frontmatter write handlers
+- [ ] 11-02-PLAN.md — Config mutation handlers and git commit handlers
+- [ ] 11-03-PLAN.md — Template fill/select, mutation event types, event emission wiring, golden tests
 
 ### Phase 12: Verification Suite
 **Goal**: SDK can validate plan structure, check phase completeness, verify artifact existence, validate key-link integration points, and run health checks with optional repair -- replacing verify.cjs entirely
@@ -127,8 +131,8 @@ Phases execute in numeric order: 9 -> 10 -> 11 -> 12 -> 13 -> 14
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 9. Foundation and Test Infrastructure | v3.0 | 0/3 | Not started | - |
-| 10. Read-Only Queries | v3.0 | 3/3 | Complete   | 2026-04-08 |
-| 11. State Mutations | v3.0 | 0/0 | Not started | - |
+| 10. Read-Only Queries | v3.0 | 3/3 | Complete    | 2026-04-08 |
+| 11. State Mutations | v3.0 | 0/3 | Not started | - |
 | 12. Verification Suite | v3.0 | 0/0 | Not started | - |
 | 13. Phase Lifecycle | v3.0 | 0/0 | Not started | - |
 | 14. Composition and Retirement | v3.0 | 0/0 | Not started | - |

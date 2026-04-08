@@ -194,6 +194,111 @@ export function stateExtractField(content: string, fieldName: string): string | 
   return plainMatch ? plainMatch[1].trim() : null;
 }
 
+// ─── normalizeMd ───────────────────────────────────────────────────────────
+
+/**
+ * Normalize markdown content for consistent formatting.
+ *
+ * Port of `normalizeMd` from core.cjs lines 434-529.
+ * Applies: CRLF normalization, blank lines around headings/fences/lists,
+ * blank line collapsing (3+ to 2), terminal newline.
+ *
+ * @param content - Markdown content to normalize
+ * @returns Normalized markdown string
+ */
+export function normalizeMd(content: string): string {
+  if (!content || typeof content !== 'string') return content;
+
+  // Normalize line endings to LF
+  let text = content.replace(/\r\n/g, '\n');
+
+  const lines = text.split('\n');
+  const result: string[] = [];
+
+  // Pre-compute fence state in a single O(n) pass
+  const fenceRegex = /^```/;
+  const insideFence = new Array<boolean>(lines.length);
+  let fenceOpen = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (fenceRegex.test(lines[i].trimEnd())) {
+      if (fenceOpen) {
+        insideFence[i] = false;
+        fenceOpen = false;
+      } else {
+        insideFence[i] = false;
+        fenceOpen = true;
+      }
+    } else {
+      insideFence[i] = fenceOpen;
+    }
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const prev = i > 0 ? lines[i - 1] : '';
+    const prevTrimmed = prev.trimEnd();
+    const trimmed = line.trimEnd();
+    const isFenceLine = fenceRegex.test(trimmed);
+
+    // MD022: Blank line before headings (skip first line and frontmatter delimiters)
+    if (/^#{1,6}\s/.test(trimmed) && i > 0 && prevTrimmed !== '' && prevTrimmed !== '---') {
+      result.push('');
+    }
+
+    // MD031: Blank line before fenced code blocks (opening fences only)
+    if (isFenceLine && i > 0 && prevTrimmed !== '' && !insideFence[i] && (i === 0 || !insideFence[i - 1] || isFenceLine)) {
+      if (i === 0 || !insideFence[i - 1]) {
+        result.push('');
+      }
+    }
+
+    // MD032: Blank line before lists
+    if (/^(\s*[-*+]\s|\s*\d+\.\s)/.test(line) && i > 0 &&
+        prevTrimmed !== '' && !/^(\s*[-*+]\s|\s*\d+\.\s)/.test(prev) &&
+        prevTrimmed !== '---') {
+      result.push('');
+    }
+
+    result.push(line);
+
+    // MD022: Blank line after headings
+    if (/^#{1,6}\s/.test(trimmed) && i < lines.length - 1) {
+      const next = lines[i + 1];
+      if (next !== undefined && next.trimEnd() !== '') {
+        result.push('');
+      }
+    }
+
+    // MD031: Blank line after closing fenced code blocks
+    if (/^```\s*$/.test(trimmed) && i > 0 && insideFence[i - 1] && i < lines.length - 1) {
+      const next = lines[i + 1];
+      if (next !== undefined && next.trimEnd() !== '') {
+        result.push('');
+      }
+    }
+
+    // MD032: Blank line after last list item in a block
+    if (/^(\s*[-*+]\s|\s*\d+\.\s)/.test(line) && i < lines.length - 1) {
+      const next = lines[i + 1];
+      if (next !== undefined && next.trimEnd() !== '' &&
+          !/^(\s*[-*+]\s|\s*\d+\.\s)/.test(next) &&
+          !/^\s/.test(next)) {
+        result.push('');
+      }
+    }
+  }
+
+  text = result.join('\n');
+
+  // MD012: Collapse 3+ consecutive blank lines to 2
+  text = text.replace(/\n{3,}/g, '\n\n');
+
+  // MD047: Ensure file ends with exactly one newline
+  text = text.replace(/\n*$/, '\n');
+
+  return text;
+}
+
 // ─── planningPaths ──────────────────────────────────────────────────────────
 
 /**

@@ -12,6 +12,7 @@ import {
   toPosixPath,
   stateExtractField,
   planningPaths,
+  normalizeMd,
 } from './helpers.js';
 
 // ─── escapeRegex ────────────────────────────────────────────────────────────
@@ -177,5 +178,48 @@ describe('planningPaths', () => {
     const paths = planningPaths('/proj');
     expect(paths.state).toContain('.planning/STATE.md');
     expect(paths.config).toContain('.planning/config.json');
+  });
+});
+
+// ─── normalizeMd ───────────────────────────────────────────────────────────
+
+describe('normalizeMd', () => {
+  it('converts CRLF to LF', () => {
+    const result = normalizeMd('line1\r\nline2\r\n');
+    expect(result).not.toContain('\r');
+    expect(result).toContain('line1\nline2');
+  });
+
+  it('ensures terminal newline', () => {
+    const result = normalizeMd('no trailing newline');
+    expect(result).toMatch(/\n$/);
+  });
+
+  it('collapses 3+ consecutive blank lines to 2', () => {
+    const result = normalizeMd('a\n\n\n\nb');
+    // Should have at most 2 consecutive newlines (1 blank line between)
+    expect(result).not.toContain('\n\n\n');
+  });
+
+  it('preserves content inside code fences', () => {
+    const input = '```\n  code with trailing spaces   \n```\n';
+    const result = normalizeMd(input);
+    expect(result).toContain('  code with trailing spaces   ');
+  });
+
+  it('adds blank line before headings when missing', () => {
+    const result = normalizeMd('some text\n# Heading\n');
+    expect(result).toContain('some text\n\n# Heading');
+  });
+
+  it('returns empty-ish content unchanged', () => {
+    expect(normalizeMd('')).toBe('');
+    expect(normalizeMd(null as unknown as string)).toBe(null);
+  });
+
+  it('handles normal markdown without changes', () => {
+    const input = '# Title\n\nSome text.\n\n## Section\n\nMore text.\n';
+    const result = normalizeMd(input);
+    expect(result).toBe(input);
   });
 });

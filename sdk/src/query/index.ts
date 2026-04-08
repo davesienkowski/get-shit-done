@@ -22,6 +22,7 @@ import { stateLoad, stateGet, stateSnapshot } from './state.js';
 import { findPhase, phasePlanIndex } from './phase.js';
 import { roadmapAnalyze, roadmapGetPhase } from './roadmap.js';
 import { progressJson } from './progress.js';
+import { frontmatterSet, frontmatterMerge, frontmatterValidate } from './frontmatter-mutation.js';
 
 // ─── Re-exports ────────────────────────────────────────────────────────────
 
@@ -53,6 +54,12 @@ export function createRegistry(): QueryRegistry {
   registry.register('roadmap.get-phase', roadmapGetPhase);
   registry.register('progress', progressJson);
   registry.register('progress.json', progressJson);
+
+  // Frontmatter mutation handlers
+  registry.register('frontmatter.set', frontmatterSet);
+  registry.register('frontmatter.merge', frontmatterMerge);
+  registry.register('frontmatter.validate', frontmatterValidate);
+  registry.register('frontmatter validate', frontmatterValidate);
 
   return registry;
 }
