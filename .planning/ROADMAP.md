@@ -34,7 +34,7 @@ See MILESTONES.md for details.
 - [x] **Phase 10: Read-Only Queries** - Config, state, phase finder, roadmap, progress, and frontmatter read operations (completed 2026-04-08)
 - [x] **Phase 11: State Mutations** - State updates, frontmatter writes, config writes, git commits, template fills, event emission (completed 2026-04-08)
 - [x] **Phase 12: Verification Suite** - Plan structure validation, phase completeness, artifact checks, key-link verification, consistency and health checks (completed 2026-04-08)
-- [ ] **Phase 13: Phase Lifecycle** - Phase add, insert, remove, complete, scaffold, and archive operations
+- [x] **Phase 13: Phase Lifecycle** - Phase add, insert, remove, complete, scaffold, and archive operations (completed 2026-04-08)
 - [ ] **Phase 14: Composition and Retirement** - Composable init chains, staged execution, workspace contexts, dry-run mode, workflow migration, gsd-tools.cjs deletion
 
 ## Phase Details
@@ -113,12 +113,12 @@ Plans:
   3. Running `gsd-sdk query phase.complete 9` marks the phase done in ROADMAP.md, updates progress in STATE.md, and emits a PhaseComplete event
   4. Running `gsd-sdk query phase.scaffold 14` creates the phase directory with PLAN.md, SUMMARY.md templates pre-filled with phase metadata
   5. Running `gsd-sdk query phases.archive` moves completed phase directories to archive and cleans up for milestone completion
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 13-01-PLAN.md — Shared helpers, phaseAdd, phaseInsert, phaseScaffold handlers
 - [x] 13-02-PLAN.md — phaseRemove with renumbering helpers
-- [ ] 13-03-PLAN.md — phaseComplete, phasesClear, phasesArchive, registry wiring
+- [x] 13-03-PLAN.md — phaseComplete, phasesClear, phasesArchive, registry wiring
 
 ### Phase 13.1: Upstream Reconciliation (INSERTED)
 **Goal**: SDK handlers in Phases 9-12 are audited against v1.34.0 upstream CJS changes (locking TOCTOU fixes, config atomicity, acceptance criteria enforcement), divergences are reconciled, golden tests re-validated, and all phase must-haves re-verified
@@ -130,10 +130,11 @@ Plans:
   3. All 17 golden integration tests pass against the updated gsd-tools.cjs (v1.34.0)
   4. Phase 9-12 VERIFICATION.md must-haves re-checked against current codebase — all still pass
   5. Acceptance criteria enforcement from PR #1959 verified in execute-plan workflow
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 13.1 to break down)
+- [ ] 13.1-01-PLAN.md — Fix locking divergences (D2, D3) and config divergences (D4-D9, D11)
+- [ ] 13.1-02-PLAN.md — Re-run golden tests and re-verify Phase 9-12 must-haves
 
 ### Phase 14: Composition and Retirement
 **Goal**: SDK replaces all 16 compound init commands with composable typed query chains, implements staged execution, and gsd-tools.cjs is fully deleted from the tree with all 65 workflows migrated to `gsd-sdk query`
@@ -158,5 +159,5 @@ Phases execute in numeric order: 9 -> 10 -> 11 -> 12 -> 13 -> 14
 | 10. Read-Only Queries | v3.0 | 3/3 | Complete    | 2026-04-08 |
 | 11. State Mutations | v3.0 | 3/3 | Complete    | 2026-04-08 |
 | 12. Verification Suite | v3.0 | 3/3 | Complete    | 2026-04-08 |
-| 13. Phase Lifecycle | v3.0 | 2/3 | In Progress|  |
+| 13. Phase Lifecycle | v3.0 | 3/3 | Complete    | 2026-04-08 |
 | 14. Composition and Retirement | v3.0 | 0/0 | Not started | - |

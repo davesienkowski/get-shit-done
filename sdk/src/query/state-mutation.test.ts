@@ -182,6 +182,29 @@ describe('acquireStateLock / releaseStateLock', () => {
     await releaseStateLock(lockPath);
     expect(existsSync(lockPath)).toBe(false);
   });
+
+  it('tracks lockPath in _heldStateLocks on acquire and removes on release', async () => {
+    const { acquireStateLock, releaseStateLock, _heldStateLocks } = await import('./state-mutation.js');
+    const statePath = join(tmpDir, 'STATE.md');
+    await writeFile(statePath, 'test', 'utf-8');
+
+    const lockPath = await acquireStateLock(statePath);
+    expect(_heldStateLocks.has(lockPath)).toBe(true);
+
+    await releaseStateLock(lockPath);
+    expect(_heldStateLocks.has(lockPath)).toBe(false);
+  });
+
+  it('returns lockPath on non-EEXIST errors instead of throwing', async () => {
+    // Simulate a non-EEXIST error by using a path in a non-existent directory
+    // This triggers ENOENT (not EEXIST), which should return lockPath gracefully
+    const { acquireStateLock } = await import('./state-mutation.js');
+    const badPath = join(tmpDir, 'nonexistent-dir', 'subdir', 'STATE.md');
+
+    // Should NOT throw — should return lockPath gracefully
+    const lockPath = await acquireStateLock(badPath);
+    expect(lockPath).toBe(badPath + '.lock');
+  });
 });
 
 // ─── stateUpdate ────────────────────────────────────────────────────────────
