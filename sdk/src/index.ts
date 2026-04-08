@@ -23,23 +23,26 @@ import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 
-import type { GSDOptions, PlanResult, SessionOptions, GSDEvent, TransportHandler, PhaseRunnerOptions, PhaseRunnerResult, MilestoneRunnerOptions, MilestoneRunnerResult, RoadmapPhaseInfo } from './types.js';
+import type { GSDOptions, PlanResult, SessionOptions, GSDEvent, TransportHandler, PhaseRunnerOptions, PhaseRunnerResult, MilestoneRunnerOptions, MilestoneRunnerResult, RoadmapPhaseInfo, RoadmapAnalysis, PhaseOpInfo, PhasePlanIndex, InitNewProjectInfo } from './types.js';
 import { GSDEventType } from './types.js';
 import { parsePlan, parsePlanFile } from './plan-parser.js';
 import { loadConfig } from './config.js';
-import { GSDTools, resolveGsdToolsPath } from './gsd-tools.js';
 import { runPlanSession } from './session-runner.js';
 import { buildExecutorPrompt, parseAgentTools } from './prompt-builder.js';
 import { GSDEventStream } from './event-stream.js';
 import { PhaseRunner } from './phase-runner.js';
+import type { PhaseRunnerTools } from './phase-runner.js';
 import { ContextEngine } from './context-engine.js';
 import { PromptFactory } from './phase-prompt.js';
+import { roadmapAnalyze } from './query/roadmap.js';
+import { initPhaseOp } from './query/init.js';
+import { phasePlanIndex } from './query/phase.js';
+import { phaseComplete } from './query/phase-lifecycle.js';
 
 // ─── GSD class ───────────────────────────────────────────────────────────────
 
 export class GSD {
   private readonly projectDir: string;
-  private readonly gsdToolsPath: string;
   private readonly defaultModel?: string;
   private readonly defaultMaxBudgetUsd: number;
   private readonly defaultMaxTurns: number;
@@ -48,8 +51,6 @@ export class GSD {
 
   constructor(options: GSDOptions) {
     this.projectDir = resolve(options.projectDir);
-    this.gsdToolsPath =
-      options.gsdToolsPath ?? resolveGsdToolsPath(this.projectDir);
     this.defaultModel = options.model;
     this.defaultMaxBudgetUsd = options.maxBudgetUsd ?? 5.0;
     this.defaultMaxTurns = options.maxTurns ?? 50;
@@ -111,19 +112,54 @@ export class GSD {
   }
 
   /**
-   * Create a GSDTools instance for state management operations.
+   * Create a PhaseRunnerTools implementation backed by native SDK functions.
    */
-  createTools(): GSDTools {
-    return new GSDTools({
-      projectDir: this.projectDir,
-      gsdToolsPath: this.gsdToolsPath,
-    });
+  createTools(): PhaseRunnerTools {
+    const projectDir = this.projectDir;
+    return {
+      initPhaseOp: async (phaseNumber: string) => {
+        const r = await initPhaseOp([phaseNumber], projectDir);
+        return r.data as PhaseOpInfo;
+      },
+      phasePlanIndex: async (phaseNumber: string) => {
+        const r = await phasePlanIndex([phaseNumber], projectDir);
+        return r.data as PhasePlanIndex;
+      },
+      phaseComplete: async (phaseNumber: string) => {
+        await phaseComplete([phaseNumber], projectDir);
+      },
+    };
+  }
+
+  /**
+   * Create an InitRunnerTools implementation backed by native SDK functions.
+   */
+  createInitTools(): import('./init-runner.js').InitRunnerTools {
+    const projectDir = this.projectDir;
+    return {
+      initNewProject: async () => {
+        const { initNewProject: fn } = await import('./query/init-complex.js');
+        const r = await fn([], projectDir);
+        return r.data as InitNewProjectInfo;
+      },
+      configSet: async (key: string, value: string) => {
+        const { configSet: fn } = await import('./query/config-mutation.js');
+        const r = await fn([key, value], projectDir);
+        return r.data;
+      },
+      commit: async (message: string, files?: string[]) => {
+        const { commit: fn } = await import('./query/commit.js');
+        const args = files ? [message, '--files', ...files] : [message];
+        const r = await fn(args, projectDir);
+        return r.data;
+      },
+    };
   }
 
   /**
    * Run a full phase lifecycle: discuss → research → plan → execute → verify → advance.
    *
-   * Creates the necessary collaborators (GSDTools, PromptFactory, ContextEngine),
+   * Creates the necessary collaborators (PromptFactory, ContextEngine),
    * loads project config, instantiates a PhaseRunner, and delegates to `runner.run()`.
    *
    * @param phaseNumber - The phase number to execute (e.g. "01", "02")
@@ -163,13 +199,13 @@ export class GSD {
    * @returns MilestoneRunnerResult with per-phase results, overall success, cost, and timing
    */
   async run(prompt: string, options?: MilestoneRunnerOptions): Promise<MilestoneRunnerResult> {
-    const tools = this.createTools();
     const startTime = Date.now();
     const phaseResults: PhaseRunnerResult[] = [];
     let success = true;
 
-    // Discover initial phases
-    const initialAnalysis = await tools.roadmapAnalyze();
+    // Discover initial phases via native SDK roadmap handler
+    const initialResult = await roadmapAnalyze([], this.projectDir);
+    const initialAnalysis = initialResult.data as RoadmapAnalysis;
     const incompletePhases = this.filterAndSortPhases(initialAnalysis.phases);
 
     // Emit MilestoneStart
@@ -205,7 +241,8 @@ export class GSD {
         }
 
         // Re-discover phases to catch dynamically inserted ones
-        const updatedAnalysis = await tools.roadmapAnalyze();
+        const updatedResult = await roadmapAnalyze([], this.projectDir);
+        const updatedAnalysis = updatedResult.data as RoadmapAnalysis;
         currentPhases = this.filterAndSortPhases(updatedAnalysis.phases);
       } catch (err) {
         // Phase threw an unexpected error — record as failure and stop
@@ -286,7 +323,7 @@ export class GSD {
 export { parsePlan, parsePlanFile } from './plan-parser.js';
 export { loadConfig } from './config.js';
 export type { GSDConfig } from './config.js';
-export { GSDTools, GSDToolsError, resolveGsdToolsPath } from './gsd-tools.js';
+// GSDTools bridge removed in v3.0 — all state management now uses native SDK handlers.
 export { runPlanSession, runPhaseStepSession } from './session-runner.js';
 export { buildExecutorPrompt, parseAgentTools } from './prompt-builder.js';
 export * from './types.js';

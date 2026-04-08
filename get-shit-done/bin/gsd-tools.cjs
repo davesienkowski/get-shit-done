@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+// @deprecated -- This file is deprecated as of v3.0. Use `gsd-sdk query` instead.
+// All orchestration has been migrated to @gsd-build/sdk TypeScript handlers.
+// This file is retained for validation only and will be removed in a future release.
 /**
  * GSD Tools — CLI utility for GSD workflow operations
  *

@@ -81,30 +81,11 @@ describe('QueryRegistry', () => {
     expect(result).toEqual({ data: { value: 'arg1' } });
   });
 
-  it('dispatch falls back to GSDTools for unregistered command', async () => {
+  it('dispatch throws GSDError for unregistered command', async () => {
     const registry = new QueryRegistry();
-
-    // Mock GSDTools by replacing the fallback path with a spy
-    // We test the fallback contract: unregistered commands produce { data: result }
-    const mockResult = { some: 'data' };
-    const mockExec = vi.fn().mockResolvedValue(mockResult);
-
-    // Intercept the dynamic import by mocking at the module level
-    vi.doMock('../gsd-tools.js', () => ({
-      GSDTools: vi.fn().mockImplementation(() => ({
-        exec: mockExec,
-      })),
-    }));
-
-    // Re-import to pick up the mock
-    const { QueryRegistry: MockedRegistry } = await import('./registry.js');
-    const mockedRegistry = new MockedRegistry();
-
-    const result = await mockedRegistry.dispatch('unknown-cmd', ['arg1'], '/tmp/project');
-
-    expect(result).toEqual({ data: { some: 'data' } });
-
-    vi.restoreAllMocks();
+    // Bridge removed in v3.0 — unknown commands throw, not fallback
+    await expect(registry.dispatch('unknown-cmd', ['arg1'], '/tmp/project'))
+      .rejects.toThrow('Unknown command: "unknown-cmd"');
   });
 });
 

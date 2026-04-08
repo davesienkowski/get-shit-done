@@ -20,7 +20,6 @@ import type {
 } from './types.js';
 import { PhaseStepType, PhaseType, GSDEventType } from './types.js';
 import type { GSDConfig } from './config.js';
-import type { GSDTools } from './gsd-tools.js';
 import type { GSDEventStream } from './event-stream.js';
 import type { PromptFactory } from './phase-prompt.js';
 import type { ContextEngine } from './context-engine.js';
@@ -48,11 +47,19 @@ export class PhaseRunnerError extends Error {
 
 export type VerificationOutcome = 'passed' | 'human_needed' | 'gaps_found';
 
+// ─── PhaseRunnerTools — minimal interface replacing the GSDTools bridge ──────
+
+export interface PhaseRunnerTools {
+  initPhaseOp(phaseNumber: string): Promise<PhaseOpInfo>;
+  phasePlanIndex(phaseNumber: string): Promise<PhasePlanIndex>;
+  phaseComplete(phaseNumber: string): Promise<void>;
+}
+
 // ─── PhaseRunner deps interface ──────────────────────────────────────────────
 
 export interface PhaseRunnerDeps {
   projectDir: string;
-  tools: GSDTools;
+  tools: PhaseRunnerTools;
   promptFactory: PromptFactory;
   contextEngine: ContextEngine;
   eventStream: GSDEventStream;
@@ -64,7 +71,7 @@ export interface PhaseRunnerDeps {
 
 export class PhaseRunner {
   private readonly projectDir: string;
-  private readonly tools: GSDTools;
+  private readonly tools: PhaseRunnerTools;
   private readonly promptFactory: PromptFactory;
   private readonly contextEngine: ContextEngine;
   private readonly eventStream: GSDEventStream;

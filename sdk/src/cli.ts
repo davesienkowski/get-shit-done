@@ -294,7 +294,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     }
 
     try {
-      const tools = gsd.createTools();
+      const tools = gsd.createInitTools();
       const runner = new InitRunner({
         projectDir: args.projectDir,
         tools,
@@ -374,7 +374,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
 
         console.log(`[auto] Bootstrapping project from --init (${initInput.length} chars)`);
 
-        const tools = gsd.createTools();
+        const tools = gsd.createInitTools();
         const runner = new InitRunner({
           projectDir: args.projectDir,
           tools,

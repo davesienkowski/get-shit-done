@@ -28,7 +28,6 @@ import type {
   PlanResult,
 } from './types.js';
 import { GSDEventType, PhaseStepType } from './types.js';
-import type { GSDTools } from './gsd-tools.js';
 import type { GSDEventStream } from './event-stream.js';
 import { loadConfig } from './config.js';
 import { runPhaseStepSession } from './session-runner.js';
@@ -63,11 +62,19 @@ const AUTO_MODE_CONFIG = {
   },
 };
 
+// ─── InitRunnerTools — minimal interface replacing the GSDTools bridge ────────
+
+export interface InitRunnerTools {
+  initNewProject(): Promise<InitNewProjectInfo>;
+  configSet(key: string, value: string): Promise<unknown>;
+  commit(message: string, files?: string[]): Promise<unknown>;
+}
+
 // ─── InitRunner ──────────────────────────────────────────────────────────────
 
 export interface InitRunnerDeps {
   projectDir: string;
-  tools: GSDTools;
+  tools: InitRunnerTools;
   eventStream: GSDEventStream;
   config?: Partial<InitConfig>;
   /** Override for SDK prompts directory. Defaults to package-relative sdk/prompts/. */
@@ -76,7 +83,7 @@ export interface InitRunnerDeps {
 
 export class InitRunner {
   private readonly projectDir: string;
-  private readonly tools: GSDTools;
+  private readonly tools: InitRunnerTools;
   private readonly eventStream: GSDEventStream;
   private readonly config: InitConfig;
   private readonly sessionId: string;

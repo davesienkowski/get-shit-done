@@ -1,3 +1,4 @@
+// @deprecated -- This module is deprecated as of v3.0. SDK handlers in @gsd-build/sdk replace this functionality.
 /**
  * Frontmatter — YAML frontmatter parsing, serialization, and CRUD commands
  */

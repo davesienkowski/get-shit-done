@@ -64,18 +64,12 @@ vi.mock('./phase-prompt.js', () => ({
   PHASE_WORKFLOW_MAP: {},
 }));
 
-vi.mock('./gsd-tools.js', () => ({
-  GSDTools: vi.fn().mockImplementation(() => ({
-    roadmapAnalyze: vi.fn(),
-  })),
-  GSDToolsError: class extends Error {
-    name = 'GSDToolsError';
-  },
-  resolveGsdToolsPath: vi.fn().mockReturnValue('/mock/gsd-tools.cjs'),
+vi.mock('./query/roadmap.js', () => ({
+  roadmapAnalyze: vi.fn(),
 }));
 
 import { GSD } from './index.js';
-import { GSDTools } from './gsd-tools.js';
+import { roadmapAnalyze } from './query/roadmap.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -101,8 +95,8 @@ function makePhaseResult(overrides: Partial<PhaseRunnerResult> = {}): PhaseRunne
   };
 }
 
-function makeAnalysis(phases: RoadmapPhaseInfo[]): RoadmapAnalysis {
-  return { phases };
+function makeAnalysis(phases: RoadmapPhaseInfo[]): { data: RoadmapAnalysis } {
+  return { data: { phases } };
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -123,14 +117,9 @@ describe('GSD.run()', () => {
       (event: GSDEvent) => events.push(event),
     );
 
-    // Wire mock roadmapAnalyze on the GSDTools instance
+    // Wire mock roadmapAnalyze — returns { data: RoadmapAnalysis }
     mockRoadmapAnalyze = vi.fn();
-    vi.mocked(GSDTools).mockImplementation(
-      () =>
-        ({
-          roadmapAnalyze: mockRoadmapAnalyze,
-        }) as any,
-    );
+    vi.mocked(roadmapAnalyze).mockImplementation(mockRoadmapAnalyze);
   });
 
   it('discovers phases and calls runPhase for each incomplete one', async () => {

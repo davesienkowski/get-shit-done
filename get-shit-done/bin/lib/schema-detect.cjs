@@ -1,3 +1,4 @@
+// @deprecated -- This module is deprecated as of v3.0. SDK handlers in @gsd-build/sdk replace this functionality.
 /**
  * Schema Drift Detection — Detects schema-relevant file changes and verifies
  * that the appropriate database push command was executed during a phase.

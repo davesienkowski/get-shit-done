@@ -5095,7 +5095,11 @@ function install(isGlobal, runtime = 'claude') {
     ? targetDir.replace(os.homedir(), '~')
     : targetDir.replace(process.cwd(), '.');
 
-  // Path prefix for file references in markdown content (e.g. gsd-tools.cjs).
+  // Primary query interface: gsd-sdk CLI (replaces gsd-tools.cjs shim as of v3.0).
+  // Workflows use `gsd-sdk query <command>` — gsd-sdk must be on PATH after `npm install -g`.
+  const GSD_SDK_BIN = 'gsd-sdk'; // eslint-disable-line no-unused-vars
+
+  // Path prefix for file references in markdown content.
   // Replaces $HOME/.claude/ or ~/.claude/ so the result is <pathPrefix>get-shit-done/bin/...
   // For global installs: use $HOME/ so paths expand correctly inside double-quoted
   // shell commands (~ does NOT expand inside double quotes, causing MODULE_NOT_FOUND).

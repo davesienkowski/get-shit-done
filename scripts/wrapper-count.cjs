@@ -18,7 +18,8 @@ const { join, relative } = require('path');
 
 const SDK_SRC = join(__dirname, '..', 'sdk', 'src');
 const BRIDGE_PATTERN = /this\.(exec|execRaw)\s*\(/g;
-const IMPORT_PATTERN = /GSDTools/;
+// Match actual import statements (not comments) referencing gsd-tools
+const IMPORT_PATTERN = /^import\s.*['"]\.\.?\/.*gsd-tools/m;
 
 /**
  * Recursively walk a directory and collect `.ts` files,
@@ -63,10 +64,19 @@ for (const filePath of files) {
   }
 }
 
+const total = bridgeCalls.total + gsdToolsImports.total;
 const result = {
   bridge_calls: bridgeCalls,
   gsd_tools_imports: gsdToolsImports,
-  summary: `${bridgeCalls.total} bridge calls in ${Object.keys(bridgeCalls.by_file).length} file(s), ${gsdToolsImports.total} files importing GSDTools`,
+  total_remaining: total,
+  summary: total === 0
+    ? '✓ 0 bridge calls — migration complete'
+    : `✗ ${bridgeCalls.total} bridge call(s) in ${Object.keys(bridgeCalls.by_file).length} file(s), ${gsdToolsImports.total} file(s) still importing gsd-tools`,
 };
 
-process.stdout.write(JSON.stringify(result, null, 2));
+process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+
+// Exit non-zero if any bridge references remain (regression guard)
+if (total > 0) {
+  process.exit(1);
+}

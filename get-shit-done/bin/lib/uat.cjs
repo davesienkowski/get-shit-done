@@ -1,3 +1,4 @@
+// @deprecated -- This module is deprecated as of v3.0. SDK handlers in @gsd-build/sdk replace this functionality.
 /**
  * UAT Audit — Cross-phase UAT/VERIFICATION scanner
  *

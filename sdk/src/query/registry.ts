@@ -1,9 +1,9 @@
 /**
- * Query command registry — routes commands to native handlers with gsd-tools.cjs fallback.
+ * Query command registry — routes commands to native SDK handlers.
  *
  * The registry is a flat `Map<string, QueryHandler>` that maps command names
- * to handler functions. Unknown commands fall back to `GSDTools.exec()` for
- * backwards compatibility during the SDK migration.
+ * to handler functions. Unknown commands throw GSDError — the gsd-tools.cjs
+ * fallback was removed in v3.0 when all commands were migrated to native handlers.
  *
  * Also exports `extractField` — a TypeScript port of the `--pick` field
  * extraction logic from gsd-tools.cjs (lines 365-382).
@@ -20,6 +20,7 @@
  */
 
 import type { QueryResult, QueryHandler } from './utils.js';
+import { GSDError, ErrorClassification } from '../errors.js';
 
 // ─── extractField ──────────────────────────────────────────────────────────
 
@@ -95,29 +96,25 @@ export class QueryRegistry {
   }
 
   /**
-   * Dispatch a command to its handler, falling back to gsd-tools.cjs.
+   * Dispatch a command to its registered native handler.
+   *
+   * Throws GSDError for unknown commands — the gsd-tools.cjs fallback was
+   * removed in v3.0. All commands must be registered as native handlers (T-14-13).
    *
    * @param command - The command name to dispatch
    * @param args - Arguments to pass to the handler
    * @param projectDir - The project directory for context
-   * @returns The query result from the handler or fallback
+   * @returns The query result from the handler
+   * @throws GSDError if no handler is registered for the command
    */
   async dispatch(command: string, args: string[], projectDir: string): Promise<QueryResult> {
     const handler = this.handlers.get(command);
     if (!handler) {
-      return this.fallbackToGsdTools(command, args, projectDir);
+      throw new GSDError(
+        `Unknown command: "${command}". No native handler registered.`,
+        ErrorClassification.Validation,
+      );
     }
     return handler(args, projectDir);
-  }
-
-  /**
-   * Fall back to gsd-tools.cjs for commands without native handlers.
-   * Uses dynamic import to avoid loading GSDTools until needed.
-   */
-  private async fallbackToGsdTools(command: string, args: string[], projectDir: string): Promise<QueryResult> {
-    const { GSDTools } = await import('../gsd-tools.js');
-    const tools = new GSDTools({ projectDir });
-    const result = await tools.exec(command, args);
-    return { data: result };
   }
 }
