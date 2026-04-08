@@ -89,13 +89,13 @@ People who want to describe what they want and have it built correctly — witho
 
 Built-in quality gates catch real problems: schema drift detection flags ORM changes missing migrations, security enforcement anchors verification to threat models, and scope reduction detection prevents the planner from silently dropping your requirements.
 
-### v1.33.0 Highlights
+### v1.34.0 Highlights
 
-- **9 bug fixes** — Frontmatter parser, cross-platform planning lock, model alias updates, prompt guard, Kilo/skill path replacement, and more
-- **Shared behavioral references** — Consistent agent behavior via questioning, domain-probes, and UI-brand reference docs
-- **CONFIG_DEFAULTS refactor** — Single source of truth for all config defaults, eliminating scattered hardcoded values
-- **Test standardization** — Full migration to `node:assert/strict` and `t.after()` cleanup patterns
-- **Typed contribution templates** — Separate Bug, Enhancement, and Feature workflows with approval gates
+- **Gates taxonomy** — 4 canonical gate types (pre-flight, revision, escalation, abort) wired into plan-checker and verifier agents
+- **Shell hooks fix** — `hooks/*.sh` files are now correctly included in the npm package, eliminating startup hook errors on fresh installs
+- **Post-merge hunk verification** — `reapply-patches` detects silently dropped hunks after three-way merge
+- **detectConfigDir fix** — Claude Code users no longer see false "update available" warnings when multiple runtimes are installed
+- **3 bug fixes** — Milestone backlog preservation, detectConfigDir priority, and npm package manifest
 
 ---
 
@@ -160,7 +160,7 @@ npx get-shit-done-cc --cursor --global      # Install to ~/.cursor/
 npx get-shit-done-cc --cursor --local       # Install to ./.cursor/
 
 # Windsurf
-npx get-shit-done-cc --windsurf --global    # Install to ~/.windsurf/
+npx get-shit-done-cc --windsurf --global    # Install to ~/.codeium/windsurf/
 npx get-shit-done-cc --windsurf --local     # Install to ./.windsurf/
 
 # Antigravity

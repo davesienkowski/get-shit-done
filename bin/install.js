@@ -303,14 +303,14 @@ function getGlobalDir(runtime, explicitDir = null) {
   }
 
   if (runtime === 'windsurf') {
-    // Windsurf: --config-dir > WINDSURF_CONFIG_DIR > ~/.windsurf
+    // Windsurf: --config-dir > WINDSURF_CONFIG_DIR > ~/.codeium/windsurf
     if (explicitDir) {
       return expandTilde(explicitDir);
     }
     if (process.env.WINDSURF_CONFIG_DIR) {
       return expandTilde(process.env.WINDSURF_CONFIG_DIR);
     }
-    return path.join(os.homedir(), '.windsurf');
+    return path.join(os.homedir(), '.codeium', 'windsurf');
   }
 
   if (runtime === 'augment') {
@@ -1122,7 +1122,7 @@ function convertClaudeAgentToCursorAgent(content) {
 
 // --- Windsurf converters ---
 // Windsurf uses a tool set similar to Cursor.
-// Config lives in .windsurf/ (local) and ~/.windsurf/ (global).
+// Config lives in .windsurf/ (local) and ~/.codeium/windsurf/ (global).
 
 // Tool name mapping from Claude Code to Windsurf Cascade
 const claudeToWindsurfTools = {
@@ -3572,7 +3572,7 @@ function copyCommandsAsWindsurfSkills(srcDir, skillsDir, prefix, pathPrefix, run
       const globalClaudeRegex = /~\/\.claude\//g;
       const globalClaudeHomeRegex = /\$HOME\/\.claude\//g;
       const localClaudeRegex = /\.\/\.claude\//g;
-      const windsurfDirRegex = /~\/\.windsurf\//g;
+      const windsurfDirRegex = /~\/\.codeium\/windsurf\//g;
       content = content.replace(globalClaudeRegex, pathPrefix);
       content = content.replace(globalClaudeHomeRegex, pathPrefix);
       content = content.replace(localClaudeRegex, `./${getDirName(runtime)}/`);
@@ -3807,6 +3807,42 @@ function copyCommandsAsAntigravitySkills(srcDir, skillsDir, prefix, isGlobal = f
   }
 
   recurse(srcDir, prefix);
+}
+
+/**
+ * Save user-generated files from destDir to an in-memory map before a wipe.
+ *
+ * @param {string} destDir - Directory that is about to be wiped
+ * @param {string[]} fileNames - Relative file names (e.g. ['USER-PROFILE.md']) to preserve
+ * @returns {Map<string, string>} Map of fileName → file content (only entries that existed)
+ */
+function preserveUserArtifacts(destDir, fileNames) {
+  const saved = new Map();
+  for (const name of fileNames) {
+    const fullPath = path.join(destDir, name);
+    if (fs.existsSync(fullPath)) {
+      try {
+        saved.set(name, fs.readFileSync(fullPath, 'utf8'));
+      } catch { /* skip unreadable files */ }
+    }
+  }
+  return saved;
+}
+
+/**
+ * Restore user-generated files saved by preserveUserArtifacts after a wipe.
+ *
+ * @param {string} destDir - Directory that was wiped and recreated
+ * @param {Map<string, string>} saved - Map returned by preserveUserArtifacts
+ */
+function restoreUserArtifacts(destDir, saved) {
+  for (const [name, content] of saved) {
+    const fullPath = path.join(destDir, name);
+    try {
+      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+      fs.writeFileSync(fullPath, content, 'utf8');
+    } catch { /* skip unwritable paths */ }
+  }
 }
 
 /**
@@ -4285,8 +4321,8 @@ function uninstall(isGlobal, runtime = 'claude') {
         }
       }
     }
-  } else {
-    // Claude Code: remove skills/gsd-*/ directories
+  } else if (isGlobal) {
+    // Claude Code global: remove skills/gsd-*/ directories (primary global install location)
     const skillsDir = path.join(targetDir, 'skills');
     if (fs.existsSync(skillsDir)) {
       let skillCount = 0;
@@ -4303,7 +4339,7 @@ function uninstall(isGlobal, runtime = 'claude') {
       }
     }
 
-    // Also clean up legacy commands/gsd/ from older installs
+    // Also clean up legacy commands/gsd/ from older global installs
     const legacyCommandsDir = path.join(targetDir, 'commands', 'gsd');
     if (fs.existsSync(legacyCommandsDir)) {
       // Preserve user-generated files before legacy wipe (#1423)
@@ -4317,6 +4353,28 @@ function uninstall(isGlobal, runtime = 'claude') {
       if (preservedDevPrefs) {
         try {
           fs.mkdirSync(legacyCommandsDir, { recursive: true });
+          fs.writeFileSync(devPrefsPath, preservedDevPrefs);
+          console.log(`  ${green}✓${reset} Preserved commands/gsd/dev-preferences.md`);
+        } catch (err) {
+          console.error(`  ${red}✗${reset} Failed to restore dev-preferences.md: ${err.message}`);
+        }
+      }
+    }
+  } else {
+    // Claude Code local: remove commands/gsd/ (primary local install location since #1736)
+    const gsdCommandsDir = path.join(targetDir, 'commands', 'gsd');
+    if (fs.existsSync(gsdCommandsDir)) {
+      // Preserve user-generated files before wipe (#1423)
+      const devPrefsPath = path.join(gsdCommandsDir, 'dev-preferences.md');
+      const preservedDevPrefs = fs.existsSync(devPrefsPath) ? fs.readFileSync(devPrefsPath, 'utf-8') : null;
+
+      fs.rmSync(gsdCommandsDir, { recursive: true });
+      removedCount++;
+      console.log(`  ${green}✓${reset} Removed commands/gsd/`);
+
+      if (preservedDevPrefs) {
+        try {
+          fs.mkdirSync(gsdCommandsDir, { recursive: true });
           fs.writeFileSync(devPrefsPath, preservedDevPrefs);
           console.log(`  ${green}✓${reset} Preserved commands/gsd/dev-preferences.md`);
         } catch (err) {
@@ -4432,7 +4490,7 @@ function uninstall(isGlobal, runtime = 'claude') {
         const before = JSON.stringify(settings.hooks[eventName]);
         settings.hooks[eventName] = settings.hooks[eventName]
           .map(entry => {
-            if (!entry.hooks || !Array.isArray(entry.hooks)) return null;
+            if (!entry.hooks || !Array.isArray(entry.hooks)) return entry;
             // Filter out individual GSD hooks, keep user hooks
             entry.hooks = entry.hooks.filter(h => !isGsdHookCommand(h.command));
             return entry.hooks.length > 0 ? entry : null;
@@ -4541,6 +4599,15 @@ function uninstall(isGlobal, runtime = 'claude') {
         // Ignore JSON parse errors
       }
     }
+  }
+
+  // Remove the file manifest that the installer wrote at install time.
+  // Without this step the metadata file persists after uninstall (#1908).
+  const manifestPath = path.join(targetDir, MANIFEST_NAME);
+  if (fs.existsSync(manifestPath)) {
+    fs.rmSync(manifestPath, { force: true });
+    removedCount++;
+    console.log(`  ${green}✓${reset} Removed ${MANIFEST_NAME}`);
   }
 
   if (removedCount === 0) {
@@ -5168,8 +5235,8 @@ function install(isGlobal, runtime = 'claude') {
     } else {
       failures.push('commands/gsd');
     }
-  } else {
-    // Claude Code: skills/ format (2.1.88+ compatibility)
+  } else if (isGlobal) {
+    // Claude Code global: skills/ format (2.1.88+ compatibility)
     const skillsDir = path.join(targetDir, 'skills');
     const gsdSrc = path.join(src, 'commands', 'gsd');
     copyCommandsAsClaudeSkills(gsdSrc, skillsDir, 'gsd', pathPrefix, runtime, isGlobal);
@@ -5185,18 +5252,51 @@ function install(isGlobal, runtime = 'claude') {
       failures.push('skills/gsd-*');
     }
 
-    // Clean up legacy commands/gsd/ from previous installs
+    // Clean up legacy commands/gsd/ from previous global installs
+    // Preserve user-generated files (dev-preferences.md) before wiping the directory
     const legacyCommandsDir = path.join(targetDir, 'commands', 'gsd');
     if (fs.existsSync(legacyCommandsDir)) {
+      const savedLegacyArtifacts = preserveUserArtifacts(legacyCommandsDir, ['dev-preferences.md']);
       fs.rmSync(legacyCommandsDir, { recursive: true });
       console.log(`  ${green}✓${reset} Removed legacy commands/gsd/ directory`);
+      restoreUserArtifacts(legacyCommandsDir, savedLegacyArtifacts);
+    }
+  } else {
+    // Claude Code local: commands/gsd/ format — Claude Code reads local project
+    // commands from .claude/commands/gsd/, not .claude/skills/
+    const commandsDir = path.join(targetDir, 'commands');
+    fs.mkdirSync(commandsDir, { recursive: true });
+    const gsdSrc = path.join(src, 'commands', 'gsd');
+    const gsdDest = path.join(commandsDir, 'gsd');
+    copyWithPathReplacement(gsdSrc, gsdDest, pathPrefix, runtime, true, isGlobal);
+    if (verifyInstalled(gsdDest, 'commands/gsd')) {
+      const count = fs.readdirSync(gsdDest).filter(f => f.endsWith('.md')).length;
+      console.log(`  ${green}✓${reset} Installed ${count} commands to commands/gsd/`);
+    } else {
+      failures.push('commands/gsd');
+    }
+
+    // Clean up any stale skills/ from a previous local install
+    const staleSkillsDir = path.join(targetDir, 'skills');
+    if (fs.existsSync(staleSkillsDir)) {
+      const staleGsd = fs.readdirSync(staleSkillsDir, { withFileTypes: true })
+        .filter(e => e.isDirectory() && e.name.startsWith('gsd-'));
+      for (const e of staleGsd) {
+        fs.rmSync(path.join(staleSkillsDir, e.name), { recursive: true });
+      }
+      if (staleGsd.length > 0) {
+        console.log(`  ${green}✓${reset} Removed ${staleGsd.length} stale GSD skill(s) from skills/`);
+      }
     }
   }
 
   // Copy get-shit-done skill with path replacement
+  // Preserve user-generated files before the wipe-and-copy so they survive re-install
   const skillSrc = path.join(src, 'get-shit-done');
   const skillDest = path.join(targetDir, 'get-shit-done');
+  const savedGsdArtifacts = preserveUserArtifacts(skillDest, ['USER-PROFILE.md']);
   copyWithPathReplacement(skillSrc, skillDest, pathPrefix, runtime, false, isGlobal);
+  restoreUserArtifacts(skillDest, savedGsdArtifacts);
   if (verifyInstalled(skillDest, 'get-shit-done')) {
     console.log(`  ${green}✓${reset} Installed get-shit-done`);
   } else {
@@ -5489,21 +5589,24 @@ function install(isGlobal, runtime = 'claude') {
     return;
   }
   const settings = validateHookFields(cleanupOrphanedHooks(rawSettings));
+  // Local installs anchor paths to $CLAUDE_PROJECT_DIR so hooks resolve
+  // correctly regardless of the shell's current working directory (#1906).
+  const localPrefix = '"$CLAUDE_PROJECT_DIR"/' + dirName;
   const statuslineCommand = isGlobal
     ? buildHookCommand(targetDir, 'gsd-statusline.js')
-    : 'node ' + dirName + '/hooks/gsd-statusline.js';
+    : 'node ' + localPrefix + '/hooks/gsd-statusline.js';
   const updateCheckCommand = isGlobal
     ? buildHookCommand(targetDir, 'gsd-check-update.js')
-    : 'node ' + dirName + '/hooks/gsd-check-update.js';
+    : 'node ' + localPrefix + '/hooks/gsd-check-update.js';
   const contextMonitorCommand = isGlobal
     ? buildHookCommand(targetDir, 'gsd-context-monitor.js')
-    : 'node ' + dirName + '/hooks/gsd-context-monitor.js';
+    : 'node ' + localPrefix + '/hooks/gsd-context-monitor.js';
   const promptGuardCommand = isGlobal
     ? buildHookCommand(targetDir, 'gsd-prompt-guard.js')
-    : 'node ' + dirName + '/hooks/gsd-prompt-guard.js';
+    : 'node ' + localPrefix + '/hooks/gsd-prompt-guard.js';
   const readGuardCommand = isGlobal
     ? buildHookCommand(targetDir, 'gsd-read-guard.js')
-    : 'node ' + dirName + '/hooks/gsd-read-guard.js';
+    : 'node ' + localPrefix + '/hooks/gsd-read-guard.js';
 
   // Enable experimental agents for Gemini CLI (required for custom sub-agents)
   if (isGemini) {
@@ -5529,7 +5632,12 @@ function install(isGlobal, runtime = 'claude') {
       entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-check-update'))
     );
 
-    if (!hasGsdUpdateHook) {
+    // Guard: only register if the hook file was actually installed (#1754).
+    // When hooks/dist/ is missing from the npm package (as in v1.32.0), the
+    // copy step produces no files but the registration step ran unconditionally,
+    // causing "hook error" on every tool invocation.
+    const checkUpdateFile = path.join(targetDir, 'hooks', 'gsd-check-update.js');
+    if (!hasGsdUpdateHook && fs.existsSync(checkUpdateFile)) {
       settings.hooks.SessionStart.push({
         hooks: [
           {
@@ -5539,6 +5647,8 @@ function install(isGlobal, runtime = 'claude') {
         ]
       });
       console.log(`  ${green}✓${reset} Configured update check hook`);
+    } else if (!hasGsdUpdateHook && !fs.existsSync(checkUpdateFile)) {
+      console.warn(`  ${yellow}⚠${reset}  Skipped update check hook — gsd-check-update.js not found at target`);
     }
 
     // Configure post-tool hook for context window monitoring
@@ -5550,7 +5660,8 @@ function install(isGlobal, runtime = 'claude') {
       entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-context-monitor'))
     );
 
-    if (!hasContextMonitorHook) {
+    const contextMonitorFile = path.join(targetDir, 'hooks', 'gsd-context-monitor.js');
+    if (!hasContextMonitorHook && fs.existsSync(contextMonitorFile)) {
       settings.hooks[postToolEvent].push({
         matcher: 'Bash|Edit|Write|MultiEdit|Agent|Task',
         hooks: [
@@ -5562,6 +5673,8 @@ function install(isGlobal, runtime = 'claude') {
         ]
       });
       console.log(`  ${green}✓${reset} Configured context window monitor hook`);
+    } else if (!hasContextMonitorHook && !fs.existsSync(contextMonitorFile)) {
+      console.warn(`  ${yellow}⚠${reset}  Skipped context monitor hook — gsd-context-monitor.js not found at target`);
     } else {
       // Migrate existing context monitor hooks: add matcher and timeout if missing
       for (const entry of settings.hooks[postToolEvent]) {
@@ -5595,7 +5708,8 @@ function install(isGlobal, runtime = 'claude') {
       entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-prompt-guard'))
     );
 
-    if (!hasPromptGuardHook) {
+    const promptGuardFile = path.join(targetDir, 'hooks', 'gsd-prompt-guard.js');
+    if (!hasPromptGuardHook && fs.existsSync(promptGuardFile)) {
       settings.hooks[preToolEvent].push({
         matcher: 'Write|Edit',
         hooks: [
@@ -5607,6 +5721,8 @@ function install(isGlobal, runtime = 'claude') {
         ]
       });
       console.log(`  ${green}✓${reset} Configured prompt injection guard hook`);
+    } else if (!hasPromptGuardHook && !fs.existsSync(promptGuardFile)) {
+      console.warn(`  ${yellow}⚠${reset}  Skipped prompt guard hook — gsd-prompt-guard.js not found at target`);
     }
 
     // Configure PreToolUse hook for read-before-edit guidance (#1628)
@@ -5616,7 +5732,8 @@ function install(isGlobal, runtime = 'claude') {
       entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-read-guard'))
     );
 
-    if (!hasReadGuardHook) {
+    const readGuardFile = path.join(targetDir, 'hooks', 'gsd-read-guard.js');
+    if (!hasReadGuardHook && fs.existsSync(readGuardFile)) {
       settings.hooks[preToolEvent].push({
         matcher: 'Write|Edit',
         hooks: [
@@ -5628,6 +5745,8 @@ function install(isGlobal, runtime = 'claude') {
         ]
       });
       console.log(`  ${green}✓${reset} Configured read-before-edit guard hook`);
+    } else if (!hasReadGuardHook && !fs.existsSync(readGuardFile)) {
+      console.warn(`  ${yellow}⚠${reset}  Skipped read guard hook — gsd-read-guard.js not found at target`);
     }
 
     // Community hooks — registered on install but opt-in at runtime.
@@ -5640,12 +5759,13 @@ function install(isGlobal, runtime = 'claude') {
     // /gsd-quick or /gsd-fast for state-tracked changes. Advisory only.
     const workflowGuardCommand = isGlobal
       ? buildHookCommand(targetDir, 'gsd-workflow-guard.js')
-      : 'node ' + dirName + '/hooks/gsd-workflow-guard.js';
+      : 'node ' + localPrefix + '/hooks/gsd-workflow-guard.js';
     const hasWorkflowGuardHook = settings.hooks[preToolEvent].some(entry =>
       entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-workflow-guard'))
     );
 
-    if (!hasWorkflowGuardHook) {
+    const workflowGuardFile = path.join(targetDir, 'hooks', 'gsd-workflow-guard.js');
+    if (!hasWorkflowGuardHook && fs.existsSync(workflowGuardFile)) {
       settings.hooks[preToolEvent].push({
         matcher: 'Write|Edit',
         hooks: [
@@ -5657,12 +5777,14 @@ function install(isGlobal, runtime = 'claude') {
         ]
       });
       console.log(`  ${green}✓${reset} Configured workflow guard hook (opt-in via hooks.workflow_guard)`);
+    } else if (!hasWorkflowGuardHook && !fs.existsSync(workflowGuardFile)) {
+      console.warn(`  ${yellow}⚠${reset}  Skipped workflow guard hook — gsd-workflow-guard.js not found at target`);
     }
 
     // Configure commit validation hook (Conventional Commits enforcement, opt-in)
     const validateCommitCommand = isGlobal
       ? 'bash ' + targetDir.replace(/\\/g, '/') + '/hooks/gsd-validate-commit.sh'
-      : 'bash ' + dirName + '/hooks/gsd-validate-commit.sh';
+      : 'bash ' + localPrefix + '/hooks/gsd-validate-commit.sh';
     const hasValidateCommitHook = settings.hooks[preToolEvent].some(entry =>
       entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-validate-commit'))
     );
@@ -5689,7 +5811,7 @@ function install(isGlobal, runtime = 'claude') {
     // Configure session state orientation hook (opt-in)
     const sessionStateCommand = isGlobal
       ? 'bash ' + targetDir.replace(/\\/g, '/') + '/hooks/gsd-session-state.sh'
-      : 'bash ' + dirName + '/hooks/gsd-session-state.sh';
+      : 'bash ' + localPrefix + '/hooks/gsd-session-state.sh';
     const hasSessionStateHook = settings.hooks.SessionStart.some(entry =>
       entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-session-state'))
     );
@@ -5711,7 +5833,7 @@ function install(isGlobal, runtime = 'claude') {
     // Configure phase boundary detection hook (opt-in)
     const phaseBoundaryCommand = isGlobal
       ? 'bash ' + targetDir.replace(/\\/g, '/') + '/hooks/gsd-phase-boundary.sh'
-      : 'bash ' + dirName + '/hooks/gsd-phase-boundary.sh';
+      : 'bash ' + localPrefix + '/hooks/gsd-phase-boundary.sh';
     const hasPhaseBoundaryHook = settings.hooks[postToolEvent].some(entry =>
       entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-phase-boundary'))
     );
@@ -5916,7 +6038,7 @@ function promptRuntime(callback) {
   ${cyan}8${reset}) Kilo         ${dim}(~/.config/kilo)${reset}
   ${cyan}9${reset}) OpenCode     ${dim}(~/.config/opencode)${reset}
   ${cyan}10${reset}) Trae         ${dim}(~/.trae)${reset}
-  ${cyan}11${reset}) Windsurf     ${dim}(~/.windsurf)${reset}
+  ${cyan}11${reset}) Windsurf     ${dim}(~/.codeium/windsurf)${reset}
   ${cyan}12${reset}) All
 
   ${dim}Select multiple: 1,2,6 or 1 2 6${reset}
@@ -6092,6 +6214,8 @@ if (process.env.GSD_TEST_MODE) {
     writeManifest,
     reportLocalPatches,
     validateHookFields,
+    preserveUserArtifacts,
+    restoreUserArtifacts,
   };
 } else {
 
