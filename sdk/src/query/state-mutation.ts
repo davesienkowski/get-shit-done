@@ -19,7 +19,7 @@
  */
 
 import { open, unlink, stat, readFile, writeFile, readdir } from 'node:fs/promises';
-import { constants } from 'node:fs';
+import { constants, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { GSDError, ErrorClassification } from '../errors.js';
 import { extractFrontmatter, stripFrontmatter } from './frontmatter.js';
@@ -27,6 +27,20 @@ import { reconstructFrontmatter, spliceFrontmatter } from './frontmatter-mutatio
 import { escapeRegex, stateExtractField, planningPaths, normalizeMd } from './helpers.js';
 import { buildStateFrontmatter, getMilestonePhaseFilter } from './state.js';
 import type { QueryHandler } from './utils.js';
+
+// ─── Process exit lock cleanup (D2 — match CJS state.cjs:16-23) ─────────
+
+/**
+ * Module-level set tracking held locks for process.on('exit') cleanup.
+ * Exported for test access only.
+ */
+export const _heldStateLocks = new Set<string>();
+
+process.on('exit', () => {
+  for (const lockPath of _heldStateLocks) {
+    try { unlinkSync(lockPath); } catch { /* already gone */ }
+  }
+});
 
 // ─── stateReplaceField ────────────────────────────────────────────────────
 
@@ -117,6 +131,7 @@ export async function acquireStateLock(statePath: string): Promise<string> {
       const fd = await open(lockPath, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY);
       await fd.writeFile(String(process.pid));
       await fd.close();
+      _heldStateLocks.add(lockPath);
       return lockPath;
     } catch (err: unknown) {
       if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'EEXIST') {
@@ -134,7 +149,8 @@ export async function acquireStateLock(statePath: string): Promise<string> {
         }
         await new Promise<void>(r => setTimeout(r, retryDelay + Math.floor(Math.random() * 50)));
       } else {
-        throw err;
+        // D3: Graceful degradation on non-EEXIST errors (match CJS state.cjs:889)
+        return lockPath;
       }
     }
   }
@@ -147,6 +163,7 @@ export async function acquireStateLock(statePath: string): Promise<string> {
  * @param lockPath - Path to the lockfile to release
  */
 export async function releaseStateLock(lockPath: string): Promise<void> {
+  _heldStateLocks.delete(lockPath);
   try { await unlink(lockPath); } catch { /* already gone */ }
 }
 
