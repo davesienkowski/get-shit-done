@@ -50,7 +50,7 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
       version: { type: 'boolean', short: 'v', default: false },
     },
     allowPositionals: true,
-    strict: true,
+    strict: false,
   });
 
   const command = positionals[0] as string | undefined;
@@ -215,6 +215,11 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     const pickIdx = queryArgs.indexOf('--pick');
     let pickField: string | undefined;
     if (pickIdx !== -1) {
+      if (pickIdx + 1 >= queryArgs.length) {
+        console.error('Error: --pick requires a field name');
+        process.exitCode = 10;
+        return;
+      }
       pickField = queryArgs[pickIdx + 1];
       queryArgs.splice(pickIdx, 2);
     }

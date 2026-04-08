@@ -53,7 +53,7 @@ See MILESTONES.md for details.
 Plans:
 - [x] 09-01-PLAN.md — Error classification system and utility query handlers
 - [x] 09-02-PLAN.md — Query registry, CLI subcommand routing, and --pick extraction
-- [ ] 09-03-PLAN.md — Golden file test harness and wrapper-count metric script
+- [x] 09-03-PLAN.md — Golden file test harness and wrapper-count metric script
 
 ### Phase 10: Read-Only Queries
 **Goal**: SDK can read and parse all .planning/ state artifacts -- config, STATE.md, phase directories, ROADMAP.md, progress, and frontmatter -- returning typed JSON

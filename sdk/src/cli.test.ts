@@ -100,8 +100,10 @@ describe('parseCliArgs', () => {
     expect(result.maxBudget).toBe(15);
   });
 
-  it('throws on unknown options (strict mode)', () => {
-    expect(() => parseCliArgs(['--unknown-flag'])).toThrow();
+  it('allows unknown options to pass through for subcommands', () => {
+    // strict:false lets subcommand-specific flags like --pick pass through
+    const result = parseCliArgs(['query', 'generate-slug', '--pick', 'slug']);
+    expect(result.command).toBe('query');
   });
 
   // ─── Init command parsing ──────────────────────────────────────────────
@@ -162,10 +164,9 @@ describe('parseCliArgs', () => {
     expect(result.prompt).toBe('generate-slug My Phase');
   });
 
-  it('parses query command with --pick option', () => {
-    // --pick is handled by main(), not parseCliArgs, but parseCliArgs should not throw
-    // The --pick flag is consumed from argv directly in the query handler
-    const result = parseCliArgs(['query', 'generate-slug', 'My Phase']);
+  it('parses query command with --pick option without throwing', () => {
+    // --pick is handled by main(), not parseCliArgs — strict:false lets it pass through
+    const result = parseCliArgs(['query', 'generate-slug', 'My Phase', '--pick', 'slug']);
 
     expect(result.command).toBe('query');
   });

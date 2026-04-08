@@ -61,8 +61,8 @@ Requirements for SDK-First Migration. Each maps to roadmap phases.
 
 ### Migration Infrastructure
 
-- [ ] **MIGR-01**: Golden file tests validate SDK output matches gsd-tools.cjs output for all migrated commands
-- [ ] **MIGR-02**: Wrapper tracking metric counts remaining gsd-tools.cjs bridge calls in SDK
+- [x] **MIGR-01**: Golden file tests validate SDK output matches gsd-tools.cjs output for all migrated commands
+- [x] **MIGR-02**: Wrapper tracking metric counts remaining gsd-tools.cjs bridge calls in SDK
 - [ ] **MIGR-03**: All 65 workflow markdown files updated from `node gsd-tools.cjs` to `gsd-sdk query` calls
 - [ ] **MIGR-04**: gsd-tools.cjs fully retired -- removed from tree, GSDTools bridge class removed from SDK
 - [ ] **MIGR-05**: All new SDK query functions have unit tests via Vitest
@@ -132,8 +132,8 @@ Deferred to future release. Tracked but not in current roadmap.
 | COMP-02 | Phase 14 | Pending |
 | COMP-03 | Phase 14 | Pending |
 | COMP-04 | Phase 14 | Pending |
-| MIGR-01 | Phase 9 | Pending |
-| MIGR-02 | Phase 9 | Pending |
+| MIGR-01 | Phase 9 | Complete |
+| MIGR-02 | Phase 9 | Complete |
 | MIGR-03 | Phase 14 | Pending |
 | MIGR-04 | Phase 14 | Pending |
 | MIGR-05 | Phase 14 | Pending |
