@@ -1,16 +1,16 @@
 /**
- * Tests for validation query handlers — verifyKeyLinks and validateConsistency.
+ * Tests for validation query handlers — verifyKeyLinks, validateConsistency, validateHealth.
  *
  * Uses temp directories with fixture files to test verification logic.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, writeFile, mkdir, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, mkdir, rm, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { tmpdir, homedir } from 'node:os';
 import { GSDError } from '../errors.js';
 
-import { verifyKeyLinks, validateConsistency } from './validate.js';
+import { verifyKeyLinks, validateConsistency, validateHealth } from './validate.js';
 
 // ─── verifyKeyLinks ────────────────────────────────────────────────────────
 
@@ -421,5 +421,220 @@ describe('validateConsistency', () => {
     const data = result.data as Record<string, unknown>;
     expect(data.passed).toBe(false);
     expect((data.errors as string[])).toContain('ROADMAP.md not found');
+  });
+});
+
+// ─── validateHealth ─────────────────────────────────────────────────────────
+
+describe('validateHealth', () => {
+  let tmpDir: string;
+
+  beforeEach(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'gsd-health-'));
+  });
+
+  afterEach(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  /** Helper: create a healthy .planning directory structure */
+  async function createHealthyPlanning(): Promise<void> {
+    const planning = join(tmpDir, '.planning');
+    await mkdir(join(planning, 'phases', '01-foundation'), { recursive: true });
+
+    await writeFile(join(planning, 'PROJECT.md'), '# Project\n\n## What This Is\n\nA project.\n\n## Core Value\n\nValue here.\n\n## Requirements\n\n- Req 1\n');
+    await writeFile(join(planning, 'ROADMAP.md'), '# Roadmap\n\n## Phase 1: Foundation\n\nGoals.\n');
+    await writeFile(join(planning, 'STATE.md'), '---\nstatus: executing\n---\n\n# State\n\n**Current Phase:** 1\n**Status:** executing\n');
+    await writeFile(join(planning, 'config.json'), JSON.stringify({
+      model_profile: 'balanced',
+      workflow: { nyquist_validation: true },
+    }, null, 2));
+
+    await writeFile(join(planning, 'phases', '01-foundation', '01-01-PLAN.md'), '---\nphase: 01\nplan: 01\ntype: execute\nwave: 1\ndepends_on: []\nfiles_modified: []\nautonomous: true\n---\n\n# Plan\n');
+    await writeFile(join(planning, 'phases', '01-foundation', '01-01-SUMMARY.md'), '# Summary\n');
+  }
+
+  it('returns healthy status when all files present', async () => {
+    await createHealthyPlanning();
+
+    const result = await validateHealth([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    expect(data.status).toBe('healthy');
+    expect((data.errors as unknown[]).length).toBe(0);
+    expect((data.warnings as unknown[]).length).toBe(0);
+  });
+
+  it('returns broken with E001 when no .planning/ directory', async () => {
+    // tmpDir has no .planning/ — already the case
+
+    const result = await validateHealth([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    expect(data.status).toBe('broken');
+    const errors = data.errors as Array<Record<string, unknown>>;
+    expect(errors.some(e => e.code === 'E001')).toBe(true);
+  });
+
+  it('returns error E002 when PROJECT.md missing', async () => {
+    await createHealthyPlanning();
+    const { unlink } = await import('node:fs/promises');
+    await unlink(join(tmpDir, '.planning', 'PROJECT.md'));
+
+    const result = await validateHealth([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    const errors = data.errors as Array<Record<string, unknown>>;
+    expect(errors.some(e => e.code === 'E002')).toBe(true);
+  });
+
+  it('returns error E003 when ROADMAP.md missing', async () => {
+    await createHealthyPlanning();
+    const { unlink } = await import('node:fs/promises');
+    await unlink(join(tmpDir, '.planning', 'ROADMAP.md'));
+
+    const result = await validateHealth([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    const errors = data.errors as Array<Record<string, unknown>>;
+    expect(errors.some(e => e.code === 'E003')).toBe(true);
+  });
+
+  it('returns error E004 when STATE.md missing (repairable)', async () => {
+    await createHealthyPlanning();
+    const { unlink } = await import('node:fs/promises');
+    await unlink(join(tmpDir, '.planning', 'STATE.md'));
+
+    const result = await validateHealth([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    const errors = data.errors as Array<Record<string, unknown>>;
+    const e004 = errors.find(e => e.code === 'E004');
+    expect(e004).toBeDefined();
+    expect(e004!.repairable).toBe(true);
+  });
+
+  it('returns error E005 when config.json has invalid JSON (repairable)', async () => {
+    await createHealthyPlanning();
+    await writeFile(join(tmpDir, '.planning', 'config.json'), '{invalid json!!!');
+
+    const result = await validateHealth([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    const errors = data.errors as Array<Record<string, unknown>>;
+    const e005 = errors.find(e => e.code === 'E005');
+    expect(e005).toBeDefined();
+    expect(e005!.repairable).toBe(true);
+  });
+
+  it('returns warning W003 when config.json missing (repairable)', async () => {
+    await createHealthyPlanning();
+    const { unlink } = await import('node:fs/promises');
+    await unlink(join(tmpDir, '.planning', 'config.json'));
+
+    const result = await validateHealth([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    const warnings = data.warnings as Array<Record<string, unknown>>;
+    const w003 = warnings.find(w => w.code === 'W003');
+    expect(w003).toBeDefined();
+    expect(w003!.repairable).toBe(true);
+  });
+
+  it('returns warning W005 for bad phase directory naming', async () => {
+    await createHealthyPlanning();
+    await mkdir(join(tmpDir, '.planning', 'phases', 'bad_name'), { recursive: true });
+
+    const result = await validateHealth([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    const warnings = data.warnings as Array<Record<string, unknown>>;
+    expect(warnings.some(w => w.code === 'W005')).toBe(true);
+  });
+
+  it('returns early with E010 when CWD equals home directory', async () => {
+    const result = await validateHealth([], homedir());
+    const data = result.data as Record<string, unknown>;
+    expect(data.status).toBe('error');
+    const errors = data.errors as Array<Record<string, unknown>>;
+    expect(errors.some(e => e.code === 'E010')).toBe(true);
+  });
+
+  it('returns warning W008 when config.json missing workflow.nyquist_validation', async () => {
+    await createHealthyPlanning();
+    await writeFile(join(tmpDir, '.planning', 'config.json'), JSON.stringify({
+      model_profile: 'balanced',
+      workflow: { research: true },
+    }, null, 2));
+
+    const result = await validateHealth([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    const warnings = data.warnings as Array<Record<string, unknown>>;
+    expect(warnings.some(w => w.code === 'W008')).toBe(true);
+  });
+
+  it('derives status from errors (broken), warnings (degraded), none (healthy)', async () => {
+    // broken: no .planning/
+    const r1 = await validateHealth([], tmpDir);
+    expect((r1.data as Record<string, unknown>).status).toBe('broken');
+
+    // degraded: missing config.json (warning only, not error)
+    await createHealthyPlanning();
+    const { unlink } = await import('node:fs/promises');
+    await unlink(join(tmpDir, '.planning', 'config.json'));
+    const r2 = await validateHealth([], tmpDir);
+    expect((r2.data as Record<string, unknown>).status).toBe('degraded');
+
+    // healthy: all present
+    await writeFile(join(tmpDir, '.planning', 'config.json'), JSON.stringify({
+      model_profile: 'balanced',
+      workflow: { nyquist_validation: true },
+    }, null, 2));
+    const r3 = await validateHealth([], tmpDir);
+    expect((r3.data as Record<string, unknown>).status).toBe('healthy');
+  });
+
+  // ─── Repair tests ───────────────────────────────────────────────────────
+
+  it('--repair with missing config.json creates config.json with defaults', async () => {
+    await createHealthyPlanning();
+    const { unlink } = await import('node:fs/promises');
+    await unlink(join(tmpDir, '.planning', 'config.json'));
+
+    const result = await validateHealth(['--repair'], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    expect(data.repairs_performed).toBeDefined();
+    const repairs = data.repairs_performed as Array<Record<string, unknown>>;
+    expect(repairs.some(r => r.action === 'createConfig' && r.success === true)).toBe(true);
+
+    // Verify file was created
+    const config = JSON.parse(await readFile(join(tmpDir, '.planning', 'config.json'), 'utf-8'));
+    expect(config.model_profile).toBe('balanced');
+    expect(config.workflow.nyquist_validation).toBe(true);
+  });
+
+  it('--repair with missing STATE.md generates minimal STATE.md', async () => {
+    await createHealthyPlanning();
+    const { unlink } = await import('node:fs/promises');
+    await unlink(join(tmpDir, '.planning', 'STATE.md'));
+
+    const result = await validateHealth(['--repair'], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    const repairs = data.repairs_performed as Array<Record<string, unknown>>;
+    expect(repairs.some(r => r.action === 'regenerateState' && r.success === true)).toBe(true);
+
+    // Verify file was created
+    const stateContent = await readFile(join(tmpDir, '.planning', 'STATE.md'), 'utf-8');
+    expect(stateContent).toContain('# Session State');
+    expect(stateContent).toContain('regenerated by');
+  });
+
+  it('--repair with missing nyquist key adds workflow.nyquist_validation', async () => {
+    await createHealthyPlanning();
+    await writeFile(join(tmpDir, '.planning', 'config.json'), JSON.stringify({
+      model_profile: 'balanced',
+      workflow: { research: true },
+    }, null, 2));
+
+    const result = await validateHealth(['--repair'], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    const repairs = data.repairs_performed as Array<Record<string, unknown>>;
+    expect(repairs.some(r => r.action === 'addNyquistKey' && r.success === true)).toBe(true);
+
+    // Verify key was added
+    const config = JSON.parse(await readFile(join(tmpDir, '.planning', 'config.json'), 'utf-8'));
+    expect(config.workflow.nyquist_validation).toBe(true);
   });
 });
