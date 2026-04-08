@@ -65,9 +65,9 @@ Plans:
   3. Running `gsd-sdk query phase.find 9` locates the phase directory on disk and returns its path and metadata
   4. Running `gsd-sdk query roadmap.analyze` returns phase list with disk status correlation matching gsd-tools.cjs output
   5. Running `gsd-sdk query frontmatter.get <path>` returns parsed YAML frontmatter from any .planning artifact
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 Plans:
-- [ ] 10-01-PLAN.md — Shared helpers, frontmatter parser, and config query handlers
+- [x] 10-01-PLAN.md — Shared helpers, frontmatter parser, and config query handlers
 - [ ] 10-02-PLAN.md — State query handlers and phase finding
 - [ ] 10-03-PLAN.md — Roadmap analysis, progress rendering, and golden file tests
 
@@ -127,7 +127,7 @@ Phases execute in numeric order: 9 -> 10 -> 11 -> 12 -> 13 -> 14
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 9. Foundation and Test Infrastructure | v3.0 | 0/3 | Not started | - |
-| 10. Read-Only Queries | v3.0 | 0/0 | Not started | - |
+| 10. Read-Only Queries | v3.0 | 1/3 | In Progress|  |
 | 11. State Mutations | v3.0 | 0/0 | Not started | - |
 | 12. Verification Suite | v3.0 | 0/0 | Not started | - |
 | 13. Phase Lifecycle | v3.0 | 0/0 | Not started | - |
