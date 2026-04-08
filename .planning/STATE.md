@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: SDK-First Migration
 status: executing
-stopped_at: Completed 10-01-PLAN.md
-last_updated: "2026-04-08T05:01:21.919Z"
+stopped_at: Completed 10-02-PLAN.md
+last_updated: "2026-04-08T05:09:28.027Z"
 last_activity: 2026-04-08
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
-  percent: 67
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-07)
 ## Current Position
 
 Phase: 10 (Read-Only Queries) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-04-08
 
@@ -56,6 +56,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 09 P02 | 3min | 2 tasks | 5 files |
 | Phase 09 P03 | 3min | 2 tasks | 5 files |
 | Phase 10 P01 | 5min | 2 tasks | 7 files |
+| Phase 10 P02 | 6min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,7 @@ Recent decisions affecting current work:
 - [Phase 09]: Path depth for capture.ts: ../../../ since golden/ is one level deeper than gsd-tools.ts
 - [Phase 10]: configGet reads raw config.json without default merging; resolveModel uses loadConfig with defaults
 - [Phase 10]: Temp dir test pattern (mkdtemp+writeFile) for query handler tests due to ESM spy limitations
+- [Phase 10]: stateLoad rebuilds frontmatter from body+disk every time (never cached)
 
 ### Pending Todos
 
@@ -85,6 +87,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-08T05:01:21.915Z
-Stopped at: Completed 10-01-PLAN.md
+Last session: 2026-04-08T05:09:28.023Z
+Stopped at: Completed 10-02-PLAN.md
 Resume file: None
