@@ -215,6 +215,11 @@ export const frontmatterMerge: QueryHandler = async (args, projectDir) => {
     throw new GSDError('file and data required', ErrorClassification.Validation);
   }
 
+  // Path traversal guard: reject null bytes (consistent with frontmatterSet)
+  if (filePath.includes('\0')) {
+    throw new GSDError('file path contains null bytes', ErrorClassification.Validation);
+  }
+
   const fullPath = isAbsolute(filePath) ? filePath : join(projectDir, filePath);
 
   let content: string;
@@ -265,6 +270,11 @@ export const frontmatterValidate: QueryHandler = async (args, projectDir) => {
 
   if (!filePath || !schemaName) {
     throw new GSDError('file and schema required', ErrorClassification.Validation);
+  }
+
+  // Path traversal guard: reject null bytes (consistent with frontmatterSet)
+  if (filePath.includes('\0')) {
+    throw new GSDError('file path contains null bytes', ErrorClassification.Validation);
   }
 
   const schema = FRONTMATTER_SCHEMAS[schemaName];
