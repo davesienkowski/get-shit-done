@@ -59,7 +59,7 @@ export function execGit(cwd: string, args: string[]): { exitCode: number; stdout
  * @returns Sanitized message safe for git commit
  */
 export function sanitizeCommitMessage(text: string): string {
-  if (!text || typeof text !== 'string') return text;
+  if (!text || typeof text !== 'string') return '';
 
   let sanitized = text;
 
