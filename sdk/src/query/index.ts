@@ -19,6 +19,7 @@ import { generateSlug, currentTimestamp } from './utils.js';
 import { frontmatterGet } from './frontmatter.js';
 import { configGet, resolveModel } from './config-query.js';
 import { stateLoad, stateGet, stateSnapshot } from './state.js';
+import { findPhase, phasePlanIndex } from './phase.js';
 
 // ─── Re-exports ────────────────────────────────────────────────────────────
 
@@ -44,6 +45,8 @@ export function createRegistry(): QueryRegistry {
   registry.register('state.json', stateLoad);
   registry.register('state.get', stateGet);
   registry.register('state-snapshot', stateSnapshot);
+  registry.register('find-phase', findPhase);
+  registry.register('phase-plan-index', phasePlanIndex);
 
   return registry;
 }
