@@ -31,8 +31,8 @@ Requirements for SDK-First Migration. Each maps to roadmap phases.
 - [x] **MUTATE-02**: SDK can write YAML frontmatter to .planning artifacts (frontmatter set, merge, validate)
 - [x] **MUTATE-03**: SDK can write config.json values with schema validation (config-set, config-set-model-profile, config-new-project)
 - [x] **MUTATE-04**: SDK can create git commits for planning artifacts (commit, check-commit)
-- [ ] **MUTATE-05**: SDK can fill templates for summary, plan, and verification artifacts (template fill)
-- [ ] **MUTATE-06**: SDK emits typed events through existing event stream on every state mutation
+- [x] **MUTATE-05**: SDK can fill templates for summary, plan, and verification artifacts (template fill)
+- [x] **MUTATE-06**: SDK emits typed events through existing event stream on every state mutation
 
 ### Verification
 
@@ -114,8 +114,8 @@ Deferred to future release. Tracked but not in current roadmap.
 | MUTATE-02 | Phase 11 | Complete |
 | MUTATE-03 | Phase 11 | Complete |
 | MUTATE-04 | Phase 11 | Complete |
-| MUTATE-05 | Phase 11 | Pending |
-| MUTATE-06 | Phase 11 | Pending |
+| MUTATE-05 | Phase 11 | Complete |
+| MUTATE-06 | Phase 11 | Complete |
 | VERIFY-01 | Phase 12 | Pending |
 | VERIFY-02 | Phase 12 | Pending |
 | VERIFY-03 | Phase 12 | Pending |
