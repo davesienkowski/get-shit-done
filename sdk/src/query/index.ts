@@ -31,6 +31,7 @@ import {
 import {
   configSet, configSetModelProfile, configNewProject, configEnsureSection,
 } from './config-mutation.js';
+import { commit, checkCommit } from './commit.js';
 
 // ─── Re-exports ────────────────────────────────────────────────────────────
 
@@ -86,6 +87,10 @@ export function createRegistry(): QueryRegistry {
   registry.register('config-set-model-profile', configSetModelProfile);
   registry.register('config-new-project', configNewProject);
   registry.register('config-ensure-section', configEnsureSection);
+
+  // Git commit handlers
+  registry.register('commit', commit);
+  registry.register('check-commit', checkCommit);
 
   return registry;
 }
