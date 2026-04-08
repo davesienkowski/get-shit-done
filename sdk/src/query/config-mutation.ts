@@ -17,13 +17,14 @@
  * ```
  */
 
-import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rename, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { GSDError, ErrorClassification } from '../errors.js';
 import { MODEL_PROFILES, VALID_PROFILES } from './config-query.js';
 import { planningPaths } from './helpers.js';
+import { acquireStateLock, releaseStateLock } from './state-mutation.js';
 import type { QueryHandler } from './utils.js';
 
 /**
@@ -31,9 +32,16 @@ import type { QueryHandler } from './utils.js';
  * partial writes on process interruption.
  */
 async function atomicWriteConfig(configPath: string, config: Record<string, unknown>): Promise<void> {
-  const tmpPath = configPath + '.tmp';
-  await writeFile(tmpPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
-  await rename(tmpPath, configPath);
+  const tmpPath = configPath + '.tmp.' + process.pid;
+  const content = JSON.stringify(config, null, 2) + '\n';
+  try {
+    await writeFile(tmpPath, content, 'utf-8');
+    await rename(tmpPath, configPath);
+  } catch {
+    // D5: Rename-failure fallback — clean up temp, fall back to direct write
+    try { await unlink(tmpPath); } catch { /* already gone */ }
+    await writeFile(configPath, content, 'utf-8');
+  }
 }
 
 // ─── VALID_CONFIG_KEYS ────────────────────────────────────────────────────
@@ -65,11 +73,31 @@ const VALID_CONFIG_KEYS = new Set([
   'workflow.subagent_timeout',
   'hooks.context_warnings',
   'features.thinking_partner',
+  'features.global_learnings',
+  'learnings.max_inject',
   'context',
   'project_code', 'phase_naming',
   'manager.flags.discuss', 'manager.flags.plan', 'manager.flags.execute',
   'response_language',
 ]);
+
+// ─── CONFIG_KEY_SUGGESTIONS (D9 — match CJS config.cjs:57-67) ────────────
+
+/**
+ * Curated typo correction map for known config key mistakes.
+ * Checked before the general LCP fallback for more precise suggestions.
+ */
+const CONFIG_KEY_SUGGESTIONS: Record<string, string> = {
+  'workflow.nyquist_validation_enabled': 'workflow.nyquist_validation',
+  'agents.nyquist_validation_enabled': 'workflow.nyquist_validation',
+  'nyquist.validation_enabled': 'workflow.nyquist_validation',
+  'hooks.research_questions': 'workflow.research_before_questions',
+  'workflow.research_questions': 'workflow.research_before_questions',
+  'workflow.codereview': 'workflow.code_review',
+  'workflow.review': 'workflow.code_review',
+  'workflow.code_review_level': 'workflow.code_review_depth',
+  'workflow.review_depth': 'workflow.code_review_depth',
+};
 
 // ─── isValidConfigKey ─────────────────────────────────────────────────────
 
@@ -78,6 +106,7 @@ const VALID_CONFIG_KEYS = new Set([
  *
  * Supports exact matches from VALID_CONFIG_KEYS plus dynamic patterns
  * like `agent_skills.<agent-type>` and `features.<feature_name>`.
+ * Uses curated CONFIG_KEY_SUGGESTIONS before LCP fallback for typo correction.
  *
  * @param keyPath - Dot-notation config key path
  * @returns Object with valid flag and optional suggestion for typos
@@ -90,6 +119,11 @@ export function isValidConfigKey(keyPath: string): { valid: boolean; suggestion?
 
   // Dynamic patterns: features.<feature_name>
   if (/^features\.[a-zA-Z0-9_]+$/.test(keyPath)) return { valid: true };
+
+  // D9: Check curated suggestions before LCP fallback
+  if (CONFIG_KEY_SUGGESTIONS[keyPath]) {
+    return { valid: false, suggestion: CONFIG_KEY_SUGGESTIONS[keyPath] };
+  }
 
   // Find closest suggestion using longest common prefix
   const keys = [...VALID_CONFIG_KEYS];
@@ -187,17 +221,32 @@ export const configSet: QueryHandler = async (args, projectDir) => {
 
   const parsedValue = rawValue !== undefined ? parseConfigValue(rawValue) : rawValue;
 
-  const paths = planningPaths(projectDir);
-  let config: Record<string, unknown> = {};
-  try {
-    const raw = await readFile(paths.config, 'utf-8');
-    config = JSON.parse(raw) as Record<string, unknown>;
-  } catch {
-    // Start with empty config if file doesn't exist or is malformed
+  // D8: Context value validation (match CJS config.cjs:357-359)
+  const VALID_CONTEXT_VALUES = ['dev', 'research', 'review'];
+  if (keyPath === 'context' && !VALID_CONTEXT_VALUES.includes(String(parsedValue))) {
+    throw new GSDError(
+      `Invalid context value '${rawValue}'. Valid values: ${VALID_CONTEXT_VALUES.join(', ')}`,
+      ErrorClassification.Validation,
+    );
   }
 
-  setConfigValue(config, keyPath, parsedValue);
-  await atomicWriteConfig(paths.config, config);
+  // D6: Lock protection for read-modify-write (match CJS config.cjs:296)
+  const paths = planningPaths(projectDir);
+  const lockPath = await acquireStateLock(paths.config);
+  try {
+    let config: Record<string, unknown> = {};
+    try {
+      const raw = await readFile(paths.config, 'utf-8');
+      config = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      // Start with empty config if file doesn't exist or is malformed
+    }
+
+    setConfigValue(config, keyPath, parsedValue);
+    await atomicWriteConfig(paths.config, config);
+  } finally {
+    await releaseStateLock(lockPath);
+  }
 
   return { data: { set: true, key: keyPath, value: parsedValue } };
 };
@@ -229,17 +278,23 @@ export const configSetModelProfile: QueryHandler = async (args, projectDir) => {
     );
   }
 
+  // D6: Lock protection for read-modify-write
   const paths = planningPaths(projectDir);
-  let config: Record<string, unknown> = {};
+  const lockPath = await acquireStateLock(paths.config);
   try {
-    const raw = await readFile(paths.config, 'utf-8');
-    config = JSON.parse(raw) as Record<string, unknown>;
-  } catch {
-    // Start with empty config
-  }
+    let config: Record<string, unknown> = {};
+    try {
+      const raw = await readFile(paths.config, 'utf-8');
+      config = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      // Start with empty config
+    }
 
-  config.model_profile = normalized;
-  await atomicWriteConfig(paths.config, config);
+    config.model_profile = normalized;
+    await atomicWriteConfig(paths.config, config);
+  } finally {
+    await releaseStateLock(lockPath);
+  }
 
   return { data: { set: true, profile: normalized, agents: MODEL_PROFILES } };
 };
@@ -281,8 +336,18 @@ export const configNewProject: QueryHandler = async (args, projectDir) => {
     await mkdir(planningDir, { recursive: true });
   }
 
-  // Detect API key availability (boolean only, never store keys)
+  // D11: Load global defaults from ~/.gsd/defaults.json if present
   const homeDir = homedir();
+  let globalDefaults: Record<string, unknown> = {};
+  try {
+    const defaultsPath = join(homeDir, '.gsd', 'defaults.json');
+    const defaultsRaw = await readFile(defaultsPath, 'utf-8');
+    globalDefaults = JSON.parse(defaultsRaw) as Record<string, unknown>;
+  } catch {
+    // No global defaults — continue with hardcoded defaults only
+  }
+
+  // Detect API key availability (boolean only, never store keys)
   const hasBraveSearch = !!(process.env.BRAVE_API_KEY || existsSync(join(homeDir, '.gsd', 'brave_api_key')));
   const hasFirecrawl = !!(process.env.FIRECRAWL_API_KEY || existsSync(join(homeDir, '.gsd', 'firecrawl_api_key')));
   const hasExaSearch = !!(process.env.EXA_API_KEY || existsSync(join(homeDir, '.gsd', 'exa_api_key')));
@@ -328,9 +393,10 @@ export const configNewProject: QueryHandler = async (args, projectDir) => {
     features: {},
   };
 
-  // Deep merge user choices over defaults (nested objects get merged)
+  // Deep merge: hardcoded <- globalDefaults <- userChoices (D11)
   const config: Record<string, unknown> = {
     ...defaults,
+    ...globalDefaults,
     ...userChoices,
     git: {
       ...(defaults.git as Record<string, unknown>),
