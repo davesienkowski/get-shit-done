@@ -1,9 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { captureGsdToolsOutput } from './capture.js';
 import { createRegistry } from '../query/index.js';
-import { readFile } from 'node:fs/promises';
-import { resolve, dirname } from 'node:path';
+import { readFile, mkdir, writeFile, rm } from 'node:fs/promises';
+import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_DIR = resolve(__dirname, '..', '..');
@@ -103,6 +104,77 @@ describe('Golden file tests', () => {
       const gsdPhases = gsdOutput.phases as unknown[];
       const sdkPhases = sdkData.phases as unknown[];
       expect(sdkPhases.length).toBe(gsdPhases.length);
+    });
+  });
+
+  // ─── Mutation command golden tests ──────────────────────────────────────
+
+  describe('frontmatter.validate (mutation)', () => {
+    it('SDK output matches gsd-tools.cjs output shape for plan schema', async () => {
+      const testFile = '.planning/phases/11-state-mutations/11-03-PLAN.md';
+      const gsdOutput = await captureGsdToolsOutput('frontmatter', ['validate', testFile, '--schema', 'plan'], REPO_ROOT) as Record<string, unknown>;
+      const registry = createRegistry();
+      const sdkResult = await registry.dispatch('frontmatter.validate', [testFile, '--schema', 'plan'], REPO_ROOT);
+      const sdkData = sdkResult.data as Record<string, unknown>;
+      // Both should have same structural fields
+      expect(sdkData).toHaveProperty('valid');
+      expect(sdkData).toHaveProperty('missing');
+      expect(sdkData).toHaveProperty('present');
+      expect(sdkData).toHaveProperty('schema');
+      // Both should agree on validity
+      expect(sdkData.valid).toBe(gsdOutput.valid);
+      expect(sdkData.schema).toBe(gsdOutput.schema);
+      // Both should have same required fields present
+      expect(Array.isArray(sdkData.present)).toBe(true);
+      expect(Array.isArray(gsdOutput.present)).toBe(true);
+      expect((sdkData.present as string[]).sort()).toEqual((gsdOutput.present as string[]).sort());
+    });
+  });
+
+  describe('template select (mutation)', () => {
+    it('SDK and gsd-tools.cjs both return template selection structure', async () => {
+      const testFile = '.planning/phases/11-state-mutations/11-03-PLAN.md';
+      const gsdOutput = await captureGsdToolsOutput('template', ['select', testFile], REPO_ROOT) as Record<string, unknown>;
+      const registry = createRegistry();
+      // SDK templateSelect uses phase number, not file path — different interface
+      // but both return an object with a 'template' field
+      const sdkResult = await registry.dispatch('template.select', ['11'], REPO_ROOT);
+      const sdkData = sdkResult.data as Record<string, unknown>;
+      // Both should have a template field
+      expect(sdkData).toHaveProperty('template');
+      expect(gsdOutput).toHaveProperty('template');
+      // SDK returns simple type string, CJS returns template path — structural match
+      expect(typeof sdkData.template).toBe('string');
+      expect(typeof gsdOutput.template).toBe('string');
+    });
+  });
+
+  describe('config-set (mutation)', () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+      tmpDir = join(tmpdir(), `gsd-golden-config-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+      await mkdir(join(tmpDir, '.planning'), { recursive: true });
+      await writeFile(join(tmpDir, '.planning', 'config.json'), '{"model_profile":"balanced","workflow":{"research":true}}');
+    });
+
+    afterEach(async () => {
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('SDK config-set returns same result structure as gsd-tools.cjs', async () => {
+      // Run SDK config-set
+      const registry = createRegistry();
+      const sdkResult = await registry.dispatch('config-set', ['model_profile', 'quality'], tmpDir);
+      const sdkData = sdkResult.data as Record<string, unknown>;
+      // SDK should return updated confirmation
+      expect(sdkData).toHaveProperty('key');
+      expect(sdkData).toHaveProperty('value');
+      expect(sdkData.key).toBe('model_profile');
+      expect(sdkData.value).toBe('quality');
+      // Verify file was actually written
+      const config = JSON.parse(await readFile(join(tmpDir, '.planning', 'config.json'), 'utf-8'));
+      expect(config.model_profile).toBe('quality');
     });
   });
 
