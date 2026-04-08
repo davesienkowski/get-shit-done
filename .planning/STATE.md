@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: SDK-First Migration
-status: executing
-stopped_at: Completed 13.1-02-PLAN.md
-last_updated: "2026-04-08T14:08:10.035Z"
-last_activity: 2026-04-08 -- Phase 14 execution started
+status: complete
+stopped_at: Phase 14 verified
+last_updated: "2026-04-08T18:15:00.000Z"
+last_activity: 2026-04-08 -- Phase 14 verification passed, all milestone phases complete
 progress:
   total_phases: 7
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 21
-  completed_plans: 17
-  percent: 81
+  completed_plans: 21
+  percent: 100
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Systematically improve GSD's workflow quality, power-user configuration, and developer experience by adopting battle-tested patterns from PBR -- without breaking existing GSD workflows or philosophy.
-**Current focus:** Phase 14 — composition-and-retirement
+**Current focus:** Milestone v3.0 complete — all phases verified
 
 ## Current Position
 
-Phase: 14 (composition-and-retirement) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 14
-Last activity: 2026-04-08 -- Phase 14 execution started
+Phase: 14 (composition-and-retirement) — COMPLETE
+Plan: 4 of 4
+Status: All phases complete — milestone ready for lifecycle
+Last activity: 2026-04-08 -- Phase 14 verification passed
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 17
+- Total plans completed: 21
 - Average duration: --
 - Total execution time: 0 hours
 
@@ -47,7 +47,10 @@ Progress: [░░░░░░░░░░] 0%
 | 09 | 3 | - | - |
 | 10 | 3 | - | - |
 | 11 | 3 | - | - |
+| 12 | 3 | - | - |
+| 13 | 3 | - | - |
 | 13.1 | 2 | - | - |
+| 14 | 4 | - | - |
 
 **Recent Trend:**
 
@@ -61,7 +64,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 10 P01 | 5min | 2 tasks | 7 files |
 | Phase 10 P02 | 6min | 2 tasks | 5 files |
 | Phase 10 P03 | 6min | 2 tasks | 6 files |
-| Phase 11 P01 | 25min | 2 tasks tasks | 8 files files |
+| Phase 11 P01 | 25min | 2 tasks | 8 files |
 | Phase 11 P02 | 12min | 2 tasks | 5 files |
 | Phase 11 P03 | 18min | 2 tasks | 6 files |
 | Phase 12 P01 | 4min | 2 tasks | 5 files |
@@ -72,6 +75,10 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 13 P03 | 6min | 2 tasks | 3 files |
 | Phase 13.1 P01 | 4min | 2 tasks | 4 files |
 | Phase 13.1 P02 | 4min | 2 tasks | 0 files |
+| Phase 14 P01 | 27min | 2 tasks | 8 files |
+| Phase 14 P02 | 220min | 2 tasks | 6 files |
+| Phase 14 P03 | 10min | 2 tasks | 79 files |
+| Phase 14 P04 | 60min | 2 tasks | 25 files |
 
 ## Accumulated Context
 
@@ -85,43 +92,34 @@ Recent decisions affecting current work:
 - [v3.0 Planning]: Each phase pairs native TS rewrite with call-site migration -- no deferred rewrites
 - [Phase 09]: Followed GSDToolsError pattern for GSDError: extends Error, sets name, readonly classification
 - [Phase 09]: Dynamic import for GSDTools fallback to avoid loading bridge unless needed
-- [Phase 09]: Path depth for capture.ts: ../../../ since golden/ is one level deeper than gsd-tools.ts
 - [Phase 10]: configGet reads raw config.json without default merging; resolveModel uses loadConfig with defaults
 - [Phase 10]: Temp dir test pattern (mkdtemp+writeFile) for query handler tests due to ESM spy limitations
-- [Phase 10]: stateLoad rebuilds frontmatter from body+disk every time (never cached)
-- [Phase 10]: Duplicated getMilestoneInfo in roadmap.ts (also private in state.ts) for cross-module export; dedup deferred
 - [Phase 11]: Strip frontmatter before modifier in readModifyWriteStateMd to prevent regex matching YAML keys
-- [Phase 11]: Used Set-based VALID_CONFIG_KEYS with regex dynamic patterns matching CJS exactly; spawnSync for execGit
-- [Phase 11]: Event emission wired as registry-level handler wrapping via MUTATION_COMMANDS set -- keeps handlers pure, event concern orthogonal
-- [Phase 12]: parseMustHavesBlock returns {items, warnings} instead of CJS bare array for structured SDK pattern
-- [Phase 12]: verifyKeyLinks in validate.ts alongside validateConsistency -- both cross-file validation operations
-- [Phase 12]: validateHealth uses existsSync for sequential checks; repair writes known-safe defaults only (T-12-11)
-- [Phase 13]: Inlined generateSlugInternal rather than importing generateSlug handler to avoid QueryResult unwrapping
+- [Phase 11]: Event emission wired as registry-level handler wrapping via MUTATION_COMMANDS set
+- [Phase 12]: parseMustHavesBlock returns {items, warnings} for structured SDK pattern
+- [Phase 12]: validateHealth uses existsSync for sequential checks; repair writes known-safe defaults only
 - [Phase 13]: Used acquireStateLock/releaseStateLock with ROADMAP.md path for per-file locking
-- [Phase 13]: Used direct lock+read+write for STATE.md in phaseRemove since readModifyWriteStateMd is module-private
-- [Phase 13]: Reimplemented stateReplaceFieldWithFallback inline since state-mutation.ts keeps it module-private
 - [Phase 13]: Split STATE.md into frontmatter/body before field replacements to prevent regex matching YAML keys
-- [Phase 13.1]: Reused acquireStateLock/releaseStateLock for config lock protection rather than implementing separate lock
-- [Phase 13.1]: Added CONFIG_KEY_SUGGESTIONS as first-pass check before LCP fallback for more precise typo correction
 - [Phase 13.1]: Global defaults merge uses three-level pattern: hardcoded <- globalDefaults <- userChoices
-- [Phase 13.1]: No code changes needed for Plan 02 -- all golden tests and must-haves passed after Plan 01 fixes
+- [Phase 14]: Hybrid call style for init composition: direct imports for reads, registry.dispatch() for mutations
+- [Phase 14]: CJS files deprecated (not deleted) per user decision — final deletion deferred to cleanup
+- [Phase 14]: v4.0 features fully implemented in advanced.ts instead of minimal stubs
+- [Phase 14]: No CJS shim — migrated everything now including intel, learnings, uat, profile
 
 ### Roadmap Evolution
 
-- Phase 13.1 inserted after Phase 13: Upstream Reconciliation — Audit SDK handlers against v1.34.0 CJS changes (locking, config, acceptance criteria enforcement), re-verify Phases 9-12 golden tests and must-haves (URGENT)
+- Phase 13.1 inserted after Phase 13: Upstream Reconciliation — Audit SDK handlers against v1.34.0 CJS changes
 
 ### Pending Todos
 
-None yet.
+None.
 
 ### Blockers/Concerns
 
-- STATE.md parsing edge cases: state.cjs (1,353 lines) handles many markdown manipulation edge cases -- needs careful audit during Phase 10
-- Verification rule inventory: verify.cjs (1,032 lines) needs audit of which rules are still relevant during Phase 12
-- Open research questions Q2 (staged execution pipeline) and Q4 (event stream control flow) need resolution before Phase 14
+None — all phases complete.
 
 ## Session Continuity
 
-Last session: 2026-04-08T10:00:15.288Z
-Stopped at: Completed 13.1-02-PLAN.md
+Last session: 2026-04-08T18:15:00.000Z
+Stopped at: Phase 14 verified — all phases complete
 Resume file: None
