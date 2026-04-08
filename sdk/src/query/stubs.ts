@@ -484,6 +484,74 @@ export const docsInit: QueryHandler = async (_args, projectDir) => {
   };
 };
 
+// ─── websearch ────────────────────────────────────────────────────────────
+
+/**
+ * Search the web via Brave Search API.
+ * Requires BRAVE_API_KEY env var. Returns { available: false } gracefully
+ * when the key is missing so agents can fall back to built-in WebSearch.
+ *
+ * Args: query [--limit N] [--freshness day|week|month]
+ */
+export const websearch: QueryHandler = async (args) => {
+  const apiKey = process.env.BRAVE_API_KEY;
+
+  if (!apiKey) {
+    return { data: { available: false, reason: 'BRAVE_API_KEY not set' } };
+  }
+
+  const query = args[0];
+  if (!query) {
+    return { data: { available: false, error: 'Query required' } };
+  }
+
+  const limitIdx = args.indexOf('--limit');
+  const freshnessIdx = args.indexOf('--freshness');
+  const limit = limitIdx !== -1 ? parseInt(args[limitIdx + 1], 10) : 10;
+  const freshness = freshnessIdx !== -1 ? args[freshnessIdx + 1] : null;
+
+  const params = new URLSearchParams({
+    q: query,
+    count: String(limit),
+    country: 'us',
+    search_lang: 'en',
+    text_decorations: 'false',
+  });
+  if (freshness) params.set('freshness', freshness);
+
+  try {
+    const response = await fetch(
+      `https://api.search.brave.com/res/v1/web/search?${params}`,
+      {
+        headers: {
+          'Accept': 'application/json',
+          'X-Subscription-Token': apiKey,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      return { data: { available: false, error: `API error: ${response.status}` } };
+    }
+
+    const body = await response.json() as {
+      web?: { results?: Array<{ title: string; url: string; description: string; age?: string }> };
+    };
+
+    const results = (body.web?.results || []).map(r => ({
+      title: r.title,
+      url: r.url,
+      description: r.description,
+      age: r.age || null,
+    }));
+
+    return { data: { available: true, query, count: results.length, results } };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { data: { available: false, error: msg } };
+  }
+};
+
 // ─── v4.0 stubs ───────────────────────────────────────────────────────────
 
 export const learningsCopy: QueryHandler = async () => deferred('learnings system');

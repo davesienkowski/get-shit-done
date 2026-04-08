@@ -7,7 +7,7 @@
  * - Functional stubs return correct shape with mock filesystem
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtemp, writeFile, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -39,6 +39,7 @@ import {
   generateClaudeProfile,
   profileQuestionnaire,
   scanSessions,
+  websearch,
 } from './stubs.js';
 
 let tmpDir: string;
@@ -247,6 +248,104 @@ describe('docsInit', () => {
     const data = result.data as Record<string, unknown>;
     expect(typeof data.project_exists).toBe('boolean');
     expect(data.docs_dir).toBe('.planning/docs');
+  });
+});
+
+// ─── websearch ────────────────────────────────────────────────────────────
+
+describe('websearch', () => {
+  const originalEnv = process.env.BRAVE_API_KEY;
+
+  afterEach(() => {
+    if (originalEnv === undefined) {
+      delete process.env.BRAVE_API_KEY;
+    } else {
+      process.env.BRAVE_API_KEY = originalEnv;
+    }
+    vi.restoreAllMocks();
+  });
+
+  it('returns available:false when BRAVE_API_KEY is not set', async () => {
+    delete process.env.BRAVE_API_KEY;
+    const result = await websearch([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    expect(data.available).toBe(false);
+    expect(data.reason).toBe('BRAVE_API_KEY not set');
+  });
+
+  it('returns error when query is empty', async () => {
+    process.env.BRAVE_API_KEY = 'test-key';
+    const result = await websearch([], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    expect(data.available).toBe(false);
+    expect(data.error).toBe('Query required');
+  });
+
+  it('returns results on successful API call', async () => {
+    process.env.BRAVE_API_KEY = 'test-key';
+    const mockResults = {
+      web: {
+        results: [
+          { title: 'Result 1', url: 'https://example.com', description: 'Desc 1', age: '2d' },
+          { title: 'Result 2', url: 'https://example.org', description: 'Desc 2' },
+        ],
+      },
+    };
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => mockResults,
+    } as Response);
+
+    const result = await websearch(['typescript generics'], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    expect(data.available).toBe(true);
+    expect(data.query).toBe('typescript generics');
+    expect(data.count).toBe(2);
+    const results = data.results as Array<Record<string, unknown>>;
+    expect(results[0].title).toBe('Result 1');
+    expect(results[0].age).toBe('2d');
+    expect(results[1].age).toBeNull();
+  });
+
+  it('passes --limit and --freshness params to API', async () => {
+    process.env.BRAVE_API_KEY = 'test-key';
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ web: { results: [] } }),
+    } as Response);
+
+    await websearch(['query', '--limit', '5', '--freshness', 'week'], tmpDir);
+
+    const url = new URL((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string);
+    expect(url.searchParams.get('count')).toBe('5');
+    expect(url.searchParams.get('freshness')).toBe('week');
+  });
+
+  it('returns error on non-ok response', async () => {
+    process.env.BRAVE_API_KEY = 'test-key';
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 429,
+    } as Response);
+
+    const result = await websearch(['rate limited query'], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    expect(data.available).toBe(false);
+    expect(data.error).toBe('API error: 429');
+  });
+
+  it('returns error on network failure', async () => {
+    process.env.BRAVE_API_KEY = 'test-key';
+
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('ECONNREFUSED'));
+
+    const result = await websearch(['network fail'], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    expect(data.available).toBe(false);
+    expect(data.error).toBe('ECONNREFUSED');
   });
 });
 

@@ -51,7 +51,7 @@ import {
   summaryExtract, historyDigest, statsJson, commitToSubrepo, progressBar,
   workstreamList, workstreamCreate, workstreamSet, workstreamStatus,
   workstreamComplete, workstreamProgress, docsInit,
-  uatRenderCheckpoint,
+  uatRenderCheckpoint, websearch,
 } from './stubs.js';
 import {
   intelStatus, intelDiff, intelSnapshot, intelValidate, intelQuery,
@@ -347,6 +347,7 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('workstream.progress', workstreamProgress);
   registry.register('workstream progress', workstreamProgress);
   registry.register('docs-init', docsInit);
+  registry.register('websearch', websearch);
   registry.register('learnings.copy', learningsCopy);
   registry.register('learnings copy', learningsCopy);
   registry.register('audit-uat', auditUat);
