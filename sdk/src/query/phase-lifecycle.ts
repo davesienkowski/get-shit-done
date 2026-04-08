@@ -18,7 +18,7 @@
  * ```
  */
 
-import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir, rename, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { GSDError, ErrorClassification } from '../errors.js';
@@ -28,9 +28,10 @@ import {
   phaseTokenMatches,
   toPosixPath,
   planningPaths,
+  stateExtractField,
 } from './helpers.js';
 import { extractCurrentMilestone } from './roadmap.js';
-import { acquireStateLock, releaseStateLock } from './state-mutation.js';
+import { acquireStateLock, releaseStateLock, stateReplaceField } from './state-mutation.js';
 import type { QueryHandler } from './utils.js';
 
 // ─── Null byte validation ────────────────────────────────────────────────
@@ -464,4 +465,341 @@ export const phaseScaffold: QueryHandler = async (args, projectDir) => {
   await writeFile(filePath, content, 'utf-8');
   const relPath = toPosixPath(relative(projectDir, filePath));
   return { data: { created: true, path: relPath } };
+};
+
+// ─── renameDecimalPhases ───────────────────────────────────────────────
+
+/**
+ * Renumber sibling decimal phases after a decimal phase is removed.
+ *
+ * Port of renameDecimalPhases from phase.cjs lines 499-524.
+ * e.g. removing 06.2 -> 06.3 becomes 06.2, 06.4 becomes 06.3, etc.
+ * Renames directories AND files inside them that contain the old phase ID.
+ *
+ * CRITICAL: Sorted in DESCENDING order to avoid rename conflicts.
+ *
+ * @param phasesDir - Path to the phases directory
+ * @param baseInt - The integer part of the decimal phase (e.g. "06")
+ * @param removedDecimal - The decimal part that was removed (e.g. 2 for 06.2)
+ * @returns { renamedDirs, renamedFiles }
+ */
+async function renameDecimalPhases(
+  phasesDir: string,
+  baseInt: string,
+  removedDecimal: number,
+): Promise<{ renamedDirs: Array<{ from: string; to: string }>; renamedFiles: Array<{ from: string; to: string }> }> {
+  const renamedDirs: Array<{ from: string; to: string }> = [];
+  const renamedFiles: Array<{ from: string; to: string }> = [];
+
+  const decPattern = new RegExp(`^${escapeRegex(baseInt)}\\.(\\d+)-(.+)$`);
+  const entries = await readdir(phasesDir, { withFileTypes: true });
+  const dirs = entries.filter(e => e.isDirectory()).map(e => e.name);
+
+  const toRename = dirs
+    .map(dir => {
+      const m = dir.match(decPattern);
+      return m ? { dir, oldDecimal: parseInt(m[1], 10), slug: m[2] } : null;
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null && item.oldDecimal > removedDecimal)
+    .sort((a, b) => b.oldDecimal - a.oldDecimal); // DESCENDING to avoid conflicts
+
+  for (const item of toRename) {
+    const newDecimal = item.oldDecimal - 1;
+    const oldPhaseId = `${baseInt}.${item.oldDecimal}`;
+    const newPhaseId = `${baseInt}.${newDecimal}`;
+    const newDirName = `${baseInt}.${newDecimal}-${item.slug}`;
+
+    await rename(join(phasesDir, item.dir), join(phasesDir, newDirName));
+    renamedDirs.push({ from: item.dir, to: newDirName });
+
+    // Rename files inside that contain the old phase ID
+    const files = await readdir(join(phasesDir, newDirName));
+    for (const f of files) {
+      if (f.includes(oldPhaseId)) {
+        const newFileName = f.replace(oldPhaseId, newPhaseId);
+        await rename(join(phasesDir, newDirName, f), join(phasesDir, newDirName, newFileName));
+        renamedFiles.push({ from: f, to: newFileName });
+      }
+    }
+  }
+
+  return { renamedDirs, renamedFiles };
+}
+
+// ─── renameIntegerPhases ───────────────────────────────────────────────
+
+/**
+ * Renumber all integer phases after a removed integer phase.
+ *
+ * Port of renameIntegerPhases from phase.cjs lines 531-564.
+ * e.g. removing phase 5 -> phase 6 becomes 5, phase 7 becomes 6, etc.
+ * Handles letter suffixes (12A) and decimals (6.1).
+ *
+ * CRITICAL: Sorted in DESCENDING order to avoid rename conflicts.
+ *
+ * @param phasesDir - Path to the phases directory
+ * @param removedInt - The integer phase number that was removed
+ * @returns { renamedDirs, renamedFiles }
+ */
+async function renameIntegerPhases(
+  phasesDir: string,
+  removedInt: number,
+): Promise<{ renamedDirs: Array<{ from: string; to: string }>; renamedFiles: Array<{ from: string; to: string }> }> {
+  const renamedDirs: Array<{ from: string; to: string }> = [];
+  const renamedFiles: Array<{ from: string; to: string }> = [];
+
+  const entries = await readdir(phasesDir, { withFileTypes: true });
+  const dirs = entries.filter(e => e.isDirectory()).map(e => e.name);
+
+  const toRename = dirs
+    .map(dir => {
+      const m = dir.match(/^(\d+)([A-Z])?(?:\.(\d+))?-(.+)$/i);
+      if (!m) return null;
+      const dirInt = parseInt(m[1], 10);
+      if (dirInt <= removedInt) return null;
+      return {
+        dir,
+        oldInt: dirInt,
+        letter: m[2] ? m[2].toUpperCase() : '',
+        decimal: m[3] !== undefined ? parseInt(m[3], 10) : null,
+        slug: m[4],
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null)
+    .sort((a, b) => a.oldInt !== b.oldInt
+      ? b.oldInt - a.oldInt
+      : (b.decimal ?? 0) - (a.decimal ?? 0)); // DESCENDING
+
+  for (const item of toRename) {
+    const newInt = item.oldInt - 1;
+    const newPadded = String(newInt).padStart(2, '0');
+    const oldPadded = String(item.oldInt).padStart(2, '0');
+    const letterSuffix = item.letter || '';
+    const decimalSuffix = item.decimal !== null ? `.${item.decimal}` : '';
+    const oldPrefix = `${oldPadded}${letterSuffix}${decimalSuffix}`;
+    const newPrefix = `${newPadded}${letterSuffix}${decimalSuffix}`;
+    const newDirName = `${newPrefix}-${item.slug}`;
+
+    await rename(join(phasesDir, item.dir), join(phasesDir, newDirName));
+    renamedDirs.push({ from: item.dir, to: newDirName });
+
+    // Rename files that start with the old prefix
+    const files = await readdir(join(phasesDir, newDirName));
+    for (const f of files) {
+      if (f.startsWith(oldPrefix)) {
+        const newFileName = newPrefix + f.slice(oldPrefix.length);
+        await rename(join(phasesDir, newDirName, f), join(phasesDir, newDirName, newFileName));
+        renamedFiles.push({ from: f, to: newFileName });
+      }
+    }
+  }
+
+  return { renamedDirs, renamedFiles };
+}
+
+// ─── updateRoadmapAfterPhaseRemoval ────────────────────────────────────
+
+/**
+ * Remove a phase section from ROADMAP.md and renumber subsequent integer phases.
+ *
+ * Port of updateRoadmapAfterPhaseRemoval from phase.cjs lines 569-595.
+ * Uses readModifyWriteRoadmapMd for atomic writes.
+ *
+ * @param projectDir - Project root directory
+ * @param targetPhase - Phase identifier that was removed
+ * @param isDecimal - Whether the removed phase was a decimal phase
+ * @param removedInt - The integer part of the removed phase
+ */
+async function updateRoadmapAfterPhaseRemoval(
+  projectDir: string,
+  targetPhase: string,
+  isDecimal: boolean,
+  removedInt: number,
+): Promise<void> {
+  await readModifyWriteRoadmapMd(projectDir, (content) => {
+    const escaped = escapeRegex(targetPhase);
+
+    // Remove the phase section (header + body until next phase header or end)
+    content = content.replace(
+      new RegExp(`\\n?#{2,4}\\s*Phase\\s+${escaped}\\s*:[\\s\\S]*?(?=\\n#{2,4}\\s+Phase\\s+\\d|$)`, 'i'),
+      '',
+    );
+
+    // Remove checkbox lines referencing the phase
+    content = content.replace(
+      new RegExp(`\\n?-\\s*\\[[ x]\\]\\s*.*Phase\\s+${escaped}[:\\s][^\\n]*`, 'gi'),
+      '',
+    );
+
+    // Remove table rows referencing the phase
+    content = content.replace(
+      new RegExp(`\\n?\\|\\s*${escaped}\\.?\\s[^|]*\\|[^\\n]*`, 'gi'),
+      '',
+    );
+
+    // For integer phase removal, renumber all subsequent phases in ROADMAP text
+    if (!isDecimal) {
+      const MAX_PHASE = 99;
+      for (let oldNum = MAX_PHASE; oldNum > removedInt; oldNum--) {
+        const newNum = oldNum - 1;
+        const oldStr = String(oldNum);
+        const newStr = String(newNum);
+        const oldPad = oldStr.padStart(2, '0');
+        const newPad = newStr.padStart(2, '0');
+
+        // Renumber phase headers: ### Phase N:
+        content = content.replace(
+          new RegExp(`(#{2,4}\\s*Phase\\s+)${escapeRegex(oldStr)}(\\s*:)`, 'gi'),
+          `$1${newStr}$2`,
+        );
+
+        // Renumber inline Phase N references
+        content = content.replace(
+          new RegExp(`(Phase\\s+)${escapeRegex(oldStr)}([:\\s])`, 'g'),
+          `$1${newStr}$2`,
+        );
+
+        // Renumber padded plan references: 07-01 -> 06-01
+        content = content.replace(
+          new RegExp(`${escapeRegex(oldPad)}-(\\d{2})`, 'g'),
+          `${newPad}-$1`,
+        );
+
+        // Renumber table row phase numbers: | 7. -> | 6.
+        content = content.replace(
+          new RegExp(`(\\|\\s*)${escapeRegex(oldStr)}\\.\\s`, 'g'),
+          `$1${newStr}. `,
+        );
+
+        // Renumber depends-on references
+        content = content.replace(
+          new RegExp(`(Depends on:\\*\\*\\s*Phase\\s+)${escapeRegex(oldStr)}\\b`, 'gi'),
+          `$1${newStr}`,
+        );
+      }
+    }
+
+    return content;
+  });
+}
+
+// ─── phaseRemove handler ───────────────────────────────────────────────
+
+/**
+ * Query handler for phase.remove.
+ *
+ * Port of cmdPhaseRemove from phase.cjs lines 597-661.
+ * Deletes phase directory, renumbers subsequent phases on disk,
+ * updates ROADMAP.md (removes section + renumbers), and decrements
+ * STATE.md total_phases count.
+ *
+ * @param args - args[0]: targetPhase (required), args[1]: '--force' (optional)
+ * @param projectDir - Project root directory
+ * @returns QueryResult with { removed, directory_deleted, renamed_directories, renamed_files, roadmap_updated, state_updated }
+ */
+export const phaseRemove: QueryHandler = async (args, projectDir) => {
+  const targetPhase = args[0];
+  if (!targetPhase) {
+    throw new GSDError('phase number required for phase remove', ErrorClassification.Validation);
+  }
+  assertNoNullBytes(targetPhase, 'targetPhase');
+
+  const paths = planningPaths(projectDir);
+  const phasesDir = paths.phases;
+
+  if (!existsSync(paths.roadmap)) {
+    throw new GSDError('ROADMAP.md not found', ErrorClassification.Validation);
+  }
+
+  const normalized = normalizePhaseName(targetPhase);
+  const isDecimal = targetPhase.includes('.');
+  const force = args[1] === '--force';
+
+  // Find target directory
+  const entries = await readdir(phasesDir, { withFileTypes: true });
+  const dirs = entries.filter(e => e.isDirectory()).map(e => e.name);
+  const targetDir = dirs.find(d => phaseTokenMatches(d, normalized)) ?? null;
+
+  // Guard against removing executed work
+  if (targetDir && !force) {
+    const files = await readdir(join(phasesDir, targetDir));
+    const summaries = files.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
+    if (summaries.length > 0) {
+      throw new GSDError(
+        `Phase ${targetPhase} has ${summaries.length} executed plan(s). Use --force to remove anyway.`,
+        ErrorClassification.Validation,
+      );
+    }
+  }
+
+  // Delete directory
+  if (targetDir) {
+    await rm(join(phasesDir, targetDir), { recursive: true, force: true });
+  }
+
+  // Renumber subsequent phases on disk
+  let renamedDirs: Array<{ from: string; to: string }> = [];
+  let renamedFiles: Array<{ from: string; to: string }> = [];
+  try {
+    const renamed = isDecimal
+      ? await renameDecimalPhases(phasesDir, normalized.split('.')[0], parseInt(normalized.split('.')[1], 10))
+      : await renameIntegerPhases(phasesDir, parseInt(normalized, 10));
+    renamedDirs = renamed.renamedDirs;
+    renamedFiles = renamed.renamedFiles;
+  } catch { /* intentionally empty — renaming is best-effort */ }
+
+  // Update ROADMAP.md
+  await updateRoadmapAfterPhaseRemoval(projectDir, targetPhase, isDecimal, parseInt(normalized, 10));
+
+  // Update STATE.md: decrement total_phases
+  let stateUpdated = false;
+  const statePath = paths.state;
+  if (existsSync(statePath)) {
+    const lockPath = await acquireStateLock(statePath);
+    try {
+      let stateContent = await readFile(statePath, 'utf-8');
+
+      // Decrement total_phases in frontmatter
+      const totalPhasesMatch = stateContent.match(/total_phases:\s*(\d+)/);
+      if (totalPhasesMatch) {
+        const oldTotal = parseInt(totalPhasesMatch[1], 10);
+        stateContent = stateContent.replace(
+          /total_phases:\s*\d+/,
+          `total_phases: ${oldTotal - 1}`,
+        );
+      }
+
+      // Decrement "of N" pattern in body (e.g., "Plan: 2 of 3")
+      const ofMatch = stateContent.match(/(\bof\s+)(\d+)(\s*(?:\(|phases?))/i);
+      if (ofMatch) {
+        stateContent = stateContent.replace(
+          /(\bof\s+)(\d+)(\s*(?:\(|phases?))/i,
+          `$1${parseInt(ofMatch[2], 10) - 1}$3`,
+        );
+      }
+
+      // Also try stateReplaceField for "Total Phases" field
+      const totalRaw = stateExtractField(stateContent, 'Total Phases');
+      if (totalRaw) {
+        const replaced = stateReplaceField(stateContent, 'Total Phases', String(parseInt(totalRaw, 10) - 1));
+        if (replaced) stateContent = replaced;
+      }
+
+      await writeFile(statePath, stateContent, 'utf-8');
+      stateUpdated = true;
+    } finally {
+      await releaseStateLock(lockPath);
+    }
+  }
+
+  return {
+    data: {
+      removed: targetPhase,
+      directory_deleted: targetDir,
+      renamed_directories: renamedDirs,
+      renamed_files: renamedFiles,
+      roadmap_updated: true,
+      state_updated: stateUpdated,
+    },
+  };
 };
