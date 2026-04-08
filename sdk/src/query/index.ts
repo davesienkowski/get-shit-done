@@ -17,6 +17,7 @@
 import { QueryRegistry } from './registry.js';
 import { generateSlug, currentTimestamp } from './utils.js';
 import { frontmatterGet } from './frontmatter.js';
+import { configGet, resolveModel } from './config-query.js';
 
 // ─── Re-exports ────────────────────────────────────────────────────────────
 
@@ -36,6 +37,8 @@ export function createRegistry(): QueryRegistry {
   registry.register('generate-slug', generateSlug);
   registry.register('current-timestamp', currentTimestamp);
   registry.register('frontmatter.get', frontmatterGet);
+  registry.register('config-get', configGet);
+  registry.register('resolve-model', resolveModel);
 
   return registry;
 }
