@@ -65,7 +65,11 @@ Plans:
   3. Running `gsd-sdk query phase.find 9` locates the phase directory on disk and returns its path and metadata
   4. Running `gsd-sdk query roadmap.analyze` returns phase list with disk status correlation matching gsd-tools.cjs output
   5. Running `gsd-sdk query frontmatter.get <path>` returns parsed YAML frontmatter from any .planning artifact
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 10-01-PLAN.md — Shared helpers, frontmatter parser, and config query handlers
+- [ ] 10-02-PLAN.md — State query handlers and phase finding
+- [ ] 10-03-PLAN.md — Roadmap analysis, progress rendering, and golden file tests
 
 ### Phase 11: State Mutations
 **Goal**: SDK can write to all .planning/ state artifacts -- updating STATE.md fields, writing frontmatter, setting config values, creating git commits, filling templates -- with typed event emission on every mutation
