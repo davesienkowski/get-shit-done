@@ -31,18 +31,10 @@ describe('#1736: local Claude install populates .claude/commands/gsd/', () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gsd-local-install-1736-'));
   });
 
-  afterEach(async () => {
-    // On Windows, the directory may be briefly locked after chdir + install.
-    // Retry with exponential backoff to tolerate transient EBUSY errors.
-    for (let attempt = 0; attempt < 5; attempt++) {
-      try {
-        fs.rmSync(tmpDir, { recursive: true, force: true });
-        return;
-      } catch (e) {
-        if (e.code !== 'EBUSY' || attempt === 4) throw e;
-        await new Promise(r => setTimeout(r, 50 * (attempt + 1)));
-      }
-    }
+  afterEach(() => {
+    // Best-effort cleanup — on Windows, the directory may be briefly locked
+    // (EBUSY/EPERM) after chdir + install. The OS cleans up os.tmpdir() anyway.
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* ignore */ }
   });
 
   test('local install creates .claude/commands/gsd/ directory', (t) => {
