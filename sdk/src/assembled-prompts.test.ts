@@ -17,9 +17,9 @@ import { fileURLToPath } from 'node:url';
 
 import { PromptFactory } from './phase-prompt.js';
 import { InitRunner } from './init-runner.js';
+import type { InitRunnerTools } from './init-runner.js';
 import { PhaseType } from './types.js';
 import type { ParsedPlan, ContextFiles, GSDEvent } from './types.js';
-import type { GSDTools } from './gsd-tools.js';
 import type { GSDEventStream } from './event-stream.js';
 
 // ─── Paths ───────────────────────────────────────────────────────────────────
@@ -155,7 +155,7 @@ describe('InitRunner assembled output', () => {
   let runner: InitRunner;
 
   // Minimal stub tools and event stream — we only call build*Prompt(), not run()
-  const stubTools: GSDTools = {
+  const stubTools: InitRunnerTools = {
     initNewProject: async () => ({
       researcher_model: 'test',
       synthesizer_model: 'test',
@@ -167,7 +167,7 @@ describe('InitRunner assembled output', () => {
     }),
     configSet: async () => {},
     commit: async () => {},
-  } as unknown as GSDTools;
+  };
 
   const stubEventStream: GSDEventStream = {
     emitEvent: (_event: GSDEvent) => {},

@@ -59,8 +59,9 @@ export function extractField(obj: unknown, fieldPath: string): unknown {
 /**
  * Flat command registry that routes query commands to native handlers.
  *
- * Commands not registered in the map fall back to `GSDTools.exec()`,
- * allowing incremental migration from gsd-tools.cjs to native TypeScript.
+ * Unknown commands throw `GSDError` from `dispatch()` — there is no fallback
+ * to gsd-tools.cjs (bridge removed in v3.0). All supported commands must be
+ * registered via `register()`.
  */
 export class QueryRegistry {
   private handlers = new Map<string, QueryHandler>();

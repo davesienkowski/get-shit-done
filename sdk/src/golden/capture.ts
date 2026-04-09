@@ -9,8 +9,7 @@ import { fileURLToPath } from 'node:url';
 const execFileAsync = promisify(execFile);
 
 /**
- * Resolve the path to the bundled gsd-tools.cjs.
- * Uses the same resolution strategy as GSDTools in gsd-tools.ts.
+ * Resolve the path to the bundled gsd-tools.cjs (repo-relative from this module).
  */
 export function resolveGsdToolsPath(): string {
   return fileURLToPath(

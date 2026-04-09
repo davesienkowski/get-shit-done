@@ -87,7 +87,7 @@ Commands:
                           @path/to/prd.md   Read input from a file
                           "description"     Use text directly
                           (empty)           Read from stdin
-  query <command>       Execute a query command (native or bridged to gsd-tools)
+  query <command>       Execute a registered native query command (registry: sdk/src/query/index.ts)
                         Use --pick <field> to extract a specific field
 
 Options:
