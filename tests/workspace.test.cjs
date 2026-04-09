@@ -338,7 +338,7 @@ describe('workspace command files', () => {
 
   test('new-workspace workflow exists', () => {
     const content = fs.readFileSync(path.join(baseDir, 'get-shit-done/workflows/new-workspace.md'), 'utf8');
-    assert.ok(content.includes('init new-workspace'));
+    assert.ok(content.includes('init.new-workspace') || content.includes('init new-workspace'));
     assert.ok(content.includes('WORKSPACE.md'));
     assert.ok(content.includes('git worktree add'));
     assert.ok(content.includes('git clone'));
@@ -346,12 +346,12 @@ describe('workspace command files', () => {
 
   test('list-workspaces workflow exists', () => {
     const content = fs.readFileSync(path.join(baseDir, 'get-shit-done/workflows/list-workspaces.md'), 'utf8');
-    assert.ok(content.includes('init list-workspaces'));
+    assert.ok(content.includes('init.list-workspaces') || content.includes('init list-workspaces'));
   });
 
   test('remove-workspace workflow exists', () => {
     const content = fs.readFileSync(path.join(baseDir, 'get-shit-done/workflows/remove-workspace.md'), 'utf8');
-    assert.ok(content.includes('init remove-workspace'));
+    assert.ok(content.includes('init.remove-workspace') || content.includes('init remove-workspace'));
     assert.ok(content.includes('git worktree remove'));
   });
 });

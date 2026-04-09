@@ -310,7 +310,7 @@ export const writeProfile: QueryHandler = async (args, projectDir) => {
 export const generateClaudeProfile: QueryHandler = async (args, _projectDir) => {
   const analysisFlag = args.indexOf('--analysis');
   const analysisPath = analysisFlag >= 0 ? args[analysisFlag + 1] : null;
-  let profile = '> Profile not yet configured. Run `/gsd:profile-user` to generate your developer profile.\n> This section is managed by `generate-claude-profile` -- do not edit manually.';
+  let profile = '> Profile not yet configured. Run `/gsd-profile-user` to generate your developer profile.\n> This section is managed by `generate-claude-profile` -- do not edit manually.';
 
   if (analysisPath && existsSync(resolve(analysisPath))) {
     try {
