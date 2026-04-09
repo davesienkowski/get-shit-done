@@ -8,7 +8,8 @@ const AGENTS_DIR = path.join(__dirname, '..', 'agents');
 
 // ── Helpers ────────────────────────────────────────────────────────
 function readFile(filePath) {
-  return fs.readFileSync(filePath, 'utf-8');
+  // Normalize CRLF to LF so regexes like /^---\n/ work on Windows checkouts.
+  return fs.readFileSync(filePath, 'utf-8').replace(/\r\n/g, '\n');
 }
 
 function countPattern(content, pattern) {

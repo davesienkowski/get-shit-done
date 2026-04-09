@@ -33,10 +33,20 @@ const BUILD_SCRIPT = path.join(__dirname, '..', 'scripts', 'build-hooks.js');
 // ─── Ensure hooks/dist/ is populated before any install test ─────────────────
 
 before(() => {
-  execFileSync(process.execPath, [BUILD_SCRIPT], {
-    encoding: 'utf-8',
-    stdio: 'pipe',
-  });
+  // On Windows, concurrent test workers may all run build-hooks.js at the same
+  // time, causing EBUSY on hooks/dist/ files. If the build fails but dist files
+  // already exist from a concurrent or prior build, proceed safely.
+  try {
+    execFileSync(process.execPath, [BUILD_SCRIPT], {
+      encoding: 'utf-8',
+      stdio: 'pipe',
+    });
+  } catch (e) {
+    const distDir = path.join(__dirname, '..', 'hooks', 'dist');
+    const distExists = fs.existsSync(distDir) && fs.readdirSync(distDir).length > 0;
+    if (!distExists) throw e; // dist is empty — we need the build to succeed
+    // dist already populated by a concurrent worker — EBUSY is safe to ignore
+  }
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
