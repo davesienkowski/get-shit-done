@@ -241,6 +241,40 @@ If "Run discuss-phase first":
   ```
   **Exit the plan-phase workflow. Do not continue.**
 
+## 4.5. Surface Relevant Seeds
+
+**Skip if:** `--gaps` flag (gap-closure doesn't need seeds).
+
+Scan planted seeds for trigger conditions that match the current phase:
+
+```bash
+ls .planning/seeds/*.md 2>/dev/null || true
+```
+
+**If seeds exist:** For each seed file, read its `trigger_condition` from frontmatter and compare against the current phase name, goal, and description. A seed matches if its trigger condition is semantically relevant to the phase scope.
+
+**If matching seeds found:** Surface them to the user:
+
+```
+Found {N} planted seed(s) relevant to Phase {X}: {phase_name}
+
+{For each match:}
+- **{title}** — trigger: "{trigger_condition}"
+  {first 2 lines of idea section}
+```
+
+In yolo/auto mode: fold all matching seeds into the planning context silently (log the selection).
+
+In interactive mode: use AskUserQuestion (multiSelect) asking which seeds to incorporate:
+```
+Which seeds should inform planning for Phase {X}?
+(Select any that apply, or none to skip)
+```
+
+**For selected seeds:** Include their content in the planner prompt's `<additional_context>` block so the planner can incorporate the ideas into task design.
+
+**For no matches or no seeds:** Skip silently — no workflow slowdown.
+
 ## 5. Handle Research
 
 **Skip if:** `--gaps` flag or `--skip-research` flag or `--reviews` flag.

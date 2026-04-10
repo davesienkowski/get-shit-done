@@ -358,6 +358,44 @@ Which of these todos should be folded into Phase {X} scope?
 **Auto mode (`--auto`):** Fold all todos with score >= 0.4 automatically. Log the selection.
 </step>
 
+<step name="cross_reference_notes_and_seeds">
+Surface relevant notes and seeds from prior explorations. Prevents re-discussing decisions that were already explored.
+
+**Load notes:**
+```bash
+ls .planning/notes/*.md 2>/dev/null || true
+```
+
+If notes exist: read each note's title and content, keyword-match against the current phase name and goal. A note matches if its topic overlaps with the phase scope.
+
+**If matching notes found:** Present as prior context:
+```
+Found {N} exploration note(s) relevant to Phase {X}:
+
+{For each match:}
+- **{title}** ({date}) — {first line of content}
+```
+
+Store matching note content internally as `<prior_notes>`. During gray area analysis (analyze_phase step), skip gray areas already addressed in these notes — or flag conflicts ("Previous exploration noted X, but this phase may need Y").
+
+**Load seeds:**
+```bash
+ls .planning/seeds/*.md 2>/dev/null || true
+```
+
+If seeds exist: read each seed's `trigger_condition` from frontmatter, match against the current phase. If a seed's trigger condition matches, surface it:
+```
+Planted seed relevant to this phase:
+- **{title}** — trigger: "{trigger_condition}"
+```
+
+Store matching seed content internally for inclusion in CONTEXT.md `<specifics>` section if the user confirms during discussion.
+
+**If no matches:** Skip silently — no workflow slowdown.
+
+**Auto mode (`--auto`):** Include all matching notes as prior context and all matching seeds in specifics automatically.
+</step>
+
 <step name="scout_codebase">
 Lightweight scan of existing code to inform gray area identification and discussion. Uses ~10% context — acceptable for an interactive session.
 

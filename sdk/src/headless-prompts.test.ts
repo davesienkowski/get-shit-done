@@ -43,6 +43,7 @@ const EXPECTED_WORKFLOWS = [
   'plan-phase.md',
   'verify-phase.md',
   'discuss-phase.md',
+  'node-repair.md',
 ];
 
 const EXPECTED_AGENTS = [

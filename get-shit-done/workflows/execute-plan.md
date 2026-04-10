@@ -357,8 +357,11 @@ If `NODE_REPAIR` is `true`: invoke `@./.claude/get-shit-done/workflows/node-repa
 - ERROR: expected vs actual result
 - PLAN_CONTEXT: adjacent task names + phase goal
 - REPAIR_BUDGET: `workflow.node_repair_budget` from config (default: 2)
+- REQUIREMENTS_PATH: `requirements_path` from init context (if available — enables traceability during repair)
+- CONTEXT_PATH: `context_path` from init context (if available — enables decision-awareness during repair)
+- PLAN_PATH: path to the current PLAN.md being executed (enables key-link and artifact verification during repair)
 
-Node repair will attempt RETRY, DECOMPOSE, or PRUNE autonomously. Only reaches this gate again if repair budget is exhausted (ESCALATE).
+Node repair will diagnose root cause, check integration impact, then attempt RETRY, DECOMPOSE, or PRUNE autonomously. Only reaches this gate again if repair budget is exhausted (ESCALATE).
 
 If `NODE_REPAIR` is `false` OR repair returns ESCALATE: STOP. Present: "Verification failed for Task [X]: [name]. Expected: [criteria]. Actual: [result]. Repair attempted: [summary of what was tried]." Options: Retry | Skip (mark incomplete) | Stop (investigate). If skipped → SUMMARY "Issues Encountered".
 </step>

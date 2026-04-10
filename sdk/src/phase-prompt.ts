@@ -28,6 +28,7 @@ const PHASE_WORKFLOW_MAP: Record<PhaseType, string> = {
   [PhaseType.Plan]: 'plan-phase.md',
   [PhaseType.Verify]: 'verify-phase.md',
   [PhaseType.Discuss]: 'discuss-phase.md',
+  [PhaseType.Repair]: 'node-repair.md',
 };
 
 // ─── XML block extraction ────────────────────────────────────────────────────

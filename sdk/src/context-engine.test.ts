@@ -131,6 +131,25 @@ describe('ContextEngine', () => {
       expect(files.context).toBeUndefined();
     });
 
+    it('returns state + config + requirements + context for repair phase', async () => {
+      await createPlanningDir(projectDir, {
+        'STATE.md': '# State',
+        'config.json': '{"model":"claude"}',
+        'REQUIREMENTS.md': '# Requirements\nR1: auth',
+        'CONTEXT.md': '# Context\nstack: node',
+        'ROADMAP.md': '# Roadmap — should not be read for repair',
+      });
+
+      const engine = new ContextEngine(projectDir);
+      const files = await engine.resolveContextFiles(PhaseType.Repair);
+
+      expect(files.state).toBe('# State');
+      expect(files.config).toBe('{"model":"claude"}');
+      expect(files.requirements).toBe('# Requirements\nR1: auth');
+      expect(files.context).toBe('# Context\nstack: node');
+      expect(files.roadmap).toBeUndefined();
+    });
+
     it('returns undefined for missing optional files without warning', async () => {
       await createPlanningDir(projectDir, {
         'STATE.md': '# State',

@@ -63,6 +63,12 @@ const PHASE_FILE_MANIFEST: Record<PhaseType, FileSpec[]> = {
     { key: 'plan', filename: 'PLAN.md', required: false },
     { key: 'summary', filename: 'SUMMARY.md', required: false },
   ],
+  [PhaseType.Repair]: [
+    { key: 'state', filename: 'STATE.md', required: true },
+    { key: 'config', filename: 'config.json', required: false },
+    { key: 'requirements', filename: 'REQUIREMENTS.md', required: false },
+    { key: 'context', filename: 'CONTEXT.md', required: false },
+  ],
   [PhaseType.Discuss]: [
     { key: 'state', filename: 'STATE.md', required: true },
     { key: 'roadmap', filename: 'ROADMAP.md', required: false },

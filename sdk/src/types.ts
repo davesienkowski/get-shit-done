@@ -220,6 +220,7 @@ export enum PhaseType {
   Plan = 'plan',
   Execute = 'execute',
   Verify = 'verify',
+  Repair = 'repair',
 }
 
 /**
