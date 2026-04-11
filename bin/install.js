@@ -3956,6 +3956,12 @@ function copyCommandsAsClaudeSkills(srcDir, skillsDir, prefix, pathPrefix, runti
       content = content.replace(/~\/\.qwen\//g, pathPrefix);
       content = content.replace(/\$HOME\/\.qwen\//g, pathPrefix);
       content = content.replace(/\.\/\.qwen\//g, `./${getDirName(runtime)}/`);
+      // Qwen reuses Claude skill format but needs runtime-specific content replacement
+      if (runtime === 'qwen') {
+        content = content.replace(/CLAUDE\.md/g, 'QWEN.md');
+        content = content.replace(/\bClaude Code\b/g, 'Qwen Code');
+        content = content.replace(/\.claude\//g, '.qwen/');
+      }
       content = processAttribution(content, getCommitAttribution(runtime));
       content = convertClaudeCommandToClaudeSkill(content, skillName);
 
@@ -4149,6 +4155,11 @@ function copyWithPathReplacement(srcDir, destDir, pathPrefix, runtime, isCommand
       } else if (isCline) {
         content = convertClaudeToCliineMarkdown(content);
         fs.writeFileSync(destPath, content);
+      } else if (isQwen) {
+        content = content.replace(/CLAUDE\.md/g, 'QWEN.md');
+        content = content.replace(/\bClaude Code\b/g, 'Qwen Code');
+        content = content.replace(/\.claude\//g, '.qwen/');
+        fs.writeFileSync(destPath, content);
       } else {
         fs.writeFileSync(destPath, content);
       }
@@ -4192,6 +4203,13 @@ function copyWithPathReplacement(srcDir, destDir, pathPrefix, runtime, isCommand
       jsContent = jsContent.replace(/\.claude\/skills\//g, '.cline/skills/');
       jsContent = jsContent.replace(/CLAUDE\.md/g, '.clinerules');
       jsContent = jsContent.replace(/\bClaude Code\b/g, 'Cline');
+      fs.writeFileSync(destPath, jsContent);
+    } else if (isQwen && (entry.name.endsWith('.cjs') || entry.name.endsWith('.js'))) {
+      let jsContent = fs.readFileSync(srcPath, 'utf8');
+      jsContent = jsContent.replace(/\.claude\/skills\//g, '.qwen/skills/');
+      jsContent = jsContent.replace(/\.claude\//g, '.qwen/');
+      jsContent = jsContent.replace(/CLAUDE\.md/g, 'QWEN.md');
+      jsContent = jsContent.replace(/\bClaude Code\b/g, 'Qwen Code');
       fs.writeFileSync(destPath, jsContent);
     } else {
       fs.copyFileSync(srcPath, destPath);
@@ -5671,6 +5689,10 @@ function install(isGlobal, runtime = 'claude') {
           content = convertClaudeAgentToCodebuddyAgent(content);
         } else if (isCline) {
           content = convertClaudeAgentToClineAgent(content);
+        } else if (isQwen) {
+          content = content.replace(/CLAUDE\.md/g, 'QWEN.md');
+          content = content.replace(/\bClaude Code\b/g, 'Qwen Code');
+          content = content.replace(/\.claude\//g, '.qwen/');
         }
         const destName = isCopilot ? entry.name.replace('.md', '.agent.md') : entry.name;
         fs.writeFileSync(path.join(agentsDest, destName), content);
@@ -5729,6 +5751,11 @@ function install(isGlobal, runtime = 'claude') {
           if (entry.endsWith('.js')) {
             let content = fs.readFileSync(srcFile, 'utf8');
             content = content.replace(/'\.claude'/g, configDirReplacement);
+            content = content.replace(/\/\.claude\//g, `/${getDirName(runtime)}/`);
+            if (isQwen) {
+              content = content.replace(/CLAUDE\.md/g, 'QWEN.md');
+              content = content.replace(/\bClaude Code\b/g, 'Qwen Code');
+            }
             content = content.replace(/\{\{GSD_VERSION\}\}/g, pkg.version);
             fs.writeFileSync(destFile, content);
             // Ensure hook files are executable (fixes #1162 — missing +x permission)
@@ -6261,6 +6288,7 @@ function finishInstall(settingsPath, settings, statuslineCommand, shouldInstallS
   if (runtime === 'augment') program = 'Augment';
   if (runtime === 'trae') program = 'Trae';
   if (runtime === 'cline') program = 'Cline';
+  if (runtime === 'qwen') program = 'Qwen Code';
 
   let command = '/gsd-new-project';
   if (runtime === 'opencode') command = '/gsd-new-project';
@@ -6273,6 +6301,7 @@ function finishInstall(settingsPath, settings, statuslineCommand, shouldInstallS
   if (runtime === 'augment') command = '/gsd-new-project';
   if (runtime === 'trae') command = '/gsd-new-project';
   if (runtime === 'cline') command = '/gsd-new-project';
+  if (runtime === 'qwen') command = '/gsd-new-project';
   console.log(`
   ${green}Done!${reset} Open a blank directory in ${program} and run ${cyan}${command}${reset}.
 
