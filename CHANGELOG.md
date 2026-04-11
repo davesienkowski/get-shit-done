@@ -6,6 +6,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **`@gsd-build/sdk` — Phase 1 typed query foundation** — Registry-based `gsd-sdk query` command, classified errors (`GSDQueryError`), and unit-tested handlers under `sdk/src/query/` (state, roadmap, phase lifecycle, init, config, validation, and related domains). Implements incremental SDK-first migration scope approved in #2083; builds on validated work from #2007 / `feat/sdk-foundation` without migrating workflows or removing `gsd-tools.cjs` in this phase.
+
 ## [1.35.0] - 2026-04-10
 
 ### Added
