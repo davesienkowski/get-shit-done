@@ -4,9 +4,9 @@ This document records contracts for the typed query layer consumed by `gsd-sdk q
 
 ## Error handling
 
-- **Validation and programmer errors** — Handlers throw `GSDError` with an `ErrorClassification` (e.g. missing required args, invalid phase). The CLI maps these to exit codes via `exitCodeFor()`.
-- **Expected domain failures** — Handlers return `{ data: { error: string, ... } }` for cases that are not exceptional in normal use (file not found, intel disabled, todo missing, etc.). Callers must check `data.error` when present.
-- Do not mix both styles for the same failure mode in new code: prefer **throw** for “caller must fix input”; prefer **`data.error`** for “operation could not complete in this project state.”
+- **Validation and programmer errors**: Handlers throw `GSDError` with an `ErrorClassification` (e.g. missing required args, invalid phase). The CLI maps these to exit codes via `exitCodeFor()`.
+- **Expected domain failures**: Handlers return `{ data: { error: string, ... } }` for cases that are not exceptional in normal use (file not found, intel disabled, todo missing, etc.). Callers must check `data.error` when present.
+- Do not mix both styles for the same failure mode in new code: prefer **throw** for "caller must fix input"; prefer **`data.error`** for "operation could not complete in this project state."
 
 ## Mutation commands and events
 
@@ -19,7 +19,7 @@ This document records contracts for the typed query layer consumed by `gsd-sdk q
 
 ## Lockfiles (`state-mutation.ts`)
 
-- `STATE.md` (and ROADMAP) locks use a sibling `.lock` file with the holder’s PID. Stale locks are cleared when the PID no longer exists (`process.kill(pid, 0)` fails) or when the lock file is older than the existing time-based threshold.
+- `STATE.md` (and ROADMAP) locks use a sibling `.lock` file with the holder's PID. Stale locks are cleared when the PID no longer exists (`process.kill(pid, 0)` fails) or when the lock file is older than the existing time-based threshold.
 
 ## Intel JSON search
 
