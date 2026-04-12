@@ -310,7 +310,7 @@ For each finding in sorted order:
 
 Use gsd-tools commit command with conventional format:
 ```bash
-node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" commit \
+gsd-sdk query commit \
   "fix({padded_phase}): {finding_id} {short_description}" \
   --files {all_modified_files}
 ```

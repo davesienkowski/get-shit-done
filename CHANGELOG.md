@@ -49,7 +49,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Agent specs standardization** — Standardized `required_reading` patterns across agent specs (#2176)
 - **CI upgrades** — GitHub Actions upgraded to Node 22+ runtimes; release pipeline fixes (#2128, #1956)
 - **Branch cleanup workflow** — Auto-delete on merge + weekly sweep (#2051)
-- **SDK query follow-up** — Expanded mutation commands, PID-liveness lock cleanup, depth-bounded JSON search, and comprehensive unit tests
+- **SDK query follow-up (tests, docs, registry)** — Expanded `QUERY_MUTATION_COMMANDS` for event emission; stale lock cleanup uses PID liveness (`process.kill(pid, 0)`) when a lock file exists; `searchJsonEntries` is depth-bounded (`MAX_JSON_SEARCH_DEPTH`); removed unnecessary `readdirSync`/`Dirent` casts across query handlers; added `sdk/src/query/QUERY-HANDLERS.md` (error vs `{ data.error }`, mutations, locks, intel limits); unit tests for intel, profile, uat, skills, summary, websearch, workstream, registry vs `QUERY_MUTATION_COMMANDS`, and frontmatter extract/splice round-trip.
+- **Phase 2 caller migration (#2122)** — Workflows, agents, and commands prefer `gsd-sdk query` for registered handlers; dual-path and CJS-only exceptions documented in `docs/CLI-TOOLS.md` and `docs/ARCHITECTURE.md` (#2008).
 
 ### Fixed
 - **Init ignores archived phases** — Archived phases from prior milestones sharing a phase number no longer interfere (#2186)

@@ -147,7 +147,7 @@ If $ARGUMENTS is a new description (no matching thread file):
 
 1. Generate slug from description:
    ```bash
-   SLUG=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" generate-slug "$ARGUMENTS" --raw)
+   SLUG=$(gsd-sdk query generate-slug "$ARGUMENTS" --raw)
    ```
 
 2. Create the threads directory if needed:
@@ -191,7 +191,7 @@ updated: {today ISO date}
 
 5. Commit:
    ```bash
-   node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" commit "docs: create thread — ${ARGUMENTS}" --files ".planning/threads/${SLUG}.md"
+   gsd-sdk query commit "docs: create thread — ${ARGUMENTS}" --files ".planning/threads/${SLUG}.md"
    ```
 
 6. Report:
