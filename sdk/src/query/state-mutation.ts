@@ -113,10 +113,31 @@ function updateCurrentPositionFields(content: string, fields: Record<string, str
 // ─── Lockfile helpers ─────────────────────────────────────────────────────
 
 /**
+ * If the lock file contains a PID, return whether that process is gone (stolen
+ * locks after SIGKILL/crash). Null if the file could not be read.
+ */
+async function isLockProcessDead(lockPath: string): Promise<boolean | null> {
+  try {
+    const raw = await readFile(lockPath, 'utf-8');
+    const pid = parseInt(raw.trim(), 10);
+    if (!Number.isFinite(pid) || pid <= 0) return true;
+    try {
+      process.kill(pid, 0);
+      return false;
+    } catch {
+      return true;
+    }
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Acquire a lockfile for STATE.md operations.
  *
  * Uses O_CREAT|O_EXCL for atomic creation. Retries up to 10 times with
- * 200ms + jitter delay. Cleans stale locks older than 10 seconds.
+ * 200ms + jitter delay. Cleans stale locks when the holder PID is dead, or when
+ * the lock file is older than 10 seconds (existing heuristic).
  *
  * @param statePath - Path to STATE.md
  * @returns Path to the lockfile
@@ -136,6 +157,11 @@ export async function acquireStateLock(statePath: string): Promise<string> {
     } catch (err: unknown) {
       if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'EEXIST') {
         try {
+          const dead = await isLockProcessDead(lockPath);
+          if (dead === true) {
+            await unlink(lockPath);
+            continue;
+          }
           const s = await stat(lockPath);
           if (Date.now() - s.mtimeMs > 10000) {
             await unlink(lockPath);

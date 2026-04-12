@@ -55,11 +55,7 @@ export type PipelineStage = 'prepare' | 'execute' | 'finalize';
 function collectFiles(dir: string, base: string): string[] {
   const results: string[] = [];
   if (!existsSync(dir)) return results;
-  const entries = readdirSync(dir, { withFileTypes: true }) as unknown as Array<{
-    isDirectory(): boolean;
-    isFile(): boolean;
-    name: string;
-  }>;
+  const entries = readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);
     const relPath = relative(base, fullPath);
