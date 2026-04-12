@@ -159,8 +159,9 @@ export function wrapWithPipeline(
   // as event emission wiring in index.ts
   const commandsToWrap: string[] = [];
 
-  // We need to enumerate commands. QueryRegistry doesn't expose keys directly,
-  // so we wrap the register method temporarily to collect known commands,
+  // Enumerate mutation commands via the caller-provided set. QueryRegistry also
+  // exposes commands() for full command lists when needed by tooling.
+  // We wrap the register method temporarily to collect known commands,
   // then restore. Instead, we use the mutation commands set + a marker approach:
   // wrap mutation commands for dry-run, and wrap all via onPrepare/onFinalize.
   //

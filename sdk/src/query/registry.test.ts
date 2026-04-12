@@ -87,6 +87,13 @@ describe('QueryRegistry', () => {
     await expect(registry.dispatch('unknown-cmd', ['arg1'], '/tmp/project'))
       .rejects.toThrow('Unknown command: "unknown-cmd"');
   });
+
+  it('commands() returns all registered command names', () => {
+    const registry = new QueryRegistry();
+    registry.register('alpha', async () => ({ data: 1 }));
+    registry.register('beta', async () => ({ data: 2 }));
+    expect(registry.commands().sort()).toEqual(['alpha', 'beta']);
+  });
 });
 
 // ─── createRegistry ────────────────────────────────────────────────────────

@@ -96,6 +96,7 @@ const MUTATION_COMMANDS = new Set([
   'state.update', 'state.patch', 'state.begin-phase', 'state.advance-plan',
   'state.record-metric', 'state.update-progress', 'state.add-decision',
   'state.add-blocker', 'state.resolve-blocker', 'state.record-session',
+  'state.planned-phase', 'state planned-phase',
   'frontmatter.set', 'frontmatter.merge', 'frontmatter.validate',
   'config-set', 'config-set-model-profile', 'config-new-project', 'config-ensure-section',
   'commit', 'check-commit',
