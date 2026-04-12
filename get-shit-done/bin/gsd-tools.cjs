@@ -70,6 +70,9 @@
  *   audit-uat                           Scan all phases for unresolved UAT/verification items
  *   uat render-checkpoint --file <path> Render the current UAT checkpoint block
  *
+ * Open Artifact Audit:
+ *   audit-open [--json]                 Scan all .planning/ artifact types for unresolved items
+ *
  * Intel:
  *   intel query <term>             Query intel files for a term
  *   intel status                   Show intel file freshness
@@ -470,6 +473,9 @@ async function runCommand(command, args, cwd, raw, defaultValue) {
       } else if (subcommand === 'sync') {
         const { verify } = parseNamedArgs(args, [], ['verify']);
         state.cmdStateSync(cwd, { verify }, raw);
+      } else if (subcommand === 'prune') {
+        const { 'keep-recent': keepRecent, 'dry-run': dryRun } = parseNamedArgs(args, ['keep-recent'], ['dry-run']);
+        state.cmdStatePrune(cwd, { keepRecent: keepRecent || '3', dryRun: !!dryRun }, raw);
       } else {
         state.cmdStateLoad(cwd, raw);
       }
@@ -708,6 +714,16 @@ async function runCommand(command, args, cwd, raw, defaultValue) {
           }
         }
         phase.cmdPhaseAdd(cwd, descArgs.join(' '), raw, customId);
+      } else if (subcommand === 'add-batch') {
+        // Accepts JSON array of descriptions via --descriptions '[...]' or positional args
+        const descFlagIdx = args.indexOf('--descriptions');
+        let descriptions;
+        if (descFlagIdx !== -1 && args[descFlagIdx + 1]) {
+          try { descriptions = JSON.parse(args[descFlagIdx + 1]); } catch (e) { error('--descriptions must be a JSON array'); }
+        } else {
+          descriptions = args.slice(2).filter(a => a !== '--raw');
+        }
+        phase.cmdPhaseAddBatch(cwd, descriptions, raw);
       } else if (subcommand === 'insert') {
         phase.cmdPhaseInsert(cwd, args[2], args.slice(3).join(' '), raw);
       } else if (subcommand === 'remove') {
@@ -716,7 +732,7 @@ async function runCommand(command, args, cwd, raw, defaultValue) {
       } else if (subcommand === 'complete') {
         phase.cmdPhaseComplete(cwd, args[2], raw);
       } else {
-        error('Unknown phase subcommand. Available: next-decimal, add, insert, remove, complete');
+        error('Unknown phase subcommand. Available: next-decimal, add, add-batch, insert, remove, complete');
       }
       break;
     }
@@ -757,6 +773,18 @@ async function runCommand(command, args, cwd, raw, defaultValue) {
     case 'audit-uat': {
       const uat = require('./lib/uat.cjs');
       uat.cmdAuditUat(cwd, raw);
+      break;
+    }
+
+    case 'audit-open': {
+      const { auditOpenArtifacts, formatAuditReport } = require('./lib/audit.cjs');
+      const includeRaw = args.includes('--json');
+      const result = auditOpenArtifacts(cwd);
+      if (includeRaw) {
+        output(JSON.stringify(result, null, 2), raw);
+      } else {
+        output(formatAuditReport(result), raw);
+      }
       break;
     }
 
@@ -804,13 +832,13 @@ async function runCommand(command, args, cwd, raw, defaultValue) {
       const workflow = args[1];
       switch (workflow) {
         case 'execute-phase': {
-          const { validate: epValidate } = parseNamedArgs(args, [], ['validate']);
-          init.cmdInitExecutePhase(cwd, args[2], raw, { validate: epValidate });
+          const { validate: epValidate, tdd: epTdd } = parseNamedArgs(args, [], ['validate', 'tdd']);
+          init.cmdInitExecutePhase(cwd, args[2], raw, { validate: epValidate, tdd: epTdd });
           break;
         }
         case 'plan-phase': {
-          const { validate: ppValidate } = parseNamedArgs(args, [], ['validate']);
-          init.cmdInitPlanPhase(cwd, args[2], raw, { validate: ppValidate });
+          const { validate: ppValidate, tdd: ppTdd } = parseNamedArgs(args, [], ['validate', 'tdd']);
+          init.cmdInitPlanPhase(cwd, args[2], raw, { validate: ppValidate, tdd: ppTdd });
           break;
         }
         case 'new-project':
@@ -1017,7 +1045,15 @@ async function runCommand(command, args, cwd, raw, defaultValue) {
         core.output(intel.intelQuery(term, planningDir), raw);
       } else if (subcommand === 'status') {
         const planningDir = path.join(cwd, '.planning');
-        core.output(intel.intelStatus(planningDir), raw);
+        const status = intel.intelStatus(planningDir);
+        if (!raw && status.files) {
+          for (const file of Object.values(status.files)) {
+            if (file.updated_at) {
+              file.updated_at = core.timeAgo(new Date(file.updated_at));
+            }
+          }
+        }
+        core.output(status, raw);
       } else if (subcommand === 'diff') {
         const planningDir = path.join(cwd, '.planning');
         core.output(intel.intelDiff(planningDir), raw);

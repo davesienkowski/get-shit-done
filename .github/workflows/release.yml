@@ -208,6 +208,17 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      - name: Create GitHub pre-release
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRE_VERSION: ${{ steps.prerelease.outputs.pre_version }}
+        run: |
+          gh release create "v${PRE_VERSION}" \
+            --title "v${PRE_VERSION}" \
+            --generate-notes \
+            --prerelease
+
       - name: Verify publish
         if: ${{ !inputs.dry_run }}
         env:
@@ -330,6 +341,17 @@ jobs:
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          gh release create "v${VERSION}" \
+            --title "v${VERSION}" \
+            --generate-notes \
+            --latest
 
       - name: Clean up next dist-tag
         if: ${{ !inputs.dry_run }}
