@@ -59,9 +59,9 @@ export function extractField(obj: unknown, fieldPath: string): unknown {
 /**
  * Flat command registry that routes query commands to native handlers.
  *
- * Unknown commands throw `GSDError` from `dispatch()` — there is no fallback
- * to gsd-tools.cjs (bridge removed in v3.0). All supported commands must be
- * registered via `register()`.
+ * `dispatch()` throws `GSDError` for unknown command keys. The `gsd-sdk query`
+ * CLI uses `matchRegisteredQuery()` then `runGsdToolsQuery()` so unregistered
+ * argv still matches `node gsd-tools.cjs` (CLI parity).
  */
 export class QueryRegistry {
   private handlers = new Map<string, QueryHandler>();
@@ -106,9 +106,6 @@ export class QueryRegistry {
   /**
    * Dispatch a command to its registered native handler.
    *
-   * Throws GSDError for unknown commands — the gsd-tools.cjs fallback was
-   * removed in v3.0. All commands must be registered as native handlers (T-14-13).
-   *
    * @param command - The command name to dispatch
    * @param args - Arguments to pass to the handler
    * @param projectDir - The project directory for context
@@ -125,4 +122,42 @@ export class QueryRegistry {
     }
     return handler(args, projectDir);
   }
+}
+
+/**
+ * If a single token uses dotted segments (e.g. `state.validate`, `init.new-project`),
+ * split on `.` so it matches `gsd-tools` argv (`state validate`, `init new-project`).
+ * Does not split flags (`--pick` is stripped before this runs).
+ */
+export function expandDottedCommandToken(tokens: string[]): string[] {
+  if (tokens.length !== 1 || tokens[0].startsWith('--')) {
+    return tokens;
+  }
+  const t = tokens[0];
+  if (!t.includes('.')) {
+    return tokens;
+  }
+  return t.split('.');
+}
+
+/**
+ * Longest-prefix match: prefer `a.b.c` then `a b c` over registered command names.
+ * Tries `tokens.length` down to `1` segments.
+ */
+export function matchRegisteredQuery(
+  tokens: string[],
+  registry: QueryRegistry,
+): { cmd: string; args: string[] } | null {
+  for (let i = tokens.length; i >= 1; i--) {
+    const head = tokens.slice(0, i);
+    const dotted = head.join('.');
+    const spaced = head.join(' ');
+    if (registry.has(dotted)) {
+      return { cmd: dotted, args: tokens.slice(i) };
+    }
+    if (registry.has(spaced)) {
+      return { cmd: spaced, args: tokens.slice(i) };
+    }
+  }
+  return null;
 }

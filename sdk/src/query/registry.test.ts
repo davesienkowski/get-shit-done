@@ -3,7 +3,12 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { QueryRegistry, extractField } from './registry.js';
+import {
+  QueryRegistry,
+  extractField,
+  matchRegisteredQuery,
+  expandDottedCommandToken,
+} from './registry.js';
 import { createRegistry, QUERY_MUTATION_COMMANDS } from './index.js';
 import type { QueryResult } from './utils.js';
 
@@ -130,10 +135,56 @@ describe('createRegistry', () => {
     expect(registry.has('current-timestamp')).toBe(true);
   });
 
+  it('has summary-extract dash alias (PR #2179 / workflows)', () => {
+    const registry = createRegistry();
+    expect(registry.has('summary-extract')).toBe(true);
+  });
+
   it('can dispatch generate-slug', async () => {
     const registry = createRegistry();
     const result = await registry.dispatch('generate-slug', ['My Phase'], '/tmp');
 
     expect(result).toEqual({ data: { slug: 'my-phase' } });
+  });
+});
+
+// ─── matchRegisteredQuery / expandDottedCommandToken ────────────────────────
+
+describe('matchRegisteredQuery', () => {
+  it('matches longest dotted prefix (state.update + args)', () => {
+    const registry = createRegistry();
+    const m = matchRegisteredQuery(['state', 'update', 'status', 'X'], registry);
+    expect(m).toEqual({ cmd: 'state.update', args: ['status', 'X'] });
+  });
+
+  it('matches longest prefix (phase.add wins over phase when both registered)', () => {
+    const registry = createRegistry();
+    const m = matchRegisteredQuery(['phase', 'add', 'desc'], registry);
+    expect(m).toEqual({ cmd: 'phase.add', args: ['desc'] });
+  });
+
+  it('prefers longer match over shorter', () => {
+    const registry = createRegistry();
+    const m = matchRegisteredQuery(['state', 'load'], registry);
+    expect(m?.cmd).toBe('state.load');
+    expect(m?.args).toEqual([]);
+  });
+
+  it('returns null when no prefix matches', () => {
+    const registry = createRegistry();
+    const m = matchRegisteredQuery(['totally-unknown', 'x'], registry);
+    expect(m).toBeNull();
+  });
+});
+
+describe('expandDottedCommandToken', () => {
+  it('splits a single dotted token into argv segments', () => {
+    expect(expandDottedCommandToken(['state.validate'])).toEqual(['state', 'validate']);
+    expect(expandDottedCommandToken(['init.new-project'])).toEqual(['init', 'new-project']);
+  });
+
+  it('leaves multi-token argv unchanged', () => {
+    const t = ['state', 'validate'];
+    expect(expandDottedCommandToken(t)).toBe(t);
   });
 });

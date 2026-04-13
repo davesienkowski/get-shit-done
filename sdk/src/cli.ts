@@ -34,20 +34,82 @@ export interface ParsedCliArgs {
   ws: string | undefined;
   help: boolean;
   version: boolean;
+  /**
+   * When `command === 'query'`, tokens after `query` with only known SDK flags removed.
+   * Preserves gsd-tools flags (`--json`, `--verify`, etc.) for passthrough parity.
+   */
+  queryArgv?: string[];
 }
 
 /**
- * Strip `--pick <field>` from argv before parseArgs so the global parser stays strict.
- * Query dispatch removes --pick separately in main(); this only affects CLI parsing.
+ * Parse `gsd-sdk query …` without rejecting unknown flags (gsd-tools accepts many: `--json`, `--verify`, …).
  */
-function argvForCliParse(argv: string[]): string[] {
-  if (argv[0] !== 'query') return argv;
-  const copy = [...argv];
-  const pickIdx = copy.indexOf('--pick');
-  if (pickIdx !== -1 && pickIdx + 1 < copy.length) {
-    copy.splice(pickIdx, 2);
+function parseCliArgsQueryPermissive(argv: string[]): ParsedCliArgs {
+  let projectDir = process.cwd();
+  let ws: string | undefined;
+  let wsPort: number | undefined;
+  let model: string | undefined;
+  let maxBudget: number | undefined;
+  let help = false;
+  let version = false;
+  const queryArgv: string[] = [];
+
+  let i = 1;
+  while (i < argv.length) {
+    const a = argv[i];
+    if (a === '--project-dir' && argv[i + 1]) {
+      projectDir = argv[i + 1];
+      i += 2;
+      continue;
+    }
+    if (a === '--ws' && argv[i + 1]) {
+      ws = argv[i + 1];
+      i += 2;
+      continue;
+    }
+    if (a === '--ws-port' && argv[i + 1]) {
+      wsPort = Number(argv[i + 1]);
+      i += 2;
+      continue;
+    }
+    if (a === '--model' && argv[i + 1]) {
+      model = argv[i + 1];
+      i += 2;
+      continue;
+    }
+    if (a === '--max-budget' && argv[i + 1]) {
+      maxBudget = Number(argv[i + 1]);
+      i += 2;
+      continue;
+    }
+    if (a === '-h' || a === '--help') {
+      help = true;
+      i += 1;
+      continue;
+    }
+    if (a === '-v' || a === '--version') {
+      version = true;
+      i += 1;
+      continue;
+    }
+    queryArgv.push(a);
+    i += 1;
   }
-  return copy;
+
+  return {
+    command: 'query',
+    prompt: undefined,
+    initInput: undefined,
+    init: undefined,
+    projectDir,
+    wsPort,
+    model,
+    maxBudget,
+    ws,
+    help,
+    version,
+    queryArgv,
+  };
 }
 
 /**
@@ -55,8 +117,12 @@ function argvForCliParse(argv: string[]): string[] {
  * Exported for testing — the main() function uses this internally.
  */
 export function parseCliArgs(argv: string[]): ParsedCliArgs {
+  if (argv[0] === 'query') {
+    return parseCliArgsQueryPermissive(argv);
+  }
+
   const { values, positionals } = parseArgs({
-    args: argvForCliParse(argv),
+    args: argv,
     options: {
       'project-dir': { type: 'string', default: process.cwd() },
       'ws-port': { type: 'string' },
@@ -106,7 +172,7 @@ Commands:
                           @path/to/prd.md   Read input from a file
                           "description"     Use text directly
                           (empty)           Read from stdin
-  query <command>       Execute a registered native query command (registry: sdk/src/query/index.ts)
+  query <argv...>       Native handlers (longest-prefix) or gsd-tools passthrough — same argv as node gsd-tools.cjs
                         Use --pick <field> to extract a specific field
 
 Options:
@@ -226,13 +292,17 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   // ─── Query command ──────────────────────────────────────────────────────
   if (args.command === 'query') {
     const { createRegistry } = await import('./query/index.js');
-    const { extractField } = await import('./query/registry.js');
+    const {
+      extractField,
+      matchRegisteredQuery,
+      expandDottedCommandToken,
+    } = await import('./query/registry.js');
+    const { runGsdToolsQuery, GSDToolsError } = await import('./gsd-tools.js');
     const { GSDError, exitCodeFor } = await import('./errors.js');
 
-    const queryArgs = argv.slice(1); // everything after 'query'
-    const queryCommand = queryArgs[0];
+    const queryArgs = args.queryArgv ?? [];
 
-    if (!queryCommand) {
+    if (queryArgs.length === 0 || !queryArgs[0]) {
       console.error('Error: "gsd-sdk query" requires a command');
       process.exitCode = 10;
       return;
@@ -253,7 +323,26 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
 
     try {
       const registry = createRegistry();
-      const result = await registry.dispatch(queryCommand, queryArgs.slice(1), args.projectDir);
+      let tokens = [...queryArgs];
+      let matched = matchRegisteredQuery(tokens, registry);
+      if (!matched) {
+        const expanded = expandDottedCommandToken(tokens);
+        if (expanded !== tokens) {
+          matched = matchRegisteredQuery(expanded, registry);
+          tokens = expanded;
+        }
+      }
+
+      let result;
+      if (matched) {
+        result = await registry.dispatch(matched.cmd, matched.args, args.projectDir);
+      } else {
+        result = await runGsdToolsQuery(tokens, {
+          projectDir: args.projectDir,
+          workstream: args.ws,
+        });
+      }
+
       let output: unknown = result.data;
 
       if (pickField) {
@@ -265,6 +354,9 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       if (err instanceof GSDError) {
         console.error(`Error: ${err.message}`);
         process.exitCode = exitCodeFor(err.classification);
+      } else if (err instanceof GSDToolsError) {
+        console.error(`Error: ${err.message}`);
+        process.exitCode = err.exitCode ?? 1;
       } else {
         console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
         process.exitCode = 1;
