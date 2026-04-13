@@ -515,7 +515,7 @@ Do NOT skip. Do NOT proceed to state updates if self-check fails.
 </self_check>
 
 <state_updates>
-After SUMMARY.md, update STATE.md using gsd-tools:
+After SUMMARY.md, update STATE.md using `gsd-sdk query` state handlers (positional args; see `sdk/src/query/QUERY-HANDLERS.md`):
 
 ```bash
 # Advance plan counter (handles edge cases automatically)
@@ -524,20 +524,18 @@ gsd-sdk query state.advance-plan
 # Recalculate progress bar from disk state
 gsd-sdk query state.update-progress
 
-# Record execution metrics
+# Record execution metrics (phase, plan, duration, tasks, files)
 gsd-sdk query state.record-metric \
-  --phase "${PHASE}" --plan "${PLAN}" --duration "${DURATION}" \
-  --tasks "${TASK_COUNT}" --files "${FILE_COUNT}"
+  "${PHASE}" "${PLAN}" "${DURATION}" "${TASK_COUNT}" "${FILE_COUNT}"
 
 # Add decisions (extract from SUMMARY.md key-decisions)
 for decision in "${DECISIONS[@]}"; do
-  gsd-sdk query state.add-decision \
-    --phase "${PHASE}" --summary "${decision}"
+  gsd-sdk query state.add-decision "${decision}"
 done
 
-# Update session info
+# Update session info (timestamp, stopped-at, resume-file)
 gsd-sdk query state.record-session \
-  --stopped-at "Completed ${PHASE}-${PLAN}-PLAN.md"
+  "" "Completed ${PHASE}-${PLAN}-PLAN.md" "None"
 ```
 
 ```bash
@@ -570,7 +568,8 @@ gsd-sdk query state.add-blocker "Blocker description"
 
 <final_commit>
 ```bash
-gsd-sdk query commit "docs({phase}-{plan}): complete [plan-name] plan" --files .planning/phases/XX-name/{phase}-{plan}-SUMMARY.md .planning/STATE.md .planning/ROADMAP.md .planning/REQUIREMENTS.md
+gsd-sdk query commit "docs({phase}-{plan}): complete [plan-name] plan" \
+  .planning/phases/XX-name/{phase}-{plan}-SUMMARY.md .planning/STATE.md .planning/ROADMAP.md .planning/REQUIREMENTS.md
 ```
 
 Separate from per-task commits — captures execution results only.

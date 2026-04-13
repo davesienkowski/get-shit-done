@@ -650,7 +650,7 @@ ls "$phase_dir"/*-BRIEF.md 2>/dev/null
 
 ## Step 2: Load All Plans
 
-Use gsd-tools to validate plan structure:
+Use `gsd-sdk query` to validate plan structure:
 
 ```bash
 for plan in "$PHASE_DIR"/*-PLAN.md; do
@@ -670,10 +670,10 @@ Map errors/warnings to verification dimensions:
 
 ## Step 3: Parse must_haves
 
-Extract must_haves from each plan using gsd-tools:
+Extract must_haves from each plan using `gsd-sdk query`:
 
 ```bash
-MUST_HAVES=$(gsd-sdk query frontmatter.get "$PLAN_PATH" --field must_haves)
+MUST_HAVES=$(gsd-sdk query frontmatter.get "$PLAN_PATH" must_haves)
 ```
 
 Returns JSON: `{ truths: [...], artifacts: [...], key_links: [...] }`
@@ -715,7 +715,7 @@ For each requirement: find covering task(s), verify action is specific, flag gap
 
 ## Step 5: Validate Task Structure
 
-Use gsd-tools plan-structure verification (already run in Step 2):
+Use `verify.plan-structure` (already run in Step 2):
 
 ```bash
 PLAN_STRUCTURE=$(gsd-sdk query verify.plan-structure "$PLAN_PATH")
@@ -729,7 +729,7 @@ The `tasks` array in the result shows each task's completeness:
 
 **Check:** valid task type (auto, checkpoint:*, tdd), auto tasks have files/action/verify/done, action is specific, verify is runnable, done is measurable.
 
-**For manual validation of specificity** (gsd-tools checks structure, not content quality):
+**For manual validation of specificity** (`verify.plan-structure` checks structure, not content quality):
 ```bash
 grep -B5 "</task>" "$PHASE_DIR"/*-PLAN.md | grep -v "<verify>"
 ```

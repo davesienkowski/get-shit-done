@@ -206,7 +206,7 @@ overrides:
 
 ## Step 4: Verify Artifacts (Three Levels)
 
-Use gsd-tools for artifact verification against must_haves in PLAN frontmatter:
+Use `gsd-sdk query` for artifact verification against must_haves in PLAN frontmatter:
 
 ```bash
 ARTIFACT_RESULT=$(gsd-sdk query verify.artifacts "$PLAN_PATH")
@@ -312,7 +312,7 @@ grep -r -A 3 "<${COMPONENT_NAME}" "${search_path:-src/}" --include="*.tsx" 2>/de
 
 Key links are critical connections. If broken, the goal fails even with all artifacts present.
 
-Use gsd-tools for key link verification against must_haves in PLAN frontmatter:
+Use `gsd-sdk query` for key link verification against must_haves in PLAN frontmatter:
 
 ```bash
 LINKS_RESULT=$(gsd-sdk query verify.key-links "$PLAN_PATH")
