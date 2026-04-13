@@ -896,6 +896,8 @@ Query the graph for phase-relevant dependency context (single query per D-06):
 node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" graphify query "<phase-goal-keyword>" --budget 2000
 ```
 
+(graphify is not exposed on `gsd-sdk query` yet; use `gsd-tools.cjs` for graphify only.)
+
 Use the keyword that best captures the phase goal. Examples:
 - Phase "User Authentication" -> query term "auth"
 - Phase "Payment Integration" -> query term "payment"

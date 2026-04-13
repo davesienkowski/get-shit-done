@@ -127,7 +127,7 @@ Choice [S]:
 ```
 2. Commit the deferral record:
 ```bash
-node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" commit "docs: defer incomplete Phase {src} items to backlog"
+gsd-sdk query commit "docs: defer incomplete Phase {src} items to backlog"
 ```
 3. Continue routing to `determine_next_action` immediately — no second prompt.
 

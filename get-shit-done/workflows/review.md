@@ -151,10 +151,11 @@ Write to a temp file: `/tmp/gsd-review-prompt-{phase}.md`
 Read model preferences from planning config. Null/missing values fall back to CLI defaults.
 
 ```bash
-GEMINI_MODEL=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get review.models.gemini --raw 2>/dev/null || true)
-CLAUDE_MODEL=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get review.models.claude --raw 2>/dev/null || true)
-CODEX_MODEL=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get review.models.codex --raw 2>/dev/null || true)
-OPENCODE_MODEL=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get review.models.opencode --raw 2>/dev/null || true)
+# JSON scalars from gsd-sdk query; use jq -r to strip JSON string quotes (install jq if missing)
+GEMINI_MODEL=$(gsd-sdk query config-get review.models.gemini 2>/dev/null | jq -r '.' 2>/dev/null || true)
+CLAUDE_MODEL=$(gsd-sdk query config-get review.models.claude 2>/dev/null | jq -r '.' 2>/dev/null || true)
+CODEX_MODEL=$(gsd-sdk query config-get review.models.codex 2>/dev/null | jq -r '.' 2>/dev/null || true)
+OPENCODE_MODEL=$(gsd-sdk query config-get review.models.opencode 2>/dev/null | jq -r '.' 2>/dev/null || true)
 ```
 
 For each selected CLI, invoke in sequence (not parallel — avoid rate limits):

@@ -40,7 +40,7 @@ Find first PLAN without matching SUMMARY. Decimal phases supported (`01.1-hotfix
 
 ```bash
 PHASE=$(echo "$PLAN_PATH" | grep -oE '[0-9]+(\.[0-9]+)?-[0-9]+')
-# config settings can be fetched via gsd-tools config-get if needed
+# config settings can be fetched via gsd-sdk query config-get if needed
 ```
 
 <if mode="yolo">
@@ -63,7 +63,7 @@ PLAN_START_EPOCH=$(date +%s)
 ```bash
 # Count tasks — match <task tag at any indentation level
 TASK_COUNT=$(grep -cE '^\s*<task[[:space:]>]' .planning/phases/XX-name/{phase}-{plan}-PLAN.md 2>/dev/null || echo "0")
-INLINE_THRESHOLD=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get workflow.inline_plan_threshold --default 2 2>/dev/null || echo "2")
+INLINE_THRESHOLD=$(gsd-sdk query config-get workflow.inline_plan_threshold 2>/dev/null || echo "2")
 grep -n "type=\"checkpoint" .planning/phases/XX-name/{phase}-{plan}-PLAN.md
 ```
 
@@ -399,7 +399,7 @@ Next: more plans → "Ready for {next-plan}" | last → "Phase complete, ready f
 handles STATE.md/ROADMAP.md updates centrally after merging worktrees to avoid
 merge conflicts).
 
-Update STATE.md using gsd-tools:
+Update STATE.md using gsd-sdk query (or legacy gsd-tools) state mutations:
 
 ```bash
 # Auto-detect parallel mode: .git is a file in worktrees, a directory in main repo
@@ -436,7 +436,7 @@ gsd-sdk query state.add-blocker --text-file "${BLOCKER_TEXT_FILE}"
 </step>
 
 <step name="update_session_continuity">
-Update session info using gsd-tools:
+Update session info using gsd-sdk query (or legacy gsd-tools):
 
 ```bash
 gsd-sdk query state.record-session \

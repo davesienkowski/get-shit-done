@@ -165,7 +165,7 @@ Report: "PR #{number} created: {url}"
 Before prompting the user, check if an external review command is configured:
 
 ```bash
-REVIEW_CMD=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get workflow.code_review_command --default "" 2>/dev/null)
+REVIEW_CMD=$(gsd-sdk query config-get workflow.code_review_command 2>/dev/null | jq -r '.' 2>/dev/null || echo "")
 ```
 
 If `REVIEW_CMD` is non-empty and not `"null"`, run the external review:
@@ -178,7 +178,7 @@ If `REVIEW_CMD` is non-empty and not `"null"`, run the external review:
 
 2. **Load phase context from STATE.md:**
    ```bash
-   STATE_STATUS=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" state load 2>/dev/null | head -20)
+   STATE_STATUS=$(gsd-sdk query state.load 2>/dev/null | head -20)
    ```
 
 3. **Build review prompt and pipe to command via stdin:**

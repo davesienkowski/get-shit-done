@@ -251,7 +251,7 @@ If "Run discuss-phase first":
 
 ```bash
 AI_SPEC_FILE=$(ls "${PHASE_DIR}"/*-AI-SPEC.md 2>/dev/null | head -1)
-AI_PHASE_CFG=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get workflow.ai_integration_phase 2>/dev/null || echo "true")
+AI_PHASE_CFG=$(gsd-sdk query config-get workflow.ai_integration_phase 2>/dev/null || echo "true")
 ```
 
 **Skip if `AI_PHASE_CFG` is `false`.**
@@ -624,7 +624,7 @@ Proceed to Step 7.8 (or Step 8 if pattern mapper is disabled) only if user selec
 
 Check config:
 ```bash
-PATTERN_MAPPER_CFG=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get workflow.pattern_mapper --default true 2>/dev/null)
+PATTERN_MAPPER_CFG=$(gsd-sdk query config-get workflow.pattern_mapper 2>/dev/null || echo "true")
 ```
 
 **If `PATTERN_MAPPER_CFG` is `false`:** Skip to step 8.
@@ -1022,8 +1022,8 @@ Skipping bounce step.
 
 **Read pass count:**
 ```bash
-BOUNCE_PASSES=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get workflow.plan_bounce_passes --default 2)
-BOUNCE_SCRIPT=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get workflow.plan_bounce_script)
+BOUNCE_PASSES=$(gsd-sdk query config-get workflow.plan_bounce_passes 2>/dev/null || echo "2")
+BOUNCE_SCRIPT=$(gsd-sdk query config-get workflow.plan_bounce_script 2>/dev/null | jq -r '.' 2>/dev/null || true)
 ```
 
 Display banner:
@@ -1068,7 +1068,7 @@ After the script returns, check that the bounced file still has valid YAML front
 
 6. **Commit surviving bounced plans:** If at least one plan survived both the frontmatter validation and the checker re-run, commit the changes:
 ```bash
-node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" commit "refactor(${padded_phase}): bounce plans through external refinement" --files "${PHASE_DIR}/*-PLAN.md"
+gsd-sdk query commit "refactor(${padded_phase}): bounce plans through external refinement" "${PHASE_DIR}/*-PLAN.md"
 ```
 
 Display summary:
