@@ -2,8 +2,9 @@
  * Query command registry — routes commands to native SDK handlers.
  *
  * The registry is a flat `Map<string, QueryHandler>` that maps command names
- * to handler functions. Unknown commands throw GSDError — the gsd-tools.cjs
- * fallback was removed in v3.0 when all commands were migrated to native handlers.
+ * to handler functions. Unknown keys passed to `dispatch()` throw `GSDError`.
+ * The `gsd-sdk query` CLI resolves argv with `resolveQueryArgv()` before dispatch;
+ * there is no automatic delegation to `gsd-tools.cjs`.
  *
  * Also exports `extractField` — a TypeScript port of the `--pick` field
  * extraction logic from gsd-tools.cjs (lines 365-382).
@@ -60,8 +61,8 @@ export function extractField(obj: unknown, fieldPath: string): unknown {
  * Flat command registry that routes query commands to native handlers.
  *
  * `dispatch()` throws `GSDError` for unknown command keys. The `gsd-sdk query`
- * CLI uses `matchRegisteredQuery()` then `runGsdToolsQuery()` so unregistered
- * argv still matches `node gsd-tools.cjs` (CLI parity).
+ * CLI uses `resolveQueryArgv()` to map argv to a registered handler; there is
+ * no passthrough to `gsd-tools.cjs` — CJS-only commands stay on the legacy CLI.
  */
 export class QueryRegistry {
   private handlers = new Map<string, QueryHandler>();
@@ -124,12 +125,7 @@ export class QueryRegistry {
   }
 }
 
-/**
- * If a single token uses dotted segments (e.g. `state.validate`, `init.new-project`),
- * split on `.` so it matches `gsd-tools` argv (`state validate`, `init new-project`).
- * Does not split flags (`--pick` is stripped before this runs).
- */
-export function expandDottedCommandToken(tokens: string[]): string[] {
+function expandSingleDottedToken(tokens: string[]): string[] {
   if (tokens.length !== 1 || tokens[0].startsWith('--')) {
     return tokens;
   }
@@ -140,11 +136,7 @@ export function expandDottedCommandToken(tokens: string[]): string[] {
   return t.split('.');
 }
 
-/**
- * Longest-prefix match: prefer `a.b.c` then `a b c` over registered command names.
- * Tries `tokens.length` down to `1` segments.
- */
-export function matchRegisteredQuery(
+function matchRegisteredPrefix(
   tokens: string[],
   registry: QueryRegistry,
 ): { cmd: string; args: string[] } | null {
@@ -160,4 +152,23 @@ export function matchRegisteredQuery(
     }
   }
   return null;
+}
+
+/**
+ * Map argv after `gsd-sdk query` to a registered handler key and remaining args.
+ * Longest-prefix match on dotted (`a.b.c`) and spaced (`a b c`) keys; if no match,
+ * expands a single dotted token (`state.validate` → `state`, `validate`) and retries.
+ */
+export function resolveQueryArgv(
+  tokens: string[],
+  registry: QueryRegistry,
+): { cmd: string; args: string[] } | null {
+  let matched = matchRegisteredPrefix(tokens, registry);
+  if (!matched) {
+    const expanded = expandSingleDottedToken(tokens);
+    if (expanded !== tokens) {
+      matched = matchRegisteredPrefix(expanded, registry);
+    }
+  }
+  return matched;
 }

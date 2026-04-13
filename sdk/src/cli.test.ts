@@ -117,7 +117,7 @@ describe('parseCliArgs', () => {
     expect(result.queryArgv).toEqual(['state.load', '--pick', 'data']);
   });
 
-  it('parses query with unknown flags for gsd-tools passthrough', () => {
+  it('parses query with extra flags forwarded in queryArgv', () => {
     const result = parseCliArgs([
       'query', 'audit-open', '--json', '--project-dir', 'D:\\proj',
     ]);

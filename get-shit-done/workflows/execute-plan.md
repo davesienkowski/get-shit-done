@@ -255,59 +255,9 @@ If a commit is BLOCKED by a hook:
 <task_commit>
 ## Task Commit Protocol
 
-After each task (verification passed, done criteria met), commit immediately.
+Canonical per-task commit rules live in **`agents/gsd-executor.md`** (`<task_commit_protocol>`). Follow that section for staging, `{type}({phase}-{plan})` messages, `commit-to-subrepo` when `sub_repos` is set, post-commit checks, and untracked-file handling — do not duplicate or paraphrase the full protocol here (single source of truth).
 
-**1. Check:** `git status --short`
-
-**2. Stage individually** (NEVER `git add .` or `git add -A`):
-```bash
-git add src/api/auth.ts
-git add src/types/user.ts
-```
-
-**3. Commit type:**
-
-| Type | When | Example |
-|------|------|---------|
-| `feat` | New functionality | feat(08-02): create user registration endpoint |
-| `fix` | Bug fix | fix(08-02): correct email validation regex |
-| `test` | Test-only (TDD RED) | test(08-02): add failing test for password hashing |
-| `refactor` | No behavior change (TDD REFACTOR) | refactor(08-02): extract validation to helper |
-| `perf` | Performance | perf(08-02): add database index |
-| `docs` | Documentation | docs(08-02): add API docs |
-| `style` | Formatting | style(08-02): format auth module |
-| `chore` | Config/deps | chore(08-02): add bcrypt dependency |
-
-**4. Format:** `{type}({phase}-{plan}): {description}` with bullet points for key changes.
-
-<sub_repos_commit_flow>
-**Sub-repos mode:** If `sub_repos` is configured (non-empty array from init context), use `commit-to-subrepo` instead of standard git commit. This routes files to their correct sub-repo based on path prefix.
-
-```bash
-gsd-sdk query commit-to-subrepo "{type}({phase}-{plan}): {description}" --files file1 file2 ...
-```
-
-The command groups files by sub-repo prefix and commits atomically to each. Returns JSON: `{ committed: true, repos: { "backend": { hash: "abc", files: [...] }, ... } }`.
-
-Record hashes from each repo in the response for SUMMARY tracking.
-
-**If `sub_repos` is empty or not set:** Use standard git commit flow below.
-</sub_repos_commit_flow>
-
-**5. Record hash:**
-```bash
-TASK_COMMIT=$(git rev-parse --short HEAD)
-TASK_COMMITS+=("Task ${TASK_NUM}: ${TASK_COMMIT}")
-```
-
-**6. Check for untracked generated files:**
-```bash
-git status --short | grep '^??'
-```
-If new untracked files appeared after running scripts or tools, decide for each:
-- **Commit it** — if it's a source file, config, or intentional artifact
-- **Add to .gitignore** — if it's a generated/runtime output (build artifacts, `.env` files, cache files, compiled output)
-- Do NOT leave generated files untracked
+**Orchestrator note:** After each task, the spawned executor reports commit hashes; this workflow does not re-specify commit semantics beyond pointing at the executor.
 
 </task_commit>
 

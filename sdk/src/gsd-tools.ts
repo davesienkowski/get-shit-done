@@ -12,7 +12,6 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import type { InitNewProjectInfo, PhaseOpInfo, PhasePlanIndex, RoadmapAnalysis } from './types.js';
-import type { QueryResult } from './query/utils.js';
 
 // ─── Error type ──────────────────────────────────────────────────────────────
 
@@ -152,7 +151,12 @@ export class GSDTools {
     let jsonStr = trimmed;
     if (jsonStr.startsWith('@file:')) {
       const filePath = jsonStr.slice(6).trim();
-      jsonStr = await readFile(filePath, 'utf-8');
+      try {
+        jsonStr = await readFile(filePath, 'utf-8');
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : String(err);
+        throw new Error(`Failed to read gsd-tools @file: indirection at "${filePath}": ${reason}`);
+      }
     }
 
     return JSON.parse(jsonStr);
@@ -296,19 +300,10 @@ export class GSDTools {
 
 /**
  * Resolve gsd-tools.cjs path.
- * Probe order: `GSD_TOOLS_PATH` (if set and exists) → SDK-bundled repo copy →
- * `project/.claude/get-shit-done/` → `~/.claude/get-shit-done/`.
- * Bundled is preferred over project-local so `gsd-sdk query` matches the checkout’s CLI.
+ * Probe order: SDK-bundled repo copy → `project/.claude/get-shit-done/` →
+ * `~/.claude/get-shit-done/`.
  */
 export function resolveGsdToolsPath(projectDir: string): string {
-  const envPath = process.env.GSD_TOOLS_PATH?.trim();
-  if (envPath && existsSync(envPath)) {
-    return envPath;
-  }
-
-  // Prefer the SDK-bundled repo copy (current checkout) over a possibly stale
-  // `project/.claude/get-shit-done/` install so `gsd-sdk query` passthrough matches
-  // the same `gsd-tools.cjs` revision as this package.
   const candidates = [
     BUNDLED_GSD_TOOLS_PATH,
     join(projectDir, '.claude', 'get-shit-done', 'bin', 'gsd-tools.cjs'),
@@ -316,90 +311,4 @@ export function resolveGsdToolsPath(projectDir: string): string {
   ];
 
   return candidates.find(candidate => existsSync(candidate)) ?? candidates[candidates.length - 1]!;
-}
-
-// ─── Query CLI passthrough (100% parity with gsd-tools argv) ────────────────
-
-/**
- * Parse stdout from gsd-tools — JSON, optional `@file:` indirection (see GSDTools.parseOutput).
- */
-async function parseGsdToolsStdout(raw: string): Promise<unknown> {
-  const trimmed = raw.trim();
-  if (trimmed === '') {
-    return null;
-  }
-  let jsonStr = trimmed;
-  if (jsonStr.startsWith('@file:')) {
-    const filePath = jsonStr.slice(6).trim();
-    jsonStr = await readFile(filePath, 'utf-8');
-  }
-  return JSON.parse(jsonStr);
-}
-
-/**
- * Run `gsd-tools.cjs` with the same argv shape as the standalone CLI (`node gsd-tools.cjs <command> …`).
- * Used when `gsd-sdk query` has no registered native handler (longest-prefix match).
- * Attempts JSON parse; on failure returns `{ text: stdout }` for text/format outputs.
- */
-export async function runGsdToolsQuery(
-  tokens: string[],
-  opts: { projectDir: string; workstream?: string; timeoutMs?: number },
-): Promise<QueryResult> {
-  if (tokens.length === 0) {
-    throw new GSDToolsError('No command tokens for gsd-tools passthrough', '', [], null, '');
-  }
-
-  const gsdToolsPath = resolveGsdToolsPath(opts.projectDir);
-  const wsArgs = opts.workstream ? ['--ws', opts.workstream] : [];
-  const fullArgs = [gsdToolsPath, ...tokens, ...wsArgs];
-  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-
-  return new Promise<QueryResult>((resolve, reject) => {
-    execFile(
-      process.execPath,
-      fullArgs,
-      {
-        cwd: opts.projectDir,
-        maxBuffer: 10 * 1024 * 1024,
-        timeout: timeoutMs,
-        env: { ...process.env },
-      },
-      async (error, stdout, stderr) => {
-        const stderrStr = stderr?.toString() ?? '';
-        const outStr = stdout?.toString() ?? '';
-
-        if (error) {
-          if (error.killed || (error as NodeJS.ErrnoException).code === 'ETIMEDOUT') {
-            reject(
-              new GSDToolsError(
-                `gsd-tools timed out after ${timeoutMs}ms: ${tokens.join(' ')}`,
-                tokens[0] ?? '',
-                tokens.slice(1),
-                null,
-                stderrStr,
-              ),
-            );
-            return;
-          }
-          reject(
-            new GSDToolsError(
-              `gsd-tools exited with code ${error.code ?? 'unknown'}: ${tokens.join(' ')}${stderrStr ? `\n${stderrStr}` : ''}`,
-              tokens[0] ?? '',
-              tokens.slice(1),
-              typeof error.code === 'number' ? error.code : (error as { status?: number }).status ?? 1,
-              stderrStr,
-            ),
-          );
-          return;
-        }
-
-        try {
-          const data = await parseGsdToolsStdout(outStr);
-          resolve({ data });
-        } catch {
-          resolve({ data: { text: outStr } });
-        }
-      },
-    );
-  });
 }

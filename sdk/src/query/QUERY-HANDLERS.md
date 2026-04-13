@@ -2,12 +2,12 @@
 
 This document records contracts for the typed query layer consumed by `gsd-sdk query` and programmatic `createRegistry()` callers.
 
-## `gsd-sdk query` routing (CLI parity)
+## `gsd-sdk query` routing
 
-- **Longest-prefix match** on argv (`matchRegisteredQuery` in `registry.ts`): tries joined keys `a.b.c` then `a b c` for each prefix length, longest first. Example: `state update status X` → handler `state.update` with args `[status, X]`.
-- **Dotted single token**: one token like `state.validate` is expanded to `state` + `validate` and matching runs again (see `expandDottedCommandToken`).
-- **Passthrough**: if no registered handler matches, `runGsdToolsQuery()` in `gsd-tools.ts` runs `node gsd-tools.cjs …` with the same argv (plus optional `--ws`), so commands such as `audit-open`, `graphify`, `from-gsd2`, `state validate`, and `intel update` work without a separate TypeScript port. Override path with `GSD_TOOLS_PATH` (see `resolveGsdToolsPath`).
-- **Output**: JSON when gsd-tools prints JSON; otherwise `{ text: stdout }` for plain-text commands.
+- **Longest-prefix match** on argv (`resolveQueryArgv` in `registry.ts`): tries joined keys `a.b.c` then `a b c` for each prefix length, longest first. Example: `state update status X` → handler `state.update` with args `[status, X]`.
+- **Dotted single token**: one token like `init.new-project` matches the registry; if the first pass finds no handler, a single dotted token is split and matching runs again (same helper as above).
+- **No CJS passthrough**: if nothing matches a registered handler, the CLI exits with an error. Operations not ported to the query registry (e.g. `audit-open`, `graphify`, `from-gsd2`, `state validate`) must use `node …/gsd-tools.cjs` directly — see `docs/CLI-TOOLS.md`.
+- **Output**: JSON written to stdout for successful handler results.
 
 ## Error handling
 

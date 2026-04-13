@@ -36,13 +36,13 @@ export interface ParsedCliArgs {
   version: boolean;
   /**
    * When `command === 'query'`, tokens after `query` with only known SDK flags removed.
-   * Preserves gsd-tools flags (`--json`, `--verify`, etc.) for passthrough parity.
+   * Extra flags are kept so handlers that share gsd-tools-style argv (e.g. `--pick`) still receive them.
    */
   queryArgv?: string[];
 }
 
 /**
- * Parse `gsd-sdk query …` without rejecting unknown flags (gsd-tools accepts many: `--json`, `--verify`, …).
+ * Parse `gsd-sdk query …` without rejecting unknown flags (query argv is forwarded to the registry).
  */
 function parseCliArgsQueryPermissive(argv: string[]): ParsedCliArgs {
   let projectDir = process.cwd();
@@ -172,8 +172,8 @@ Commands:
                           @path/to/prd.md   Read input from a file
                           "description"     Use text directly
                           (empty)           Read from stdin
-  query <argv...>       Native handlers (longest-prefix) or gsd-tools passthrough — same argv as node gsd-tools.cjs
-                        Use --pick <field> to extract a specific field
+  query <argv...>       Registered query handlers only (longest-prefix argv match; see QUERY-HANDLERS.md)
+                        Use --pick <field> to extract a specific field from JSON output
 
 Options:
   --init <input>        Bootstrap from a PRD before running (auto only)
@@ -292,13 +292,9 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   // ─── Query command ──────────────────────────────────────────────────────
   if (args.command === 'query') {
     const { createRegistry } = await import('./query/index.js');
-    const {
-      extractField,
-      matchRegisteredQuery,
-      expandDottedCommandToken,
-    } = await import('./query/registry.js');
-    const { runGsdToolsQuery, GSDToolsError } = await import('./gsd-tools.js');
-    const { GSDError, exitCodeFor } = await import('./errors.js');
+    const { extractField, resolveQueryArgv } = await import('./query/registry.js');
+    const { GSDToolsError } = await import('./gsd-tools.js');
+    const { GSDError, exitCodeFor, ErrorClassification } = await import('./errors.js');
 
     const queryArgs = args.queryArgv ?? [];
 
@@ -323,25 +319,16 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
 
     try {
       const registry = createRegistry();
-      let tokens = [...queryArgs];
-      let matched = matchRegisteredQuery(tokens, registry);
+      const tokens = [...queryArgs];
+      const matched = resolveQueryArgv(tokens, registry);
       if (!matched) {
-        const expanded = expandDottedCommandToken(tokens);
-        if (expanded !== tokens) {
-          matched = matchRegisteredQuery(expanded, registry);
-          tokens = expanded;
-        }
+        throw new GSDError(
+          `Unknown command: "${tokens.join(' ')}". Use a registered \`gsd-sdk query\` subcommand (see sdk/src/query/QUERY-HANDLERS.md) or invoke \`node …/gsd-tools.cjs\` for CJS-only operations.`,
+          ErrorClassification.Validation,
+        );
       }
 
-      let result;
-      if (matched) {
-        result = await registry.dispatch(matched.cmd, matched.args, args.projectDir);
-      } else {
-        result = await runGsdToolsQuery(tokens, {
-          projectDir: args.projectDir,
-          workstream: args.ws,
-        });
-      }
+      const result = await registry.dispatch(matched.cmd, matched.args, args.projectDir);
 
       let output: unknown = result.data;
 
