@@ -195,7 +195,7 @@ gsd-sdk query phases.clear --confirm
 ```
 
 ```bash
-gsd-sdk query commit "docs: start milestone v[X.Y] [Name]" --files .planning/PROJECT.md .planning/STATE.md
+gsd-sdk query commit "docs: start milestone v[X.Y] [Name]" .planning/PROJECT.md .planning/STATE.md
 ```
 
 ## 7. Load Context and Resolve Models
@@ -409,7 +409,7 @@ If "adjust": Return to scoping.
 
 **Commit requirements:**
 ```bash
-gsd-sdk query commit "docs: define milestone v[X.Y] requirements" --files .planning/REQUIREMENTS.md
+gsd-sdk query commit "docs: define milestone v[X.Y] requirements" .planning/REQUIREMENTS.md
 ```
 
 ## 10. Create Roadmap
@@ -493,7 +493,7 @@ Success criteria:
 
 **Commit roadmap** (after approval):
 ```bash
-gsd-sdk query commit "docs: create milestone v[X.Y] roadmap ([N] phases)" --files .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md
+gsd-sdk query commit "docs: create milestone v[X.Y] roadmap ([N] phases)" .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md
 ```
 
 ## 11. Done

@@ -191,7 +191,7 @@ updated: {today ISO date}
 
 5. Commit:
    ```bash
-   gsd-sdk query commit "docs: create thread — ${ARGUMENTS}" --files ".planning/threads/${SLUG}.md"
+   gsd-sdk query commit "docs: create thread — ${ARGUMENTS}" ".planning/threads/${SLUG}.md"
    ```
 
 6. Report:
