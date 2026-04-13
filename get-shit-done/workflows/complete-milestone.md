@@ -38,7 +38,9 @@ When a milestone completes:
 <process>
 
 <step name="pre_close_artifact_audit">
-Before proceeding with milestone close, run the comprehensive open artifact audit:
+Before proceeding with milestone close, run the comprehensive open artifact audit.
+
+`audit-open` is not registered on `gsd-sdk query` yet; use the installed CJS CLI:
 
 ```bash
 node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" audit-open 2>/dev/null
@@ -76,7 +78,7 @@ If user chooses [A] (Acknowledge):
 
 If output shows all clear (no open items): print `All artifact types clear.` and proceed.
 
-SECURITY: Audit JSON output is structured data from gsd-tools.cjs — validated and sanitized at source. When writing to STATE.md, item slugs and descriptions are sanitized via `sanitizeForDisplay()` before inclusion. Never inject raw user-supplied content into STATE.md without sanitization.
+SECURITY: Audit JSON output is structured data from `audit-open` (gsd-tools.cjs) — validated and sanitized at source. When writing to STATE.md, item slugs and descriptions are sanitized via `sanitizeForDisplay()` before inclusion. Never inject raw user-supplied content into STATE.md without sanitization.
 </step>
 
 <step name="verify_readiness">
@@ -218,7 +220,7 @@ Key accomplishments for this milestone:
 
 <step name="create_milestone_entry">
 
-**Note:** MILESTONES.md entry is now created automatically by `gsd-tools milestone complete` in the archive_milestone step. The entry includes version, date, phase/plan/task counts, and accomplishments extracted from SUMMARY.md files.
+**Note:** MILESTONES.md entry is now created automatically by `gsd-sdk query milestone.complete` in the archive_milestone step. The entry includes version, date, phase/plan/task counts, and accomplishments extracted from SUMMARY.md files.
 
 If additional details are needed (e.g., user-provided "Delivered" summary, git range, LOC stats), add them manually after the CLI creates the base entry.
 
@@ -409,7 +411,7 @@ Update `.planning/ROADMAP.md` — group completed milestone phases:
 
 <step name="archive_milestone">
 
-**Delegate archival to gsd-tools:**
+**Delegate archival to `gsd-sdk query milestone.complete`:**
 
 ```bash
 ARCHIVE=$(gsd-sdk query milestone.complete "v[X.Y]" --name "[Milestone Name]")

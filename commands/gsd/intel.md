@@ -137,15 +137,15 @@ Task(
   prompt="You are the gsd-intel-updater agent. Your job is to analyze this codebase and write/update intelligence files in .planning/intel/.
 
 Project root: ${CWD}
-gsd-tools path: $HOME/.claude/get-shit-done/bin/gsd-tools.cjs
+Prefer: gsd-sdk query <subcommand> (installed gsd-sdk on PATH). Legacy: node $HOME/.claude/get-shit-done/bin/gsd-tools.cjs
 
 Instructions:
 1. Analyze the codebase structure, dependencies, APIs, and architecture
 2. Write JSON intel files to .planning/intel/ (stack.json, api-map.json, dependency-graph.json, file-roles.json, arch-decisions.json)
 3. Each file must have a _meta object with updated_at timestamp
-4. Use gsd-tools intel extract-exports <file> to analyze source files
-5. Use gsd-tools intel patch-meta <file> to update timestamps after writing
-6. Use gsd-tools intel validate to check your output
+4. Use `gsd-sdk query intel.extract-exports <file>` to analyze source files
+5. Use `gsd-sdk query intel.patch-meta <file>` to update timestamps after writing
+6. Use `gsd-sdk query intel.validate` to check your output
 
 When complete, output: ## INTEL UPDATE COMPLETE
 If something fails, output: ## INTEL UPDATE FAILED with details."

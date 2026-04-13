@@ -58,12 +58,12 @@ if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 
 Extract `commit_docs` from init JSON. Resolve debugger model:
 ```bash
-debugger_model=$(gsd-sdk query resolve-model gsd-debugger --raw)
+debugger_model=$(gsd-sdk query resolve-model gsd-debugger 2>/dev/null | jq -r '.model' 2>/dev/null || true)
 ```
 
 Read TDD mode from config:
 ```bash
-TDD_MODE=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" config-get tdd_mode 2>/dev/null || echo "false")
+TDD_MODE=$(gsd-sdk query config-get tdd_mode 2>/dev/null | jq -r 'if type == "boolean" then tostring else . end' 2>/dev/null || echo "false")
 ```
 
 ## 1a. LIST subcommand

@@ -798,14 +798,20 @@ Each workspace gets:
 
 ## Troubleshooting
 
+### Programmatic CLI (`gsd-sdk query` vs `gsd-tools.cjs`)
+
+For automation and copy-paste from docs, prefer **`gsd-sdk query`** with a registered subcommand (see [CLI-TOOLS.md](CLI-TOOLS.md) and [QUERY-HANDLERS.md](../sdk/src/query/QUERY-HANDLERS.md)). The legacy **`node $HOME/.claude/get-shit-done/bin/gsd-tools.cjs`** CLI remains supported for dual-mode operation.
+
+**Not yet on `gsd-sdk query` (use CJS):** `state validate`, `state sync`, `audit-open`, `graphify`, `from-gsd2`, and any subcommand not listed in the registry.
+
 ### STATE.md Out of Sync
 
-If STATE.md shows incorrect phase status or position, use the state consistency commands:
+If STATE.md shows incorrect phase status or position, use the state consistency commands (**CJS-only** until ported to the query layer):
 
 ```bash
-node gsd-tools.cjs state validate          # Detect drift between STATE.md and filesystem
-node gsd-tools.cjs state sync --verify     # Preview what sync would change
-node gsd-tools.cjs state sync              # Reconstruct STATE.md from disk
+node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" state validate          # Detect drift between STATE.md and filesystem
+node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" state sync --verify     # Preview what sync would change
+node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" state sync              # Reconstruct STATE.md from disk
 ```
 
 These commands are new in v1.32 and replace manual STATE.md editing.

@@ -30,7 +30,7 @@ Parse JSON for: `milestone_version`, `milestone_name`, `phase_count`, `completed
 - `manager_flags.plan` — appended to plan agent init command
 - `manager_flags.execute` — appended to execute agent init command
 
-These are empty strings by default. Set via: `gsd-tools config-set manager.flags.discuss "--auto --analyze"`
+These are empty strings by default. Set via: `gsd-sdk query config-set manager.flags.discuss "--auto --analyze"`
 
 **If error:** Display the error message and exit.
 

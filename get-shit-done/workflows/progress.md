@@ -42,7 +42,7 @@ If missing both ROADMAP.md and PROJECT.md: suggest `/gsd-new-project`.
 </step>
 
 <step name="load">
-**Use structured extraction from gsd-tools:**
+**Use structured extraction from `gsd-sdk query` (or legacy gsd-tools.cjs):**
 
 Instead of reading full files, use targeted tools to get only the data needed for the report:
 - `ROADMAP=$(gsd-sdk query roadmap.analyze)`
@@ -89,7 +89,7 @@ Use this instead of manually reading/parsing ROADMAP.md.
   </step>
 
 <step name="report">
-**Generate progress bar from gsd-tools, then present rich status report:**
+**Generate progress bar from `gsd-sdk query progress` / `progress.json`, then present rich status report:**
 
 ```bash
 # Get formatted progress bar
