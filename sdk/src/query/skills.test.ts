@@ -40,6 +40,8 @@ describe('agentSkills', () => {
     await writeSkill(join(homeDir, '.codex', 'skills'), 'global-codex');
     await writeSkill(join(homeDir, '.claude', 'get-shit-done', 'skills'), 'legacy-import');
     vi.stubEnv('HOME', homeDir);
+    // Windows `os.homedir()` reads USERPROFILE, not HOME
+    vi.stubEnv('USERPROFILE', homeDir);
   });
 
   afterEach(async () => {
