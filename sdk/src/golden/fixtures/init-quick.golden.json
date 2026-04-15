@@ -1,0 +1,20 @@
+{
+  "planner_model": "opus",
+  "executor_model": "opus",
+  "checker_model": "sonnet",
+  "verifier_model": "sonnet",
+  "commit_docs": false,
+  "branch_name": null,
+  "quick_id": "260408-f54",
+  "slug": "test-task",
+  "description": "test-task",
+  "date": "2026-04-08",
+  "timestamp": "2026-04-08T14:54:08.322Z",
+  "quick_dir": ".planning/quick",
+  "task_dir": ".planning/quick/260408-f54-test-task",
+  "roadmap_exists": true,
+  "planning_exists": true,
+  "project_root": "D:\\Repos\\get-shit-done",
+  "agents_installed": true,
+  "missing_agents": []
+}

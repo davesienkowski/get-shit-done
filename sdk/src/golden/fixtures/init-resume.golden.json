@@ -1,0 +1,15 @@
+{
+  "state_exists": true,
+  "roadmap_exists": true,
+  "project_exists": true,
+  "planning_exists": true,
+  "state_path": ".planning/STATE.md",
+  "roadmap_path": ".planning/ROADMAP.md",
+  "project_path": ".planning/PROJECT.md",
+  "has_interrupted_agent": false,
+  "interrupted_agent_id": null,
+  "commit_docs": false,
+  "project_root": "D:\\Repos\\get-shit-done",
+  "agents_installed": true,
+  "missing_agents": []
+}

@@ -1,0 +1,13 @@
+{
+  "planner_model": "opus",
+  "checker_model": "sonnet",
+  "commit_docs": false,
+  "phase_found": true,
+  "phase_dir": ".planning/phases/09-foundation-and-test-infrastructure",
+  "phase_number": "09",
+  "phase_name": "foundation-and-test-infrastructure",
+  "has_verification": true,
+  "project_root": "D:\\Repos\\get-shit-done",
+  "agents_installed": true,
+  "missing_agents": []
+}

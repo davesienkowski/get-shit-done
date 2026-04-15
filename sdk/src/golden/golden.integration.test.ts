@@ -29,6 +29,7 @@ function omitAgentInstallFields(data: Record<string, unknown>): Record<string, u
   return rest;
 }
 
+
 describe('Golden file tests', () => {
   describe('generate-slug', () => {
     it('SDK output matches gsd-tools.cjs output', async () => {
