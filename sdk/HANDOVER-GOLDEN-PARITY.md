@@ -2,7 +2,7 @@
 
 Use this document at the start of a new session so work continues in context without re-deriving history.
 
-**Related:** `HANDOVER-PARITY-DOCS.md` (#2291 scope); **`sdk/src/query/QUERY-HANDLERS.md`** (golden matrix, CJS↔SDK routing).
+**Related:** `HANDOVER-PARITY-DOCS.md` (#2302 scope); **`sdk/src/query/QUERY-HANDLERS.md`** (golden matrix, CJS↔SDK routing).
 
 ---
 
@@ -10,7 +10,15 @@ Use this document at the start of a new session so work continues in context wit
 
 **Port or normalize the next batch of read-only query handlers** (see **§ Next batch — summary / audit / skill / validate / UAT / intel / profile / init**) so JSON matches `get-shit-done/bin/gsd-tools.cjs`, then add **strict subprocess golden rows** or **documented normalization blocks** in `read-only-parity.integration.test.ts`, updating `read-only-golden-rows.ts` / `readOnlyGoldenCanonicals()` and keeping **`golden-policy.ts`** complete.
 
-**Latest (this session):** `extract-messages` / `extract.messages` — `profile-extract-messages.ts` ports `cmdExtractMessages` (`streamExtractMessages`, `isGenuineUserMessage`, temp JSONL, project resolution from `profile-pipeline.cjs`); `profile.ts` uses `--session` (alias `--session-id`) and `--path` like `gsd-tools.cjs`. Golden: `read-only-parity.integration.test.ts` strips `output_file`, compares JSONL bytes; fixture `sdk/src/golden/fixtures/extract-messages-sessions/`. `readOnlyGoldenCanonicals()` includes `extract.messages`. See `QUERY-HANDLERS.md`.
+**Follow-up:** confirm **`GOLDEN_PARITY_EXCEPTIONS`** for any remaining read-only registry gaps (`learnings.query`, `progress.bar`, `profile-questionnaire` — still exception-only until strict rows); extend **`read-only-golden-rows.ts`** when aligned.
+
+**Latest (this session):** **`verify.references`** — strict `READ_ONLY_JSON_PARITY_ROWS` row; fixture `sdk/src/golden/fixtures/verify-references-sample.md` (stable `valid` / `found` / `missing` / `total`). See `QUERY-HANDLERS.md`.
+
+**Prior:** **`init.*` composition goldens** — `golden.integration.test.ts` subprocess checks for `init.new-milestone`, `init.phase-op`, `init.todos`, `init.milestone-op`, `init.map-codebase`, `init.new-project`, `init.progress`, `init.manager`, `init.new-workspace` (normalization: omit agents, todos timestamps, sorted arrays, workspace repo paths); `GOLDEN_INTEGRATION_MAIN_FILE_CANONICALS` updated. SDK: `withProjectRoot` aligned with `init.cjs` (`project_title` from PROJECT.md H1, `project_code`); `workflow.subagent_timeout` default **300000** in `config.ts`; `initMapCodebase` / `init-complex` pass config into `withProjectRoot`. See `QUERY-HANDLERS.md` **Normalized** table.
+
+**Prior:** `profile-sample` — `profile-sample.ts` ports `cmdProfileSample` (shared `streamExtractMessages` / `isGenuineUserMessage` / `truncateContent` from `profile-extract-messages.ts`); `profile.ts` parses `--path`, `--limit`, `--max-per-project`, `--max-chars` like `gsd-tools.cjs`. Golden: strip `output_file`, compare `profile-sample.jsonl` bytes; fixture `sdk/src/golden/fixtures/profile-sample-sessions/`. `readOnlyGoldenCanonicals()` includes `profile-sample`. See `QUERY-HANDLERS.md`.
+
+**Prior:** `extract-messages` / `extract.messages` — `profile-extract-messages.ts` ports `cmdExtractMessages` (`streamExtractMessages`, `isGenuineUserMessage`, temp JSONL, project resolution from `profile-pipeline.cjs`); `profile.ts` uses `--session` (alias `--session-id`) and `--path` like `gsd-tools.cjs`. Golden: `read-only-parity.integration.test.ts` strips `output_file`, compares JSONL bytes; fixture `sdk/src/golden/fixtures/extract-messages-sessions/`. `readOnlyGoldenCanonicals()` includes `extract.messages`. See `QUERY-HANDLERS.md`.
 
 **Prior:** `uat.render-checkpoint` — `uat.ts` aligned with `uat.cjs` (`resolvePathUnderProject`, `sanitizeForDisplay` / `helpers.ts`, `buildUatCheckpoint` same strings as CJS); strict `READ_ONLY_JSON_PARITY_ROWS` row + fixture `sdk/src/golden/fixtures/uat-render-checkpoint-sample.md`. `sanitizeForDisplay` / `sanitizeForPrompt` moved to `helpers.ts` for shared use with `audit-open.ts`.
 
@@ -107,10 +115,10 @@ Aligned SDK handlers with **`gsd-tools.cjs`** and expanded subprocess coverage (
 | ~~7~~ | ~~`uat render-checkpoint --file <path>`~~ | `uat` subcommand | `uat.cjs` `cmdRenderCheckpoint` | `uat.ts` `uatRenderCheckpoint` | **Done:** strict row; fixture `sdk/src/golden/fixtures/uat-render-checkpoint-sample.md`; see `QUERY-HANDLERS.md`. |
 | ~~8~~ | ~~`intel extract-exports <file>`~~ | `intel` `extract-exports` | `intel.cjs` `intelExtractExports` (~L502) | `intel.ts` `intelExtractExports` | **Done:** strict row + handler parity with `intel.cjs` (fixed file e.g. `sdk/src/query/utils.ts`). |
 | ~~9~~ | ~~`extract-messages`~~ | `extract-messages` + project/session flags | `profile-pipeline.cjs` | `profile.ts` `extractMessages` | **Done:** `profile-extract-messages.ts` + golden `output_file` strip + JSONL compare; fixture `extract-messages-sessions/`. |
-| 10 | `profile-sample` | `profile-sample` | `profile-pipeline.cjs` | `profile.ts` `profileSample` | Same class as extract-messages. |
-| 11 | **`init.*` read-only JSON** | various | `init.cjs` / `init-complex` | `init.ts`, `init-complex.ts` | Extend **`golden.integration.test.ts`** patterns: stable fields only, omit timestamps/agent lists if needed—**do not remove coverage**. |
+| ~~10~~ | ~~`profile-sample`~~ | `profile-sample` | `profile-pipeline.cjs` | `profile.ts` `profileSample` | **Done:** `profile-sample.ts` + golden `output_file` strip + JSONL compare; fixture `profile-sample-sessions/`. |
+| ~~11~~ | ~~**`init.*` read-only JSON**~~ | various | `init.cjs` / `init-complex` | `init.ts`, `init-complex.ts` | **Done:** `golden.integration.test.ts` + nine init composition tests; `withProjectRoot` / `subagent_timeout` / `GOLDEN_INTEGRATION_MAIN_FILE_CANONICALS`; see `QUERY-HANDLERS.md`. |
 
-**Suggested order:** Next: (10) profile-sample, (11) init last (widest surface). Summary/history, audits, skill-manifest, `validate.agents`, `uat.render-checkpoint`, `intel extract-exports`, **`state.get`**, and **`extract-messages`** subprocess golden are done (see `read-only-parity.integration.test.ts` / `QUERY-HANDLERS.md`).
+**Suggested order:** This batch is complete — follow-ups via **`GOLDEN_PARITY_EXCEPTIONS`** / new strict rows as needed (`learnings.query`, `progress.bar`, `profile-questionnaire`, etc.).
 
 **Mutations** (`QUERY_MUTATION_COMMANDS`): subprocess golden remains optional; policy uses `MUTATION_DEFERRED_REASON`.
 

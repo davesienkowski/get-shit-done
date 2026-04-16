@@ -4,7 +4,7 @@ Paste this document (or `@sdk/HANDOVER-QUERY-LAYER.md`) at the start of a new se
 
 ## Parent tracking
 
-- **Issue:** [gsd-build/get-shit-done#2291](https://github.com/gsd-build/get-shit-done/issues/2291) — Phase 3 SDK query parity, registry, docs (umbrella #2007).
+- **Issue:** [gsd-build/get-shit-done#2302](https://github.com/gsd-build/get-shit-done/issues/2302) — Phase 3 SDK query parity, registry, docs (umbrella #2007).
 - **Workspace:** `D:\Repos\get-shit-done` (PBR backport). **Upstream:** `gsd-build/get-shit-done`. Confirm branch with `git branch` (typical: `feat/sdk-phase3-query-layer`).
 
 ### Scope anchors (do not confuse issues)
@@ -12,7 +12,7 @@ Paste this document (or `@sdk/HANDOVER-QUERY-LAYER.md`) at the start of a new se
 | Role | GitHub | Notes |
 |------|--------|--------|
 | **Product / requirements anchor** | [#2007](https://github.com/gsd-build/get-shit-done/issues/2007) | Problem statement, user stories, and target architecture for the SDK-first migration. **Do not** treat its original acceptance-checklist boxes as proof of what is merged upstream; work was split into phased PRs after maintainer review. |
-| **Phase 3 execution scope** | [#2291](https://github.com/gsd-build/get-shit-done/issues/2291) **+ this handover** | What this branch is actually doing now: registry/CLI parity, docs, harness gaps, runner alignment follow-ups as listed below. |
+| **Phase 3 execution scope** | [#2302](https://github.com/gsd-build/get-shit-done/issues/2302) **+ this handover** | What this branch is actually doing now: registry/CLI parity, docs, harness gaps, runner alignment follow-ups as listed below. |
 | **Patch mine (if local tree is short)** | [PR #2008](https://github.com/gsd-build/get-shit-done/pull/2008) and matching branches | Large pre-phasing PR; cherry-pick or compare when something looks missing vs that line of work. |
 
 ---
@@ -53,7 +53,7 @@ Paste this document (or `@sdk/HANDOVER-QUERY-LAYER.md`) at the start of a new se
 
 **CLI:** `gsd-sdk query …` — apply **`normalizeQueryCommand`** semantics (or pass dotted names explicitly).
 
-**Still not unified:** `GSDTools` (`sdk/src/gsd-tools.ts`) shells out to `gsd-tools.cjs` for plan/session flows; migrating callers to the registry is separate #2291 / runner work.
+**Still not unified:** `GSDTools` (`sdk/src/gsd-tools.ts`) shells out to `gsd-tools.cjs` for plan/session flows; migrating callers to the registry is separate #2302 / runner work.
 
 ---
 
@@ -76,7 +76,7 @@ Related handovers: **`HANDOVER-GOLDEN-PARITY.md`**, **`HANDOVER-PARITY-DOCS.md`*
 
 1. **Golden test for `phase.add-batch`** — Optional cross-check vs `captureGsdToolsOutput('phase', ['add-batch', …])` in a temp project (or document as test gap if too heavy).
 2. **Re-export `normalizeQueryCommand`** from `sdk/src/query/index.ts` (or package root) if external integrators need the same argv rules as `gsd-sdk query`.
-3. **Issue #2291 follow-ups** — Runner alignment (`GSDTools` → registry where appropriate); keep **`graphify` / `from-gsd2`** out of scope unless product reopens.
+3. **Issue #2302 follow-ups** — Runner alignment (`GSDTools` → registry where appropriate); keep **`graphify` / `from-gsd2`** out of scope unless product reopens.
 4. **Drift check** — When adding CJS commands, update `QUERY-HANDLERS.md` matrix and golden docs in the same PR.
 
 ---
