@@ -39,6 +39,11 @@ export const READ_ONLY_JSON_PARITY_ROWS: JsonParityRow[] = [
   { canonical: 'init.list-workspaces', sdkArgs: [], cjs: 'init', cjsArgs: ['list-workspaces'] },
   { canonical: 'agent-skills', sdkArgs: [], cjs: 'agent-skills', cjsArgs: [] },
   { canonical: 'scan-sessions', sdkArgs: ['--json'], cjs: 'scan-sessions', cjsArgs: ['--json'] },
+  { canonical: 'stats.json', sdkArgs: [], cjs: 'stats', cjsArgs: ['json'] },
+  { canonical: 'todo.match-phase', sdkArgs: ['9'], cjs: 'todo', cjsArgs: ['match-phase', '9'] },
+  { canonical: 'verify.key-links', sdkArgs: [GOLDEN_PLAN], cjs: 'verify', cjsArgs: ['key-links', GOLDEN_PLAN] },
+  { canonical: 'verify.schema-drift', sdkArgs: ['9'], cjs: 'verify', cjsArgs: ['schema-drift', '9'] },
+  { canonical: 'state-snapshot', sdkArgs: [], cjs: 'state-snapshot', cjsArgs: [] },
 ];
 
 /** Canonicals from JSON rows plus special-case subprocess tests in read-only-parity integration. */
@@ -46,5 +51,6 @@ export function readOnlyGoldenCanonicals(): Set<string> {
   const s = new Set<string>(READ_ONLY_JSON_PARITY_ROWS.map((r) => r.canonical));
   s.add('verify.commits');
   s.add('config-path');
+  s.add('state.json');
   return s;
 }
