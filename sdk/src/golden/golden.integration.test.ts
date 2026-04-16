@@ -11,6 +11,24 @@ const PROJECT_DIR = resolve(__dirname, '..', '..');
 // Repo root (where .planning/ lives) — needed for commands that read project state
 const REPO_ROOT = resolve(__dirname, '..', '..', '..');
 
+/** Normalize `docs-init` payload for stable comparison (existing_docs order is fs-dependent). */
+function normalizeDocsInitPayload(data: Record<string, unknown>): Record<string, unknown> {
+  const existing = data.existing_docs;
+  if (!Array.isArray(existing)) return { ...data };
+  const sorted = [...existing].sort((a, b) => {
+    const pa = typeof a === 'object' && a && 'path' in a ? String((a as { path: string }).path) : '';
+    const pb = typeof b === 'object' && b && 'path' in b ? String((b as { path: string }).path) : '';
+    return pa.localeCompare(pb);
+  });
+  return { ...data, existing_docs: sorted };
+}
+
+/** Agent install scan differs between gsd-tools subprocess vs in-process (paths / env); compare the rest. */
+function omitAgentInstallFields(data: Record<string, unknown>): Record<string, unknown> {
+  const { agents_installed: _a, missing_agents: _m, ...rest } = data;
+  return rest;
+}
+
 describe('Golden file tests', () => {
   describe('generate-slug', () => {
     it('SDK output matches gsd-tools.cjs output', async () => {
@@ -357,6 +375,77 @@ describe('Golden file tests', () => {
       expect(sdkData.complete).toBe(gsdOutput.complete);
       expect(sdkData.plan_count).toBe(gsdOutput.plan_count);
       expect(sdkData.summary_count).toBe(gsdOutput.summary_count);
+    });
+  });
+
+  // ─── State validate / sync (read + dry-run mutation parity) ─────────────
+
+  describe('state.validate', () => {
+    it('SDK output matches gsd-tools.cjs', async () => {
+      const gsdOutput = await captureGsdToolsOutput('state', ['validate'], REPO_ROOT);
+      const registry = createRegistry();
+      const sdkResult = await registry.dispatch('state.validate', [], REPO_ROOT);
+      expect(sdkResult.data).toEqual(gsdOutput);
+    });
+  });
+
+  describe('state.sync --verify', () => {
+    it('SDK dry-run output matches gsd-tools.cjs', async () => {
+      const gsdOutput = await captureGsdToolsOutput('state', ['sync', '--verify'], REPO_ROOT);
+      const registry = createRegistry();
+      const sdkResult = await registry.dispatch('state.sync', ['--verify'], REPO_ROOT);
+      expect(sdkResult.data).toEqual(gsdOutput);
+    });
+  });
+
+  // ─── detect-custom-files (temp config dir) ─────────────────────────────
+
+  describe('detect-custom-files', () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+      tmpDir = join(tmpdir(), `gsd-golden-dcf-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+      await mkdir(join(tmpDir, 'agents'), { recursive: true });
+      await writeFile(join(tmpDir, 'gsd-file-manifest.json'), JSON.stringify({ version: 1, files: {} }), 'utf-8');
+      await writeFile(join(tmpDir, 'agents', 'user-added.md'), '# custom\n', 'utf-8');
+    });
+
+    afterEach(async () => {
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('SDK output matches gsd-tools.cjs for manifest + custom file', async () => {
+      const args = ['--config-dir', tmpDir];
+      const gsdOutput = await captureGsdToolsOutput('detect-custom-files', args, PROJECT_DIR);
+      const registry = createRegistry();
+      const sdkResult = await registry.dispatch('detect-custom-files', args, PROJECT_DIR);
+      expect(sdkResult.data).toEqual(gsdOutput);
+    });
+  });
+
+  // ─── docs-init ─────────────────────────────────────────────────────────
+
+  describe('docs-init', () => {
+    it('SDK output matches gsd-tools.cjs (normalized existing_docs order)', async () => {
+      const gsdOutput = await captureGsdToolsOutput('docs-init', [], REPO_ROOT) as Record<string, unknown>;
+      const registry = createRegistry();
+      const sdkResult = await registry.dispatch('docs-init', [], REPO_ROOT);
+      expect(
+        omitAgentInstallFields(normalizeDocsInitPayload(sdkResult.data as Record<string, unknown>)),
+      ).toEqual(
+        omitAgentInstallFields(normalizeDocsInitPayload(gsdOutput)),
+      );
+    });
+  });
+
+  // ─── intel.update (intentional stub; parity when intel disabled) ───────
+
+  describe('intel.update', () => {
+    it('SDK stub matches gsd-tools.cjs when intel is disabled', async () => {
+      const gsdOutput = await captureGsdToolsOutput('intel', ['update'], REPO_ROOT);
+      const registry = createRegistry();
+      const sdkResult = await registry.dispatch('intel.update', [], REPO_ROOT);
+      expect(sdkResult.data).toEqual(gsdOutput);
     });
   });
 });

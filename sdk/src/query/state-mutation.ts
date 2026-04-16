@@ -2,9 +2,9 @@
  * STATE.md mutation handlers — write operations with lockfile atomicity.
  *
  * Ported from get-shit-done/bin/lib/state.cjs.
- * Provides all STATE.md mutation commands: update, patch, begin-phase,
+ * Provides STATE.md mutation commands: update, patch, begin-phase,
  * advance-plan, record-metric, update-progress, add-decision, add-blocker,
- * resolve-blocker, record-session.
+ * resolve-blocker, record-session, validate, sync, prune, signal-waiting, signal-resume.
  *
  * All writes go through readModifyWriteStateMd which acquires a lockfile,
  * applies the modifier, syncs frontmatter, normalizes markdown, and writes.
@@ -19,7 +19,9 @@
  */
 
 import { open, unlink, stat, readFile, writeFile, readdir } from 'node:fs/promises';
-import { constants, unlinkSync } from 'node:fs';
+import {
+  constants, unlinkSync, existsSync, mkdirSync, writeFileSync, readdirSync, readFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { GSDError, ErrorClassification } from '../errors.js';
 import { extractFrontmatter, stripFrontmatter } from './frontmatter.js';
@@ -758,4 +760,451 @@ export const statePlannedPhase: QueryHandler = async (args, projectDir) => {
   } catch {
     return { data: { updated: false, reason: 'STATE.md not found or unreadable' } };
   }
+};
+
+// ─── parseNamedArgs (matches gsd-tools.cjs) ───────────────────────────────
+
+function parseNamedArgs(
+  args: string[],
+  valueFlags: string[] = [],
+  booleanFlags: string[] = [],
+): Record<string, string | boolean | null> {
+  const result: Record<string, string | boolean | null> = {};
+  for (const flag of valueFlags) {
+    const idx = args.indexOf(`--${flag}`);
+    result[flag] = idx !== -1 && args[idx + 1] !== undefined && !args[idx + 1].startsWith('--')
+      ? args[idx + 1]
+      : null;
+  }
+  for (const flag of booleanFlags) {
+    result[flag] = args.includes(`--${flag}`);
+  }
+  return result;
+}
+
+// ─── Human gate signals (WAITING.json) ───────────────────────────────────
+
+function waitingDir(projectDir: string): string {
+  return existsSync(join(projectDir, '.gsd')) ? join(projectDir, '.gsd') : join(projectDir, '.planning');
+}
+
+/**
+ * Port of `cmdSignalWaiting` from state.cjs.
+ * Args: `--type`, `--question`, `--options` (pipe-separated), `--phase`.
+ */
+export const stateSignalWaiting: QueryHandler = async (args, projectDir) => {
+  const parsed = parseNamedArgs(args, ['type', 'question', 'options', 'phase']);
+  const type = (parsed.type as string | null) || 'decision_point';
+  const question = (parsed.question as string | null) || null;
+  const optionsRaw = parsed.options as string | null;
+  const phase = (parsed.phase as string | null) || null;
+
+  const gsdDir = waitingDir(projectDir);
+  const waitingPath = join(gsdDir, 'WAITING.json');
+
+  const signal = {
+    status: 'waiting',
+    type,
+    question,
+    options: optionsRaw ? optionsRaw.split('|').map(o => o.trim()) : [],
+    since: new Date().toISOString(),
+    phase,
+  };
+
+  try {
+    mkdirSync(gsdDir, { recursive: true });
+    writeFileSync(waitingPath, JSON.stringify(signal, null, 2), 'utf-8');
+    return { data: { signaled: true, path: waitingPath } };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { data: { signaled: false, error: msg } };
+  }
+};
+
+/**
+ * Port of `cmdSignalResume` from state.cjs.
+ */
+export const stateSignalResume: QueryHandler = async (_args, projectDir) => {
+  const paths = [
+    join(projectDir, '.gsd', 'WAITING.json'),
+    join(projectDir, '.planning', 'WAITING.json'),
+  ];
+  let removed = false;
+  for (const p of paths) {
+    if (existsSync(p)) {
+      try {
+        unlinkSync(p);
+        removed = true;
+      } catch { /* ignore */ }
+    }
+  }
+  return { data: { resumed: true, removed } };
+};
+
+// ─── stateValidate ───────────────────────────────────────────────────────
+
+/**
+ * Port of `cmdStateValidate` from state.cjs.
+ */
+export const stateValidate: QueryHandler = async (_args, projectDir) => {
+  const paths = planningPaths(projectDir);
+  const statePath = paths.state;
+  if (!existsSync(statePath)) {
+    return { data: { error: 'STATE.md not found' } };
+  }
+
+  const content = await readFile(statePath, 'utf-8');
+  const warnings: string[] = [];
+  const drift: Record<string, unknown> = {};
+
+  const status = stateExtractField(content, 'Status') || '';
+  const currentPhase = stateExtractField(content, 'Current Phase');
+  const totalPlansRaw = stateExtractField(content, 'Total Plans in Phase');
+  const totalPlansInPhase = totalPlansRaw ? parseInt(totalPlansRaw, 10) : null;
+
+  const phasesDir = paths.phases;
+
+  if (currentPhase && existsSync(phasesDir)) {
+    const normalized = currentPhase.replace(/\s+of\s+\d+.*/, '').trim();
+    try {
+      const entries = readdirSync(phasesDir, { withFileTypes: true });
+      const padded = normalized.replace(/^0+/, '').padStart(2, '0');
+      const phaseDir = entries.find(e => e.isDirectory() && e.name.startsWith(padded));
+      if (phaseDir) {
+        const phaseDirPath = join(phasesDir, phaseDir.name);
+        const files = readdirSync(phaseDirPath);
+        const diskPlans = files.filter(f => /-PLAN\.md$/i.test(f)).length;
+        const diskSummaries = files.filter(f => /-SUMMARY\.md$/i.test(f)).length;
+
+        if (totalPlansInPhase !== null && diskPlans !== totalPlansInPhase) {
+          warnings.push(
+            `Plan count mismatch: STATE.md says ${totalPlansInPhase} plans, disk has ${diskPlans}`,
+          );
+          drift.plan_count = { state: totalPlansInPhase, disk: diskPlans };
+        }
+
+        const verificationFiles = files.filter(f => f.includes('VERIFICATION') && f.endsWith('.md'));
+        for (const vf of verificationFiles) {
+          try {
+            const vContent = readFileSync(join(phaseDirPath, vf), 'utf-8');
+            if (/status:\s*passed/i.test(vContent) && /executing/i.test(status)) {
+              warnings.push(
+                `Status drift: STATE.md says "${status}" but ${vf} shows verification passed — phase may be complete`,
+              );
+              drift.verification_status = { state_status: status, verification: 'passed' };
+            }
+          } catch { /* skip */ }
+        }
+
+        if (diskPlans > 0 && diskSummaries >= diskPlans && /executing/i.test(status)) {
+          if (verificationFiles.length === 0) {
+            warnings.push(
+              `All ${diskPlans} plans have summaries but status is still "${status}" — phase may be ready for verification`,
+            );
+          }
+        }
+      }
+    } catch { /* skip */ }
+  }
+
+  const valid = warnings.length === 0;
+  return { data: { valid, warnings, drift } };
+};
+
+// ─── stateSync ─────────────────────────────────────────────────────────────
+
+/**
+ * Port of `cmdStateSync` from state.cjs. Supports `--verify` dry-run.
+ */
+export const stateSync: QueryHandler = async (args, projectDir) => {
+  const verify = args.includes('--verify');
+  const paths = planningPaths(projectDir);
+  const statePath = paths.state;
+  if (!existsSync(statePath)) {
+    return { data: { error: 'STATE.md not found' } };
+  }
+
+  const content = await readFile(statePath, 'utf-8');
+  const changes: string[] = [];
+  const today = new Date().toISOString().split('T')[0];
+
+  const phasesDir = paths.phases;
+  if (!existsSync(phasesDir)) {
+    return { data: { synced: true, changes: [], dry_run: verify } };
+  }
+
+  let entries: string[];
+  try {
+    entries = readdirSync(phasesDir, { withFileTypes: true })
+      .filter(e => e.isDirectory())
+      .map(e => e.name)
+      .sort();
+  } catch {
+    return { data: { synced: true, changes: [], dry_run: verify } };
+  }
+
+  let totalDiskPlans = 0;
+  let totalDiskSummaries = 0;
+  let highestIncompletePhase: string | null = null;
+  let highestIncompletePhaseplanCount = 0;
+
+  for (const dir of entries) {
+    const dirPath = join(phasesDir, dir);
+    const files = readdirSync(dirPath);
+    const plans = files.filter(f => /-PLAN\.md$/i.test(f)).length;
+    const summaries = files.filter(f => /-SUMMARY\.md$/i.test(f)).length;
+    totalDiskPlans += plans;
+    totalDiskSummaries += summaries;
+
+    const phaseMatch = dir.match(/^(\d+[A-Z]?(?:\.\d+)*)/i);
+    if (phaseMatch && plans > 0) {
+      if (summaries < plans) {
+        highestIncompletePhase = dir;
+        highestIncompletePhaseplanCount = plans;
+      } else if (!highestIncompletePhase) {
+        highestIncompletePhase = dir;
+        highestIncompletePhaseplanCount = plans;
+      }
+    }
+  }
+
+  const runModifier = (modified: string): string => {
+    let m = modified;
+    if (highestIncompletePhase) {
+      const currentPlansField = stateExtractField(m, 'Total Plans in Phase');
+      if (currentPlansField && parseInt(currentPlansField, 10) !== highestIncompletePhaseplanCount) {
+        changes.push(`Total Plans in Phase: ${currentPlansField} -> ${highestIncompletePhaseplanCount}`);
+        const result = stateReplaceField(m, 'Total Plans in Phase', String(highestIncompletePhaseplanCount));
+        if (result) m = result;
+      }
+    }
+
+    const percent = totalDiskPlans > 0 ? Math.min(100, Math.round((totalDiskSummaries / totalDiskPlans) * 100)) : 0;
+    const currentProgress = stateExtractField(m, 'Progress');
+    if (currentProgress) {
+      const currentPercent = parseInt(currentProgress.replace(/[^\d]/g, ''), 10);
+      if (currentPercent !== percent) {
+        const barWidth = 10;
+        const filled = Math.round(percent / 100 * barWidth);
+        const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(barWidth - filled);
+        const progressStr = `[${bar}] ${percent}%`;
+        changes.push(`Progress: ${currentProgress} -> ${progressStr}`);
+        const result = stateReplaceField(m, 'Progress', progressStr);
+        if (result) m = result;
+      }
+    }
+
+    const oldActivity = stateExtractField(m, 'Last Activity');
+    const r = stateReplaceField(m, 'Last Activity', today);
+    if (r) {
+      if (oldActivity !== today) {
+        changes.push(`Last Activity: ${oldActivity} -> ${today}`);
+      }
+      m = r;
+    }
+    return m;
+  };
+
+  if (verify) {
+    const body = stripFrontmatter(content);
+    runModifier(body);
+    return { data: { synced: false, changes, dry_run: true } };
+  }
+
+  await readModifyWriteStateMd(projectDir, (body) => runModifier(body));
+
+  return { data: { synced: true, changes, dry_run: false } };
+};
+
+// ─── statePrune ────────────────────────────────────────────────────────────
+
+interface PruneSection {
+  section: string;
+  count: number;
+  lines: string[];
+}
+
+/**
+ * Port of inner `prunePass` from state.cjs — mutates content string for sections
+ * older than `cutoff` phase number.
+ */
+function prunePass(content: string, cutoff: number): { newContent: string; archivedSections: PruneSection[] } {
+  const archivedSections: PruneSection[] = [];
+  let contentWork = content;
+
+  const decisionPattern = /(###?\s*(?:Decisions|Decisions Made|Accumulated.*Decisions)\s*\n)([\s\S]*?)(?=\n###?|\n##[^#]|$)/i;
+  const decMatch = contentWork.match(decisionPattern);
+  if (decMatch) {
+    const lines = decMatch[2].split('\n');
+    const keep: string[] = [];
+    const archive: string[] = [];
+    for (const line of lines) {
+      const pm = line.match(/^\s*-\s*\[Phase\s+(\d+)/i);
+      if (pm && parseInt(pm[1], 10) <= cutoff) {
+        archive.push(line);
+      } else {
+        keep.push(line);
+      }
+    }
+    if (archive.length > 0) {
+      archivedSections.push({ section: 'Decisions', count: archive.length, lines: archive });
+      contentWork = contentWork.replace(decisionPattern, (_m, header: string) => `${header}${keep.join('\n')}`);
+    }
+  }
+
+  const recentPattern = /(###?\s*Recently Completed\s*\n)([\s\S]*?)(?=\n###?|\n##[^#]|$)/i;
+  const recMatch = contentWork.match(recentPattern);
+  if (recMatch) {
+    const lines = recMatch[2].split('\n');
+    const keep: string[] = [];
+    const archive: string[] = [];
+    for (const line of lines) {
+      const pm = line.match(/Phase\s+(\d+)/i);
+      if (pm && parseInt(pm[1], 10) <= cutoff) {
+        archive.push(line);
+      } else {
+        keep.push(line);
+      }
+    }
+    if (archive.length > 0) {
+      archivedSections.push({ section: 'Recently Completed', count: archive.length, lines: archive });
+      contentWork = contentWork.replace(recentPattern, (_m, header: string) => `${header}${keep.join('\n')}`);
+    }
+  }
+
+  const blockersPattern = /(###?\s*(?:Blockers|Blockers\/Concerns|Blockers\s*&\s*Concerns)\s*\n)([\s\S]*?)(?=\n###?|\n##[^#]|$)/i;
+  const blockersMatch = contentWork.match(blockersPattern);
+  if (blockersMatch) {
+    const lines = blockersMatch[2].split('\n');
+    const keep: string[] = [];
+    const archive: string[] = [];
+    for (const line of lines) {
+      const isResolved = /~~.*~~|\[RESOLVED\]/i.test(line);
+      const pm = line.match(/Phase\s+(\d+)/i);
+      if (isResolved && pm && parseInt(pm[1], 10) <= cutoff) {
+        archive.push(line);
+      } else {
+        keep.push(line);
+      }
+    }
+    if (archive.length > 0) {
+      archivedSections.push({ section: 'Blockers (resolved)', count: archive.length, lines: archive });
+      contentWork = contentWork.replace(blockersPattern, (_m, header: string) => `${header}${keep.join('\n')}`);
+    }
+  }
+
+  const metricsPattern = /(###?\s*Performance Metrics\s*\n)([\s\S]*?)(?=\n###?|\n##[^#]|$)/i;
+  const metricsMatch = contentWork.match(metricsPattern);
+  if (metricsMatch) {
+    const sectionLines = metricsMatch[2].split('\n');
+    const keep: string[] = [];
+    const archive: string[] = [];
+    for (const line of sectionLines) {
+      const tableRowMatch = line.match(/^\|\s*(\d+)\s*\|/);
+      if (tableRowMatch) {
+        const rowPhase = parseInt(tableRowMatch[1], 10);
+        if (rowPhase <= cutoff) {
+          archive.push(line);
+        } else {
+          keep.push(line);
+        }
+      } else {
+        keep.push(line);
+      }
+    }
+    if (archive.length > 0) {
+      archivedSections.push({ section: 'Performance Metrics', count: archive.length, lines: archive });
+      contentWork = contentWork.replace(metricsPattern, (_m, header: string) => `${header}${keep.join('\n')}`);
+    }
+  }
+
+  return { newContent: contentWork, archivedSections };
+}
+
+/**
+ * Port of `cmdStatePrune` from state.cjs.
+ * Args: `--keep-recent N` (default 3), `--dry-run`, `--silent` (omit extra logging fields — no-op in SDK JSON).
+ */
+export const statePrune: QueryHandler = async (args, projectDir) => {
+  const parsed = parseNamedArgs(args, ['keep-recent'], ['dry-run', 'silent']);
+  const keepRecent = parseInt(String(parsed['keep-recent'] ?? '3'), 10) || 3;
+  const dryRun = parsed['dry-run'] === true;
+
+  const paths = planningPaths(projectDir);
+  const statePath = paths.state;
+  if (!existsSync(statePath)) {
+    return { data: { error: 'STATE.md not found' } };
+  }
+
+  const fullContent = await readFile(statePath, 'utf-8');
+  const currentPhaseRaw = stateExtractField(fullContent, 'Current Phase');
+  const currentPhase = parseInt(String(currentPhaseRaw ?? ''), 10) || 0;
+  const cutoff = currentPhase - keepRecent;
+
+  if (cutoff <= 0) {
+    return {
+      data: {
+        pruned: false,
+        reason: `Only ${currentPhase} phases — nothing to prune with --keep-recent ${keepRecent}`,
+      },
+    };
+  }
+
+  const body = stripFrontmatter(fullContent);
+
+  if (dryRun) {
+    const result = prunePass(body, cutoff);
+    const totalPruned = result.archivedSections.reduce((sum, s) => sum + s.count, 0);
+    return {
+      data: {
+        pruned: false,
+        dry_run: true,
+        cutoff_phase: cutoff,
+        keep_recent: keepRecent,
+        sections: result.archivedSections.map(s => ({
+          section: s.section,
+          entries_would_archive: s.count,
+        })),
+        total_would_archive: totalPruned,
+        note: totalPruned > 0 ? 'Run without --dry-run to actually prune' : 'Nothing to prune',
+      },
+    };
+  }
+
+  const archived: PruneSection[] = [];
+
+  await readModifyWriteStateMd(projectDir, (b) => {
+    const result = prunePass(b, cutoff);
+    archived.push(...result.archivedSections);
+    return result.newContent;
+  });
+
+  const archivePath = join(paths.planning, 'STATE-ARCHIVE.md');
+  const totalPruned = archived.reduce((sum, s) => sum + s.count, 0);
+
+  if (archived.length > 0) {
+    const timestamp = new Date().toISOString().split('T')[0];
+    let archiveContent = '';
+    if (existsSync(archivePath)) {
+      archiveContent = readFileSync(archivePath, 'utf-8');
+    } else {
+      archiveContent = '# STATE Archive\n\nPruned entries from STATE.md. Recoverable but no longer loaded into agent context.\n\n';
+    }
+    archiveContent += `## Pruned ${timestamp} (phases 1-${cutoff}, kept recent ${keepRecent})\n\n`;
+    for (const section of archived) {
+      archiveContent += `### ${section.section}\n\n${section.lines.join('\n')}\n\n`;
+    }
+    writeFileSync(archivePath, archiveContent, 'utf-8');
+  }
+
+  return {
+    data: {
+      pruned: totalPruned > 0,
+      cutoff_phase: cutoff,
+      keep_recent: keepRecent,
+      sections: archived.map(s => ({ section: s.section, entries_archived: s.count })),
+      total_archived: totalPruned,
+      archive_file: totalPruned > 0 ? 'STATE-ARCHIVE.md' : null,
+    },
+  };
 };

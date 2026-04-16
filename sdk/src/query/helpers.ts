@@ -188,10 +188,12 @@ export function toPosixPath(p: string): string {
  */
 export function stateExtractField(content: string, fieldName: string): string | null {
   const escaped = escapeRegex(fieldName);
-  const boldPattern = new RegExp(`\\*\\*${escaped}:\\*\\*\\s*(.+)`, 'i');
+  // Horizontal whitespace only after ':' so YAML blocks like `progress:\n  total:` do not
+  // match as `Progress:` with a multi-line "value" (parity with STATE.md body fields).
+  const boldPattern = new RegExp(`\\*\\*${escaped}:\\*\\*[ \\t]*(.+)`, 'i');
   const boldMatch = content.match(boldPattern);
   if (boldMatch) return boldMatch[1].trim();
-  const plainPattern = new RegExp(`^${escaped}:\\s*(.+)`, 'im');
+  const plainPattern = new RegExp(`^${escaped}:[ \\t]*(.+)`, 'im');
   const plainMatch = content.match(plainPattern);
   return plainMatch ? plainMatch[1].trim() : null;
 }

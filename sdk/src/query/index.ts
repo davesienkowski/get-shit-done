@@ -17,7 +17,7 @@
 import { QueryRegistry } from './registry.js';
 import { generateSlug, currentTimestamp } from './utils.js';
 import { frontmatterGet } from './frontmatter.js';
-import { configGet, resolveModel } from './config-query.js';
+import { configGet, configPath, resolveModel } from './config-query.js';
 import { stateLoad, stateGet, stateSnapshot } from './state.js';
 import { findPhase, phasePlanIndex } from './phase.js';
 import { roadmapAnalyze, roadmapGetPhase } from './roadmap.js';
@@ -27,6 +27,7 @@ import {
   stateUpdate, statePatch, stateBeginPhase, stateAdvancePlan,
   stateRecordMetric, stateUpdateProgress, stateAddDecision,
   stateAddBlocker, stateResolveBlocker, stateRecordSession,
+  stateSignalWaiting, stateSignalResume, stateValidate, stateSync, statePrune,
 } from './state-mutation.js';
 import {
   configSet, configSetModelProfile, configNewProject, configEnsureSection,
@@ -34,9 +35,9 @@ import {
 import { commit, checkCommit } from './commit.js';
 import { templateFill, templateSelect } from './template.js';
 import { verifyPlanStructure, verifyPhaseCompleteness, verifyArtifacts, verifyCommits, verifyReferences, verifySummary, verifyPathExists } from './verify.js';
-import { verifyKeyLinks, validateConsistency, validateHealth } from './validate.js';
+import { verifyKeyLinks, validateConsistency, validateHealth, validateAgents } from './validate.js';
 import {
-  phaseAdd, phaseInsert, phaseRemove, phaseComplete,
+  phaseAdd, phaseAddBatch, phaseInsert, phaseRemove, phaseComplete,
   phaseScaffold, phasesClear, phasesArchive,
   phasesList, phaseNextDecimal,
 } from './phase-lifecycle.js';
@@ -55,20 +56,24 @@ import { milestoneComplete } from './phase-lifecycle.js';
 import { summaryExtract, historyDigest } from './summary.js';
 import { commitToSubrepo } from './commit.js';
 import {
-  workstreamList, workstreamCreate, workstreamSet, workstreamStatus,
+  workstreamGet, workstreamList, workstreamCreate, workstreamSet, workstreamStatus,
   workstreamComplete, workstreamProgress,
 } from './workstream.js';
-import { docsInit } from './init.js';
+import { docsInit } from './docs-init.js';
 import { uatRenderCheckpoint, auditUat } from './uat.js';
 import { websearch } from './websearch.js';
 import {
   intelStatus, intelDiff, intelSnapshot, intelValidate, intelQuery,
-  intelExtractExports, intelPatchMeta,
+  intelExtractExports, intelPatchMeta, intelUpdate,
 } from './intel.js';
 import {
-  learningsCopy, learningsQuery, extractMessages, scanSessions, profileSample, profileQuestionnaire,
+  learningsCopy, learningsQuery, learningsListHandler, learningsPrune, learningsDelete,
+  extractMessages, scanSessions, profileSample, profileQuestionnaire,
   writeProfile, generateClaudeProfile, generateDevPreferences, generateClaudeMd,
 } from './profile.js';
+import { skillManifest } from './skill-manifest.js';
+import { auditOpen } from './audit-open.js';
+import { detectCustomFiles } from './detect-custom-files.js';
 import { GSDEventStream } from '../event-stream.js';
 import {
   GSDEventType,
@@ -101,14 +106,18 @@ export const QUERY_MUTATION_COMMANDS = new Set<string>([
   'state.record-metric', 'state.update-progress', 'state.add-decision',
   'state.add-blocker', 'state.resolve-blocker', 'state.record-session',
   'state.planned-phase', 'state planned-phase',
+  'state.signal-waiting', 'state signal-waiting',
+  'state.signal-resume', 'state signal-resume',
+  'state.sync', 'state sync',
+  'state.prune', 'state prune',
   'frontmatter.set', 'frontmatter.merge', 'frontmatter.validate', 'frontmatter validate',
   'config-set', 'config-set-model-profile', 'config-new-project', 'config-ensure-section',
   'commit', 'check-commit', 'commit-to-subrepo',
   'template.fill', 'template.select', 'template select',
   'validate.health', 'validate health',
-  'phase.add', 'phase.insert', 'phase.remove', 'phase.complete',
+  'phase.add', 'phase.add-batch', 'phase.insert', 'phase.remove', 'phase.complete',
   'phase.scaffold', 'phases.clear', 'phases.archive',
-  'phase add', 'phase insert', 'phase remove', 'phase complete',
+  'phase add', 'phase add-batch', 'phase insert', 'phase remove', 'phase complete',
   'phase scaffold', 'phases clear', 'phases archive',
   'roadmap.update-plan-progress', 'roadmap update-plan-progress',
   'requirements.mark-complete', 'requirements mark-complete',
@@ -118,6 +127,8 @@ export const QUERY_MUTATION_COMMANDS = new Set<string>([
   'workstream create', 'workstream set', 'workstream complete', 'workstream progress',
   'docs-init',
   'learnings.copy', 'learnings copy',
+  'learnings.prune', 'learnings prune',
+  'learnings.delete', 'learnings delete',
   'intel.snapshot', 'intel.patch-meta', 'intel snapshot', 'intel patch-meta',
   'write-profile', 'generate-claude-profile', 'generate-dev-preferences', 'generate-claude-md',
 ]);
@@ -234,6 +245,7 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('current-timestamp', currentTimestamp);
   registry.register('frontmatter.get', frontmatterGet);
   registry.register('config-get', configGet);
+  registry.register('config-path', configPath);
   registry.register('resolve-model', resolveModel);
   registry.register('state.load', stateLoad);
   registry.register('state.json', stateLoad);
@@ -263,6 +275,16 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('state.add-blocker', stateAddBlocker);
   registry.register('state.resolve-blocker', stateResolveBlocker);
   registry.register('state.record-session', stateRecordSession);
+  registry.register('state.signal-waiting', stateSignalWaiting);
+  registry.register('state.signal-resume', stateSignalResume);
+  registry.register('state.validate', stateValidate);
+  registry.register('state.sync', stateSync);
+  registry.register('state.prune', statePrune);
+  registry.register('state signal-waiting', stateSignalWaiting);
+  registry.register('state signal-resume', stateSignalResume);
+  registry.register('state validate', stateValidate);
+  registry.register('state sync', stateSync);
+  registry.register('state prune', statePrune);
 
   // Config mutation handlers
   registry.register('config-set', configSet);
@@ -302,9 +324,12 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('validate consistency', validateConsistency);
   registry.register('validate.health', validateHealth);
   registry.register('validate health', validateHealth);
+  registry.register('validate.agents', validateAgents);
+  registry.register('validate agents', validateAgents);
 
   // Phase lifecycle handlers
   registry.register('phase.add', phaseAdd);
+  registry.register('phase.add-batch', phaseAddBatch);
   registry.register('phase.insert', phaseInsert);
   registry.register('phase.remove', phaseRemove);
   registry.register('phase.complete', phaseComplete);
@@ -315,6 +340,7 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('phase.next-decimal', phaseNextDecimal);
   // Space-delimited aliases for CJS compatibility
   registry.register('phase add', phaseAdd);
+  registry.register('phase add-batch', phaseAddBatch);
   registry.register('phase insert', phaseInsert);
   registry.register('phase remove', phaseRemove);
   registry.register('phase complete', phaseComplete);
@@ -385,11 +411,14 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('history.digest', historyDigest);
   registry.register('history digest', historyDigest);
   registry.register('history-digest', historyDigest);
+  registry.register('stats', statsJson);
   registry.register('stats.json', statsJson);
   registry.register('stats json', statsJson);
   registry.register('commit-to-subrepo', commitToSubrepo);
   registry.register('progress.bar', progressBar);
   registry.register('progress bar', progressBar);
+  registry.register('workstream.get', workstreamGet);
+  registry.register('workstream get', workstreamGet);
   registry.register('workstream.list', workstreamList);
   registry.register('workstream list', workstreamList);
   registry.register('workstream.create', workstreamCreate);
@@ -408,6 +437,17 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('learnings copy', learningsCopy);
   registry.register('learnings.query', learningsQuery);
   registry.register('learnings query', learningsQuery);
+  registry.register('learnings.list', learningsListHandler);
+  registry.register('learnings list', learningsListHandler);
+  registry.register('learnings.prune', learningsPrune);
+  registry.register('learnings prune', learningsPrune);
+  registry.register('learnings.delete', learningsDelete);
+  registry.register('learnings delete', learningsDelete);
+  registry.register('skill-manifest', skillManifest);
+  registry.register('skill manifest', skillManifest);
+  registry.register('audit-open', auditOpen);
+  registry.register('audit open', auditOpen);
+  registry.register('detect-custom-files', detectCustomFiles);
   registry.register('extract-messages', extractMessages);
   registry.register('extract.messages', extractMessages);
   registry.register('audit-uat', auditUat);
@@ -427,6 +467,8 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('intel extract-exports', intelExtractExports);
   registry.register('intel.patch-meta', intelPatchMeta);
   registry.register('intel patch-meta', intelPatchMeta);
+  registry.register('intel.update', intelUpdate);
+  registry.register('intel update', intelUpdate);
   registry.register('generate-claude-profile', generateClaudeProfile);
   registry.register('generate-dev-preferences', generateDevPreferences);
   registry.register('write-profile', writeProfile);
