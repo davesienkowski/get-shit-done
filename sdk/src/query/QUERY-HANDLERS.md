@@ -114,6 +114,9 @@ From `read-only-parity.integration.test.ts` (full `toEqual` on this repo):
 | `summary.extract` | Fixture `sdk/src/golden/fixtures/summary-extract-sample.md`; uses `extractFrontmatterLeading` (first `---` block) for parity with `frontmatter.cjs`. |
 | `history.digest` | No args; aggregate over `.planning/phases` + archived milestone phase dirs (`commands.cjs` `cmdHistoryDigest`). |
 | `audit-uat` | No args; full JSON parity with `uat.cjs` `cmdAuditUat` (`results`, `summary` with `by_category` / `by_phase`). |
+| `skill-manifest` | No args; full manifest parity with `init.cjs` `buildSkillManifest` / `cmdSkillManifest`. Handler uses `extractFrontmatterLeading` (first `---` block) like CJS `frontmatter.cjs` `extractFrontmatter` — not TS `extractFrontmatter` (last block), so skills with multiple `---` sections match CJS. |
+| `validate.agents` | No args; `agents_dir` matches `core.cjs` `getAgentsDir` (`GSD_AGENTS_DIR` or `sdk/dist/query/../../../agents` in this monorepo — same absolute path as CLI). `MODEL_PROFILES` / `expected` list stays aligned with `get-shit-done/bin/lib/model-profiles.cjs`. |
+| `state.get` | Dedicated tests: no args → full `{ content }` vs `state get`; one field (`milestone`) → `{ milestone: "…" }` vs `state get milestone` (frontmatter line match). |
 | `config-path` | Plain stdout path vs `{ path }` — compared with `path.normalize` in tests. |
 
 

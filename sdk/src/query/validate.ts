@@ -16,7 +16,8 @@
 
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
 
 import { MODEL_PROFILES } from './config-query.js';
@@ -744,13 +745,23 @@ export const validateHealth: QueryHandler = async (args, projectDir) => {
 // ─── validateAgents ────────────────────────────────────────────────────────
 
 /**
+ * Default agents directory — mirrors `getAgentsDir` in `get-shit-done/bin/lib/core.cjs`:
+ * `GSD_AGENTS_DIR`, else `../../../agents` relative to this module (`sdk/dist/query` → monorepo
+ * root), matching `core.cjs` (`get-shit-done/bin/lib` → same repo `agents/`).
+ */
+function getAgentsDirForValidateAgents(): string {
+  if (process.env.GSD_AGENTS_DIR) return process.env.GSD_AGENTS_DIR;
+  const here = dirname(fileURLToPath(import.meta.url));
+  return resolve(here, '..', '..', '..', 'agents');
+}
+
+/**
  * Validate GSD agent file installation under the managed agents directory.
  *
  * Port of `cmdValidateAgents` from `verify.cjs` lines 997–1009 (uses `checkAgentsInstalled` from core).
  */
 export const validateAgents: QueryHandler = async (_args, _projectDir) => {
-  const agentsDir = process.env.GSD_AGENTS_DIR
-    || join(homedir(), '.claude', 'get-shit-done', 'agents');
+  const agentsDir = getAgentsDirForValidateAgents();
   const expected = Object.keys(MODEL_PROFILES);
   const installed: string[] = [];
   const missing: string[] = [];
