@@ -317,6 +317,9 @@ export { CLITransport } from './cli-transport.js';
 export { WSTransport } from './ws-transport.js';
 export type { WSTransportOptions } from './ws-transport.js';
 
+// Query registry argv normalization (matches `gsd-sdk query` and `GSDTools` hot path)
+export { normalizeQueryCommand } from './query/index.js';
+
 // Workstream utilities
 export { validateWorkstreamName, relPlanningPath } from './workstream-utils.js';
 
