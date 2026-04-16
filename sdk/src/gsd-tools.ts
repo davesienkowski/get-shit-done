@@ -1,8 +1,11 @@
 /**
- * GSD Tools Bridge — shells out to `gsd-tools.cjs` for state management.
+ * GSD Tools Bridge — programmatic access to GSD planning operations.
  *
- * All `.planning/` state operations go through gsd-tools.cjs rather than
- * reimplementing 12K+ lines of logic.
+ * By default routes commands through the SDK **query registry** (same handlers as
+ * `gsd-sdk query`) so `PhaseRunner`, `InitRunner`, and `GSD` share contracts with
+ * the typed CLI. When a workstream is set, or for `state load` (distinct from
+ * `state.json` / registry `state.load`), dispatches to `gsd-tools.cjs` so
+ * workstream env and legacy `cmdStateLoad` behavior stay aligned with CJS.
  */
 
 import { execFile } from 'node:child_process';
@@ -12,6 +15,11 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import type { InitNewProjectInfo, PhaseOpInfo, PhasePlanIndex, RoadmapAnalysis } from './types.js';
+import type { GSDEventStream } from './event-stream.js';
+import { GSDError, exitCodeFor } from './errors.js';
+import { createRegistry } from './query/index.js';
+import { resolveQueryArgv } from './query/registry.js';
+import { normalizeQueryCommand } from './query/normalize-query-command.js';
 
 // ─── Error type ──────────────────────────────────────────────────────────────
 
@@ -35,23 +43,114 @@ const BUNDLED_GSD_TOOLS_PATH = fileURLToPath(
   new URL('../../get-shit-done/bin/gsd-tools.cjs', import.meta.url),
 );
 
+function formatRegistryRawStdout(matchedCmd: string, data: unknown): string {
+  if (matchedCmd === 'commit') {
+    const d = data as Record<string, unknown>;
+    if (d.committed === true) {
+      return d.hash != null ? String(d.hash) : 'committed';
+    }
+    if (d.committed === false) {
+      const r = String(d.reason ?? '');
+      if (
+        r.includes('commit_docs') ||
+        r.includes('skipped') ||
+        r.includes('gitignored') ||
+        r === 'skipped_commit_docs_false'
+      ) {
+        return 'skipped';
+      }
+      if (r.includes('nothing') || r.includes('nothing_to_commit')) {
+        return 'nothing';
+      }
+      return 'nothing';
+    }
+    return JSON.stringify(data, null, 2);
+  }
+
+  if (matchedCmd === 'config-set') {
+    const d = data as Record<string, unknown>;
+    if (d.set === true && d.key !== undefined) {
+      const v = d.value;
+      if (v === null || v === undefined) {
+        return `${d.key}=`;
+      }
+      if (typeof v === 'object') {
+        return `${d.key}=${JSON.stringify(v)}`;
+      }
+      return `${d.key}=${String(v)}`;
+    }
+    return JSON.stringify(data, null, 2);
+  }
+
+  if (matchedCmd === 'state.begin-phase' || matchedCmd === 'state begin-phase') {
+    const d = data as Record<string, unknown>;
+    const u = d.updated as string[] | undefined;
+    return Array.isArray(u) && u.length > 0 ? 'true' : 'false';
+  }
+
+  if (typeof data === 'string') {
+    return data;
+  }
+  return JSON.stringify(data, null, 2);
+}
+
 export class GSDTools {
   private readonly projectDir: string;
   private readonly gsdToolsPath: string;
   private readonly timeoutMs: number;
   private readonly workstream?: string;
+  private readonly registry: ReturnType<typeof createRegistry>;
+  private readonly preferNativeQuery: boolean;
 
   constructor(opts: {
     projectDir: string;
     gsdToolsPath?: string;
     timeoutMs?: number;
     workstream?: string;
+    /** When set, mutation handlers emit the same events as `gsd-sdk query`. */
+    eventStream?: GSDEventStream;
+    /**
+     * When true (default), route known commands through the SDK query registry.
+     * Set false in tests that substitute a mock `gsdToolsPath` script.
+     */
+    preferNativeQuery?: boolean;
   }) {
     this.projectDir = opts.projectDir;
     this.gsdToolsPath =
       opts.gsdToolsPath ?? resolveGsdToolsPath(opts.projectDir);
     this.timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.workstream = opts.workstream;
+    this.preferNativeQuery = opts.preferNativeQuery ?? true;
+    this.registry = createRegistry(opts.eventStream);
+  }
+
+  private shouldUseNativeQuery(): boolean {
+    return this.preferNativeQuery && !this.workstream;
+  }
+
+  /** `state load` maps to CJS cmdStateLoad, not registry `state.load` (STATE.json handler). */
+  private isStateLoadSubcommand(command: string, args: string[]): boolean {
+    return command === 'state' && args[0] === 'load';
+  }
+
+  private nativeMatch(command: string, args: string[]) {
+    const [normCmd, normArgs] = normalizeQueryCommand(command, args);
+    const tokens = [normCmd, ...normArgs];
+    return resolveQueryArgv(tokens, this.registry);
+  }
+
+  private toToolsError(command: string, args: string[], err: unknown): GSDToolsError {
+    if (err instanceof GSDError) {
+      return new GSDToolsError(
+        err.message,
+        command,
+        args,
+        exitCodeFor(err.classification),
+        '',
+      );
+    }
+    const msg = err instanceof Error ? err.message : String(err);
+    return new GSDToolsError(msg, command, args, 1, '');
   }
 
   // ─── Core exec ───────────────────────────────────────────────────────────
@@ -61,6 +160,25 @@ export class GSDTools {
    * Handles the `@file:` prefix pattern for large results.
    */
   async exec(command: string, args: string[] = []): Promise<unknown> {
+    if (
+      this.shouldUseNativeQuery() &&
+      !this.isStateLoadSubcommand(command, args)
+    ) {
+      const matched = this.nativeMatch(command, args);
+      if (matched) {
+        try {
+          const result = await this.registry.dispatch(
+            matched.cmd,
+            matched.args,
+            this.projectDir,
+          );
+          return result.data;
+        } catch (err) {
+          throw this.toToolsError(command, args, err);
+        }
+      }
+    }
+
     const wsArgs = this.workstream ? ['--ws', this.workstream] : [];
     const fullArgs = [this.gsdToolsPath, command, ...args, ...wsArgs];
 
@@ -78,7 +196,6 @@ export class GSDTools {
           const stderrStr = stderr?.toString() ?? '';
 
           if (error) {
-            // Distinguish timeout from other errors
             if (error.killed || (error as NodeJS.ErrnoException).code === 'ETIMEDOUT') {
               reject(
                 new GSDToolsError(
@@ -123,7 +240,6 @@ export class GSDTools {
         },
       );
 
-      // Safety net: kill if child doesn't respond to timeout signal
       child.on('error', (err) => {
         reject(
           new GSDToolsError(
@@ -169,6 +285,25 @@ export class GSDTools {
    * Use for commands like `config-set` that return plain text, not JSON.
    */
   async execRaw(command: string, args: string[] = []): Promise<string> {
+    if (
+      this.shouldUseNativeQuery() &&
+      !this.isStateLoadSubcommand(command, args)
+    ) {
+      const matched = this.nativeMatch(command, args);
+      if (matched) {
+        try {
+          const result = await this.registry.dispatch(
+            matched.cmd,
+            matched.args,
+            this.projectDir,
+          );
+          return formatRegistryRawStdout(matched.cmd, result.data).trim();
+        } catch (err) {
+          throw this.toToolsError(command, args, err);
+        }
+      }
+    }
+
     const wsArgs = this.workstream ? ['--ws', this.workstream] : [];
     const fullArgs = [this.gsdToolsPath, command, ...args, ...wsArgs, '--raw'];
 
