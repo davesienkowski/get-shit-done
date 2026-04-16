@@ -31,10 +31,12 @@ process.on('exit', () => {
 // Supports both **Field:** bold and plain Field: format.
 function stateExtractField(content, fieldName) {
   const escaped = escapeRegex(fieldName);
-  const boldPattern = new RegExp(`\\*\\*${escaped}:\\*\\*\\s*(.+)`, 'i');
+  // Horizontal whitespace only after ':' so YAML blocks like `progress:\n  total:` do not
+  // match as `Progress:` with a spurious multi-line value (body fields are single-line).
+  const boldPattern = new RegExp(`\\*\\*${escaped}:\\*\\*[ \\t]*(.+)`, 'i');
   const boldMatch = content.match(boldPattern);
   if (boldMatch) return boldMatch[1].trim();
-  const plainPattern = new RegExp(`^${escaped}:\\s*(.+)`, 'im');
+  const plainPattern = new RegExp(`^${escaped}:[ \\t]*(.+)`, 'im');
   const plainMatch = content.match(plainPattern);
   return plainMatch ? plainMatch[1].trim() : null;
 }

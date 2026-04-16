@@ -18,6 +18,8 @@ import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { homedir } from 'node:os';
+
+import { MODEL_PROFILES } from './config-query.js';
 import { GSDError, ErrorClassification } from '../errors.js';
 import { extractFrontmatter, parseMustHavesBlock } from './frontmatter.js';
 import { escapeRegex, normalizePhaseName, planningPaths, resolvePathUnderProject } from './helpers.js';
@@ -733,6 +735,54 @@ export const validateHealth: QueryHandler = async (args, projectDir) => {
       info,
       repairable_count: repairableCount,
       repairs_performed: repairActions.length > 0 ? repairActions : undefined,
+    },
+  };
+};
+
+// ─── validateAgents ────────────────────────────────────────────────────────
+
+/**
+ * Validate GSD agent file installation under the managed agents directory.
+ *
+ * Port of `cmdValidateAgents` from `verify.cjs` lines 997–1009 (uses `checkAgentsInstalled` from core).
+ */
+export const validateAgents: QueryHandler = async (_args, _projectDir) => {
+  const agentsDir = process.env.GSD_AGENTS_DIR
+    || join(homedir(), '.claude', 'get-shit-done', 'agents');
+  const expected = Object.keys(MODEL_PROFILES);
+  const installed: string[] = [];
+  const missing: string[] = [];
+
+  if (!existsSync(agentsDir)) {
+    return {
+      data: {
+        agents_dir: agentsDir,
+        agents_found: false,
+        installed: [] as string[],
+        missing: expected,
+        expected,
+      },
+    };
+  }
+
+  for (const agent of expected) {
+    const agentFile = join(agentsDir, `${agent}.md`);
+    const agentFileCopilot = join(agentsDir, `${agent}.agent.md`);
+    if (existsSync(agentFile) || existsSync(agentFileCopilot)) {
+      installed.push(agent);
+    } else {
+      missing.push(agent);
+    }
+  }
+
+  const agentsInstalled = installed.length > 0 && missing.length === 0;
+  return {
+    data: {
+      agents_dir: agentsDir,
+      agents_found: agentsInstalled,
+      installed,
+      missing,
+      expected,
     },
   };
 };

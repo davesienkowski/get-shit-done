@@ -17,13 +17,14 @@
  * ```
  */
 
-import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { join, relative, basename, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { createHash, randomBytes } from 'node:crypto';
 
 import { planningPaths, toPosixPath } from './helpers.js';
+import { GSDError, ErrorClassification } from '../errors.js';
 import type { QueryHandler } from './utils.js';
 
 // ─── Learnings — ~/.gsd/knowledge/ knowledge store ───────────────────────
@@ -61,6 +62,16 @@ function learningsList(): Array<Record<string, unknown>> {
   results.sort((a, b) => new Date(b.date as string).getTime() - new Date(a.date as string).getTime());
   return results;
 }
+
+/**
+ * List all entries in the global learnings store (`~/.gsd/knowledge/`).
+ *
+ * Port of `cmdLearningsList` from learnings.cjs.
+ */
+export const learningsListHandler: QueryHandler = async () => {
+  const learnings = learningsList();
+  return { data: { learnings, count: learnings.length } };
+};
 
 /**
  * Query learnings from the global knowledge store, optionally filtered by tag.
@@ -107,6 +118,72 @@ export const learningsCopy: QueryHandler = async (_args, projectDir) => {
     if (result.created) created++; else skipped++;
   }
   return { data: { copied: true, total: created + skipped, created, skipped } };
+};
+
+/**
+ * Prune learnings older than duration (e.g. `90d`). Port of `learningsPrune` from learnings.cjs.
+ */
+function learningsPruneStore(olderThan: string): { removed: number; kept: number } {
+  const match = /^(\d+)d$/.exec(olderThan);
+  if (!match) {
+    throw new Error(`Invalid duration format: "${olderThan}" — expected format like "90d"`);
+  }
+  const days = parseInt(match[1], 10);
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  if (!existsSync(STORE_DIR)) return { removed: 0, kept: 0 };
+  const files = readdirSync(STORE_DIR).filter(f => f.endsWith('.json'));
+  let removed = 0;
+  let kept = 0;
+  for (const file of files) {
+    const filePath = join(STORE_DIR, file);
+    let record: Record<string, unknown> | null = null;
+    try {
+      record = JSON.parse(readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    if (!record?.date) continue;
+    const recordDate = new Date(record.date as string);
+    if (recordDate < cutoff) {
+      unlinkSync(filePath);
+      removed++;
+    } else {
+      kept++;
+    }
+  }
+  return { removed, kept };
+}
+
+/** Port of `cmdLearningsPrune`. */
+export const learningsPrune: QueryHandler = async (args) => {
+  const olderIdx = args.indexOf('--older-than');
+  const olderThan = olderIdx !== -1 ? args[olderIdx + 1] : null;
+  if (!olderThan) {
+    throw new GSDError('Usage: learnings prune --older-than <duration>', ErrorClassification.Validation);
+  }
+  try {
+    return { data: learningsPruneStore(olderThan) };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new GSDError(msg, ErrorClassification.Validation);
+  }
+};
+
+/** Port of `cmdLearningsDelete`. */
+export const learningsDelete: QueryHandler = async (args) => {
+  const id = args[0];
+  if (!id) {
+    throw new GSDError('Usage: learnings delete <id>', ErrorClassification.Validation);
+  }
+  if (!/^[a-z0-9]+-[a-f0-9]+$/.test(id)) {
+    throw new GSDError(`Invalid learning ID: "${id}"`, ErrorClassification.Validation);
+  }
+  const filePath = join(STORE_DIR, `${id}.json`);
+  if (!existsSync(filePath)) {
+    return { data: { id, deleted: false } };
+  }
+  unlinkSync(filePath);
+  return { data: { id, deleted: true } };
 };
 
 // ─── extractMessages — session message extraction for profiling ───────────

@@ -22,7 +22,7 @@ import {
   workstreamList, workstreamCreate, workstreamSet,
   workstreamStatus, workstreamComplete,
 } from './workstream.js';
-import { docsInit } from './init.js';
+import { docsInit } from './docs-init.js';
 import { websearch } from './websearch.js';
 
 let tmpDir: string;
@@ -244,11 +244,18 @@ describe('workstream handlers', () => {
 // ─── init.ts ─────────────────────────────────────────────────────────────
 
 describe('docsInit', () => {
-  it('returns docs context', async () => {
+  it('returns docs context matching gsd-tools docs-init', async () => {
     const result = await docsInit([], tmpDir);
     const data = result.data as Record<string, unknown>;
-    expect(typeof data.project_exists).toBe('boolean');
-    expect(data.docs_dir).toBe('.planning/docs');
+    expect(typeof data.planning_exists).toBe('boolean');
+    expect(data.project_root).toBe(tmpDir);
+    expect(typeof data.doc_writer_model).toBe('string');
+    expect(Array.isArray(data.existing_docs)).toBe(true);
+    expect(data.project_type).toBeDefined();
+    expect(data.doc_tooling).toBeDefined();
+    expect(Array.isArray(data.monorepo_workspaces)).toBe(true);
+    expect(typeof data.agents_installed).toBe('boolean');
+    expect(Array.isArray(data.missing_agents)).toBe(true);
   });
 });
 

@@ -941,16 +941,3 @@ export const initRemoveWorkspace: QueryHandler = async (args, _projectDir) => {
 
   return { data: result };
 };
-
-// ─── docsInit ────────────────────────────────────────────────────────────
-
-export const docsInit: QueryHandler = async (_args, projectDir) => {
-  return {
-    data: {
-      project_exists: existsSync(join(projectDir, '.planning', 'PROJECT.md')),
-      roadmap_exists: existsSync(join(projectDir, '.planning', 'ROADMAP.md')),
-      docs_dir: '.planning/docs',
-      project_root: projectDir,
-    },
-  };
-};
