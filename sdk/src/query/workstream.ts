@@ -22,7 +22,8 @@ import {
 } from 'node:fs';
 import { join, relative } from 'node:path';
 
-import { toPosixPath } from './helpers.js';
+import { toPosixPath, stateExtractField } from './helpers.js';
+import { GSDError, ErrorClassification } from '../errors.js';
 import type { QueryHandler } from './utils.js';
 
 // ─── Internal helpers ─────────────────────────────────────────────────────
@@ -32,6 +33,30 @@ const planningRoot = (projectDir: string) =>
 
 const workstreamsDir = (projectDir: string) =>
   join(planningRoot(projectDir), 'workstreams');
+
+function wsPlanningPaths(projectDir: string, name: string) {
+  const base = join(planningRoot(projectDir), 'workstreams', name);
+  return {
+    planning: base,
+    state: join(base, 'STATE.md'),
+    roadmap: join(base, 'ROADMAP.md'),
+    phases: join(base, 'phases'),
+    requirements: join(base, 'REQUIREMENTS.md'),
+  };
+}
+
+function readSubdirectories(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true }).filter(e => e.isDirectory()).map(e => e.name);
+}
+
+function filterPlanFiles(files: string[]): string[] {
+  return files.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md');
+}
+
+function filterSummaryFiles(files: string[]): string[] {
+  return files.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
+}
 
 function getActiveWorkstream(projectDir: string): string | null {
   const filePath = join(planningRoot(projectDir), 'active-workstream');
@@ -175,9 +200,69 @@ export const workstreamSet: QueryHandler = async (args, projectDir) => {
 
 export const workstreamStatus: QueryHandler = async (args, projectDir) => {
   const name = args[0];
-  if (!name) return { data: { found: false, reason: 'name required' } };
+  if (!name) {
+    throw new GSDError('workstream name required. Usage: workstream status <name>', ErrorClassification.Validation);
+  }
+  if (/[/\\]/.test(name) || name === '.' || name === '..') {
+    throw new GSDError('Invalid workstream name', ErrorClassification.Validation);
+  }
+
   const wsDir = join(workstreamsDir(projectDir), name);
-  return { data: { name, found: existsSync(wsDir), path: toPosixPath(relative(projectDir, wsDir)) } };
+  if (!existsSync(wsDir)) {
+    return { data: { found: false, workstream: name } };
+  }
+
+  const p = wsPlanningPaths(projectDir, name);
+  const relPath = toPosixPath(relative(projectDir, wsDir));
+
+  const files = {
+    roadmap: existsSync(p.roadmap),
+    state: existsSync(p.state),
+    requirements: existsSync(p.requirements),
+  };
+
+  const phases: Array<{ directory: string; status: string; plan_count: number; summary_count: number }> = [];
+  for (const dir of readSubdirectories(p.phases).sort()) {
+    try {
+      const phaseFiles = readdirSync(join(p.phases, dir));
+      const plans = filterPlanFiles(phaseFiles);
+      const summaries = filterSummaryFiles(phaseFiles);
+      phases.push({
+        directory: dir,
+        status:
+          summaries.length >= plans.length && plans.length > 0
+            ? 'complete'
+            : plans.length > 0
+              ? 'in_progress'
+              : 'pending',
+        plan_count: plans.length,
+        summary_count: summaries.length,
+      });
+    } catch { /* skip */ }
+  }
+
+  let stateInfo: Record<string, string | null> = {};
+  try {
+    const stateContent = readFileSync(p.state, 'utf-8');
+    stateInfo = {
+      status: stateExtractField(stateContent, 'Status') || 'unknown',
+      current_phase: stateExtractField(stateContent, 'Current Phase'),
+      last_activity: stateExtractField(stateContent, 'Last Activity'),
+    };
+  } catch { /* skip */ }
+
+  return {
+    data: {
+      found: true,
+      workstream: name,
+      path: relPath,
+      files,
+      phases,
+      phase_count: phases.length,
+      completed_phases: phases.filter(ph => ph.status === 'complete').length,
+      ...stateInfo,
+    },
+  };
 };
 
 export const workstreamComplete: QueryHandler = async (args, projectDir) => {

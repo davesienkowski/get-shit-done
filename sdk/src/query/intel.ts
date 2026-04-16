@@ -116,9 +116,11 @@ function searchArchMd(filePath: string, term: string): string[] {
 
 // ─── Handlers ────────────────────────────────────────────────────────────
 
+const INTEL_DISABLED_MSG = 'Intel system disabled. Set intel.enabled=true in config.json to activate.';
+
 export const intelStatus: QueryHandler = async (_args, projectDir) => {
   if (!isIntelEnabled(projectDir)) {
-    return { data: { disabled: true, message: 'Intel system disabled. Set intel.enabled=true in config.json to activate.' } };
+    return { data: { disabled: true, message: INTEL_DISABLED_MSG } };
   }
   const now = Date.now();
   const files: Record<string, unknown> = {};
@@ -149,7 +151,7 @@ export const intelStatus: QueryHandler = async (_args, projectDir) => {
 
 export const intelDiff: QueryHandler = async (_args, projectDir) => {
   if (!isIntelEnabled(projectDir)) {
-    return { data: { disabled: true, message: 'Intel system disabled.' } };
+    return { data: { disabled: true, message: INTEL_DISABLED_MSG } };
   }
   const snapshotPath = intelFilePath(projectDir, '.last-refresh.json');
   const snapshot = safeReadJson(snapshotPath) as Record<string, unknown> | null;
@@ -172,7 +174,7 @@ export const intelDiff: QueryHandler = async (_args, projectDir) => {
 
 export const intelSnapshot: QueryHandler = async (_args, projectDir) => {
   if (!isIntelEnabled(projectDir)) {
-    return { data: { disabled: true, message: 'Intel system disabled.' } };
+    return { data: { disabled: true, message: INTEL_DISABLED_MSG } };
   }
   const dir = intelDir(projectDir);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
@@ -192,7 +194,7 @@ export const intelSnapshot: QueryHandler = async (_args, projectDir) => {
 
 export const intelValidate: QueryHandler = async (_args, projectDir) => {
   if (!isIntelEnabled(projectDir)) {
-    return { data: { disabled: true, message: 'Intel system disabled.' } };
+    return { data: { disabled: true, message: INTEL_DISABLED_MSG } };
   }
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -220,7 +222,7 @@ export const intelValidate: QueryHandler = async (_args, projectDir) => {
 export const intelQuery: QueryHandler = async (args, projectDir) => {
   const term = args[0] || '';
   if (!isIntelEnabled(projectDir)) {
-    return { data: { disabled: true, message: 'Intel system disabled.' } };
+    return { data: { disabled: true, message: INTEL_DISABLED_MSG } };
   }
   const matches: unknown[] = [];
   let total = 0;

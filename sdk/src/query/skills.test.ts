@@ -25,6 +25,11 @@ describe('agentSkills', () => {
   let tmpDir: string;
   let homeDir: string;
 
+  it('returns empty string when no agent type (matches gsd-tools)', async () => {
+    const r = await agentSkills([], tmpdir());
+    expect(r.data).toBe('');
+  });
+
   beforeEach(async () => {
     tmpDir = await mkdtemp(join(tmpdir(), 'gsd-skills-'));
     homeDir = await mkdtemp(join(tmpdir(), 'gsd-skills-home-'));
