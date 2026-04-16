@@ -20,7 +20,8 @@ export type ExtractMessagesResult = {
   messages_truncated: number;
 };
 
-function isGenuineUserMessage(record: {
+/** Same filter as CJS `isGenuineUserMessage` in profile-pipeline.cjs. */
+export function isGenuineUserMessage(record: {
   type?: string;
   userType?: string;
   isMeta?: boolean;
@@ -41,12 +42,14 @@ function isGenuineUserMessage(record: {
   return true;
 }
 
-function truncateContent(content: string, maxLen = 2000): string {
+/** Default maxLen 2000 matches CJS `truncateContent` for stream extraction. */
+export function truncateContent(content: string, maxLen = 2000): string {
   if (content.length <= maxLen) return content;
   return content.substring(0, maxLen) + '... [truncated]';
 }
 
-async function streamExtractMessages(
+/** Line-delimited JSONL reader — same behavior as CJS `streamExtractMessages`. */
+export async function streamExtractMessages(
   filePath: string,
   filterFn: (r: { type?: string; userType?: string; isMeta?: boolean; isSidechain?: boolean; message?: { content?: string } }) => boolean,
   maxMessages: number,
