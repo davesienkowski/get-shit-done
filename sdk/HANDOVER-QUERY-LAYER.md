@@ -125,9 +125,9 @@ Source: `.planning/research/decision-routing-audit.md` §3. **Tier** = priority 
 **Simple roadmap (execute in order):**
 
 1. **Harden parity** for surfaces workflows already depend on (registry dispatch, goldens, docs) so swaps from CJS to `gsd-sdk query` stay safe.
-2. **Ship 1–2 high-leverage consolidation handlers** from the audit (pick based on impact and risk; examples: `check auto-mode`, `phase-artifact-counts`, `route next-action` — with **display/routing fields** required by `review-and-risks.md` if applicable). Each needs handlers, tests, and `QUERY-HANDLERS.md` notes.
-3. **Rewrite one heavy workflow** (e.g. `next.md` or a focused slice of `autonomous.md`) to consume those queries and **measure** before/after (steps, tokens, or both).
-4. **Maintain a living boundary** between SDK (**data, deterministic checks**) and workflows (**judgment, sequencing, user-facing messages**). Extend `decision-routing-audit.md` §6 (decisions that stay with the AI) and `review-and-risks.md` “Do not implement” (e.g. no pre-computed `route workflow-steps`) as you add primitives.
+2. **Ship 1–2 high-leverage consolidation handlers** from the audit (pick based on impact and risk; examples: `check auto-mode`, `phase-artifact-counts`, `route next-action` — with **display/routing fields** required by `review-and-risks.md` if applicable). Each needs handlers, tests, and `QUERY-HANDLERS.md` notes. **Progress:** `check.auto-mode` shipped (`sdk/src/query/check-auto-mode.ts`); Tier 1 `route.next-action` already registered.
+3. **Rewrite one heavy workflow** (e.g. `next.md` or a focused slice of `autonomous.md`) to consume those queries and **measure** before/after (steps, tokens, or both). **Progress:** `execute-phase.md`, `discuss-phase.md`, `discuss-phase-assumptions.md`, and `plan-phase.md` (UI gate) now use `check auto-mode` instead of paired `config-get`s where applicable.
+4. **Maintain a living boundary** between SDK (**data, deterministic checks**) and workflows (**judgment, sequencing, user-facing messages**). Extend `decision-routing-audit.md` §6 (decisions that stay with the AI) and `review-and-risks.md` “Do not implement” (e.g. no pre-computed `route workflow-steps`) as you add primitives. **Progress:** audit §3.5 / Tier 2 #4 updated to reference SDK implementation.
 
 **Gaps to keep in mind when designing new queries:** call-time vs stale data after file writes (re-query volatile fields); workflows own gates/UX; behavioral contracts (e.g. UI keyword lists) must match existing greps; `stderr`/`stdout` and JSON shapes stable for bash/`jq`; hybrid `require(core.cjs)` paths called out for minimal installs.
 
@@ -139,9 +139,9 @@ Source: `.planning/research/decision-routing-audit.md` §3. **Tier** = priority 
 
 (Strategic ordering of **parity vs decision offloading** is in **Roadmap** above.)
 
-1. **Golden test for `phase.add-batch`** — Optional cross-check vs `captureGsdToolsOutput('phase', ['add-batch', …])` in a temp project (or document as test gap if too heavy).
-2. **Re-export `normalizeQueryCommand`** from `sdk/src/query/index.ts` (or package root) if external integrators need the same argv rules as `gsd-sdk query`.
-3. **Issue #2302 follow-ups** — Runner alignment (`GSDTools` → registry where appropriate); keep `**graphify` / `from-gsd2`** out of scope unless product reopens.
+1. ~~**Golden test for `phase.add-batch`**~~ — Done: `sdk/src/golden/mutation-subprocess.integration.test.ts` (`phase.add-batch` JSON parity vs CJS).
+2. ~~**Re-export `normalizeQueryCommand`**~~ — Done: exported from `sdk/src/query/index.ts` and `sdk/src/index.ts` (`@gsd-build/sdk`).
+3. **Issue #2302 follow-ups** — Runner alignment (`GSDTools` → registry where appropriate). **`configGet`** now uses `dispatchNativeJson` with canonical `config-get` (fixes subprocess argv vs real `gsd-tools.cjs`, which has no `config` + `get` top-level). Keep `**graphify` / `from-gsd2`** out of scope unless product reopens.
 4. **Drift check** — When adding CJS commands, update `QUERY-HANDLERS.md` matrix and golden docs in the same PR.
 
 ---
