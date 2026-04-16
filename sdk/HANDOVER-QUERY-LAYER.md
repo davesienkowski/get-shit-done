@@ -5,7 +5,7 @@ Paste this document (or `@sdk/HANDOVER-QUERY-LAYER.md`) at the start of a new se
 ## Parent tracking
 
 - **Issue:** [gsd-build/get-shit-done#2302](https://github.com/gsd-build/get-shit-done/issues/2302) — Phase 3 SDK query parity, registry, docs (umbrella #2007).
-- **Workspace:** `D:\Repos\get-shit-done` (PBR backport). **Upstream:** `gsd-build/get-shit-done`. Confirm branch with `git branch` (typical: `feat/sdk-phase3-query-layer`).
+- **Workspace:** `D:\Repos\get-shit-done` (PBR backport). **Upstream:** `gsd-build/get-shit-done`. **Always confirm branch** with `git branch` before editing — work may continue on **`feat/sdk-phase3-query-layer`** (Phase 3 stack).
 
 ### Scope anchors (do not confuse issues)
 
@@ -120,7 +120,13 @@ Source: `.planning/research/decision-routing-audit.md` §3. **Tier** = priority 
 
 **Not in audit:** `phase-artifact-counts` was only an example in an older handover line; there is no §3.11 for it — add via a new research doc if needed.
 
-**SDK registry (Tier 1):** **Done** — `check.config-gates`, `check.phase-ready`, `route.next-action` in `createRegistry()` (`sdk/src/query/index.ts`). Documented in `sdk/src/query/QUERY-HANDLERS.md` § Decision routing (**SDK-only** until/unless mirrored in `gsd-tools.cjs`).
+**SDK registry — tier status (decision-routing audit §5):**
+
+| Tier | Audit §3 items | SDK status (registry + `QUERY-HANDLERS.md`) |
+|------|------------------|-----------------------------------------------|
+| **1** | `route next-action`, `check config-gates`, `check phase-ready` | **Done** — `route.next-action`, `check.config-gates`, `check.phase-ready` in `createRegistry()` (`sdk/src/query/index.ts`). |
+| **2** | `check auto-mode`, `detect phase-type`, `check completion` | **Done** — all three implemented: `check.auto-mode` (`check-auto-mode.ts`), `detect.phase-type` (`detect-phase-type.ts`), `check.completion` (`check-completion.ts`). |
+| **3** | `check gates`, `check verification-status`, `check ship-ready` | **Done** — `check.gates` (`check-gates.ts`), `check.verification-status` (`check-verification-status.ts`), `check.ship-ready` (`check-ship-ready.ts`) in `createRegistry()`. SDK-only — no CJS mirror. |
 
 **Simple roadmap (execute in order):**
 
@@ -139,10 +145,26 @@ Source: `.planning/research/decision-routing-audit.md` §3. **Tier** = priority 
 
 (Strategic ordering of **parity vs decision offloading** is in **Roadmap** above.)
 
+### Pick up Tier 3 (audit §3.2 / §3.8 / §3.9)
+
+If the goal is **decision-routing consolidation** after Tier 1 + `check.auto-mode`, implement **one Tier 3 handler at a time** (each: handler module, unit/integration tests, `QUERY-HANDLERS.md` Decision routing table, optional workflow slice):
+
+1. **`check gates <workflow>`** (audit **3.2**) — Safety gates: `.continue-here.md`, STATE error/failed, VERIFICATION.md FAIL rows, consecutive-call guard (see `next.md` / audit prose). Highest leverage for routing consistency with `route.next-action`.
+2. **`check verification-status <phase>`** (audit **3.8**) — Structured VERIFICATION.md parsing for routing (replaces grep-heavy branches).
+3. **`check ship-ready <phase>`** (audit **3.9**) — Ship preflight alignment with `ship.md` (clean tree, branch, remote, `gh`, etc. per audit sketch).
+
+**Do not implement:** `route workflow-steps` (audit **3.10** / `review-and-risks.md`).
+
+**Still useful (parity / hygiene):**
+
 1. ~~**Golden test for `phase.add-batch`**~~ — Done: `sdk/src/golden/mutation-subprocess.integration.test.ts` (`phase.add-batch` JSON parity vs CJS).
 2. ~~**Re-export `normalizeQueryCommand`**~~ — Done: exported from `sdk/src/query/index.ts` and `sdk/src/index.ts` (`@gsd-build/sdk`).
-3. **Issue #2302 follow-ups** — Runner alignment (`GSDTools` → registry where appropriate). **`configGet`** now uses `dispatchNativeJson` with canonical `config-get` (fixes subprocess argv vs real `gsd-tools.cjs`, which has no `config` + `get` top-level). Keep `**graphify` / `from-gsd2`** out of scope unless product reopens.
+3. **Issue #2302 follow-ups** — Runner alignment (`GSDTools` → registry where appropriate). **`configGet`** uses `dispatchNativeJson` with canonical `config-get`. **`state load`** uses registry + `state-project-load` when native query is active. Keep **`graphify` / `from-gsd2`** out of scope unless product reopens.
 4. **Drift check** — When adding CJS commands, update `QUERY-HANDLERS.md` matrix and golden docs in the same PR.
+
+### Installer / CLI path (#2309)
+
+If the active branch is **`fix/2309-*`**: work may target **shipping `gsd-sdk` from `sdk/`**, **installer behavior**, and **documented `config-get` / query usage** so workflows do not silently miss `gsd-sdk query` — coordinate with [#2309](https://github.com/gsd-build/get-shit-done/issues/2309). Reconcile or merge with **`feat/sdk-phase3-query-layer`** before assuming a single linear history.
 
 ---
 
@@ -166,5 +188,11 @@ npx vitest run src/golden/golden.integration.test.ts --project integration
 - `phase add-batch` implemented and registered; **only** intentional CLI-only gaps remain (**graphify**, **from-gsd2**).
 
 ---
+
+## Resume checkpoint (last updated: 2026-04-16)
+
+- **Tier 1, Tier 2, and Tier 3** decision-routing handlers are all complete. Tier 2: `check.auto-mode`, `detect.phase-type`, `check.completion`. Tier 3: `check.gates`, `check.verification-status`, `check.ship-ready`. All registered with dotted + space aliases in `createRegistry()`.
+- **Next logical SDK chunk:** Adopt these handlers in a workflow slice (e.g. wire `detect.phase-type` into `plan-phase.md` UI gate, or `check.gates` into `next.md`) and measure token/step reduction per the roadmap.
+- **Parallel thread:** branch **`fix/2309-gsd-sdk-query-fallback-silently-ignores-*`** / [#2309](https://github.com/gsd-build/get-shit-done/issues/2309) may carry installer + `gsd-sdk` path fixes; confirm `git branch` and issue state before mixing with #2302 PRs.
 
 *Created/updated for query-layer handoff. Revise when registry surface, golden coverage, or the parity/offloading roadmap changes materially.*

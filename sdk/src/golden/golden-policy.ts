@@ -31,6 +31,18 @@ const NO_CJS_SUBPROCESS_REASON: Record<string, string> = {
     'SDK-only decision-routing query (audit §3.4). Covered in sdk/src/query/phase-ready.test.ts.',
   'route.next-action':
     'SDK-only decision-routing query (audit §3.1). Covered in sdk/src/query/route-next-action.test.ts.',
+  'check.auto-mode':
+    'SDK-only decision-routing query (audit §3.5). Covered in sdk/src/query/check-auto-mode.test.ts.',
+  'detect.phase-type':
+    'SDK-only decision-routing query (audit §3.6). Covered in sdk/src/query/detect-phase-type.test.ts.',
+  'check.completion':
+    'SDK-only decision-routing query (audit §3.7). Covered in sdk/src/query/check-completion.test.ts.',
+  'check.gates':
+    'SDK-only decision-routing query (audit §3.2). Covered in sdk/src/query/check-gates.test.ts.',
+  'check.verification-status':
+    'SDK-only decision-routing query (audit §3.8). Covered in sdk/src/query/check-verification-status.test.ts.',
+  'check.ship-ready':
+    'SDK-only decision-routing query (audit §3.9). Covered in sdk/src/query/check-ship-ready.test.ts.',
 };
 
 const READ_HANDLER_ONLY_REASON = (cmd: string) =>

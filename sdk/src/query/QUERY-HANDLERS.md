@@ -190,7 +190,7 @@ Handlers in `createRegistry()` that are **not** covered by `golden.integration.t
 
 ## Decision routing (SDK-only)
 
-These handlers implement `.planning/research/decision-routing-audit.md` — **no `gsd-tools.cjs` mirror yet** (orchestration JSON only). Invoke via `gsd-sdk query` / `registry.dispatch()` after `normalizeQueryCommand()` where argv uses `check …` / `route …` prefixes.
+These handlers implement `.planning/research/decision-routing-audit.md` — **no `gsd-tools.cjs` mirror yet** (orchestration JSON only). Invoke via `gsd-sdk query` / `registry.dispatch()` after `normalizeQueryCommand()` where argv uses `check …` / `detect …` / `route …` prefixes.
 
 ### Tier 1
 
@@ -205,8 +205,18 @@ These handlers implement `.planning/research/decision-routing-audit.md` — **no
 | Dispatch | Purpose |
 | -------- | ------- |
 | `check.auto-mode` / `check auto-mode` | `active` (OR of `workflow.auto_advance` and `workflow._auto_chain_active`), `source` (`none` / `auto_advance` / `auto_chain` / `both`), plus the two booleans. Replaces paired `config-get` calls in checkpoint and auto-advance steps. Use `--pick active` or `--pick auto_chain_active` when a workflow only needs one field. |
+| `detect.phase-type` / `detect phase-type <phase>` | Structured UI/schema/API/infra detection for a phase. Returns `has_frontend`, `frontend_indicators`, `has_schema`, `schema_orm`, `schema_files`, `has_api`, `has_infra`, `push_command` (null, reserved). Replaces fragile grep-based UI detection in `autonomous.md`, `plan-phase.md`, etc. (audit §3.6). |
+| `check.completion` / `check completion <phase\|milestone> <id>` | Phase or milestone completion rollup. Phase mode: `plans_total`, `plans_with_summaries`, `missing_summaries`, `verification_status`, `uat_status`, `debt` (`uat_gaps`, `verification_failures`, `human_needed`), `complete`. Milestone mode: `phase_count`, `phases_complete`, `phases_incomplete`, `complete`. Replaces PLAN/SUMMARY counting in `transition.md`, `complete-milestone.md` (audit §3.7). |
 
-**Stability:** Shapes are versioned with the audit doc; add integration tests when workflows adopt these queries. Re-run after file writes that change `.planning/` (stale read caveat in audit §6).
+### Tier 3
+
+| Dispatch | Purpose |
+| -------- | ------- |
+| `check.gates` / `check gates <workflow> [--phase <N>]` | Safety gate consolidation. Checks `.continue-here.md` presence (blocker), STATE.md error/failed status (blocker), and VERIFICATION.md FAIL rows (warning). Returns `passed`, `blockers`, `warnings`. Replaces per-workflow gate logic in `next.md`, `execute-phase.md`, `discuss-phase.md` (audit §3.2). SDK-only — no CJS mirror. |
+| `check.verification-status` / `check verification-status <phase>` | VERIFICATION.md parser. Returns `status` (`pass`/`fail`/`partial`/`missing`), `score` (e.g. `"3/4"`), `gaps`, `human_items`, `deferred`. Handles prefixed filenames and missing files. Replaces VERIFICATION.md grep/parse in `execute-phase.md`, `autonomous.md`, `progress.md` (audit §3.8). SDK-only — no CJS mirror. |
+| `check.ship-ready` / `check ship-ready <phase>` | Ship preflight: `clean_tree`, `on_feature_branch`, `current_branch`, `base_branch`, `remote_configured`, `gh_available`, `gh_authenticated` (always false — advisory, no network call), `verification_passed`, `blockers`, `ready`. Replaces ship.md preflight checks (audit §3.9). SDK-only — no CJS mirror. |
+
+**Stability:** Shapes are versioned with the audit doc; add integration tests when workflows adopt these queries. Re-run after file writes that change `.planning/` (stale read caveat in audit §6). All Tier 1–3 handlers are implemented and unit-tested.
 
 ---
 

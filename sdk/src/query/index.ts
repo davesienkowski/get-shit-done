@@ -82,6 +82,11 @@ import { checkConfigGates } from './config-gates.js';
 import { checkAutoMode } from './check-auto-mode.js';
 import { checkPhaseReady } from './phase-ready.js';
 import { routeNextAction } from './route-next-action.js';
+import { detectPhaseType } from './detect-phase-type.js';
+import { checkCompletion } from './check-completion.js';
+import { checkGates } from './check-gates.js';
+import { checkVerificationStatus } from './check-verification-status.js';
+import { checkShipReady } from './check-ship-ready.js';
 import { GSDEventStream } from '../event-stream.js';
 import {
   GSDEventType,
@@ -346,6 +351,16 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('check phase-ready', checkPhaseReady);
   registry.register('route.next-action', routeNextAction);
   registry.register('route next-action', routeNextAction);
+  registry.register('detect.phase-type', detectPhaseType);
+  registry.register('detect phase-type', detectPhaseType);
+  registry.register('check.completion', checkCompletion);
+  registry.register('check completion', checkCompletion);
+  registry.register('check.gates', checkGates);
+  registry.register('check gates', checkGates);
+  registry.register('check.verification-status', checkVerificationStatus);
+  registry.register('check verification-status', checkVerificationStatus);
+  registry.register('check.ship-ready', checkShipReady);
+  registry.register('check ship-ready', checkShipReady);
 
   // Phase lifecycle handlers
   registry.register('phase.add', phaseAdd);
