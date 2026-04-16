@@ -34,6 +34,8 @@ export interface WorkflowConfig {
   skip_discuss: boolean;
   /** Maximum self-discuss passes in auto/headless mode before forcing proceed. Default: 3. */
   max_discuss_passes: number;
+  /** Subagent timeout in ms (matches `get-shit-done/bin/lib/core.cjs` default 300000). */
+  subagent_timeout: number;
 }
 
 export interface HooksConfig {
@@ -86,6 +88,7 @@ export const CONFIG_DEFAULTS: GSDConfig = {
     discuss_mode: 'discuss',
     skip_discuss: false,
     max_discuss_passes: 3,
+    subagent_timeout: 300000,
   },
   hooks: {
     context_warnings: true,
