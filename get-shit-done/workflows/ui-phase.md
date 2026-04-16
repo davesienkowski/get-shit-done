@@ -39,7 +39,7 @@ UI_CHECKER_MODEL=$(gsd-sdk query resolve-model gsd-ui-checker --raw)
 Check config:
 
 ```bash
-UI_ENABLED=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.ui_phase true)
+UI_ENABLED=$(gsd-sdk query config-get workflow.ui_phase 2>/dev/null || echo "true")
 ```
 
 **If `UI_ENABLED` is `false`:**

@@ -25,7 +25,7 @@ Parse: `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `padded_phase`.
 
 ```bash
 AUDITOR_MODEL=$(gsd-sdk query resolve-model gsd-nyquist-auditor --raw)
-NYQUIST_CFG=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.nyquist_validation --raw)
+NYQUIST_CFG=$(gsd-sdk query config-get workflow.nyquist_validation --raw)
 ```
 
 If `NYQUIST_CFG` is `false`: exit with "Nyquist validation is disabled. Enable via /gsd-settings."

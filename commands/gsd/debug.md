@@ -63,7 +63,7 @@ debugger_model=$(gsd-sdk query resolve-model gsd-debugger 2>/dev/null | jq -r '.
 
 Read TDD mode from config:
 ```bash
-TDD_MODE=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" tdd_mode "" | jq -r 'if type == "boolean" then tostring else . end' 2>/dev/null || echo "false")
+TDD_MODE=$(gsd-sdk query config-get tdd_mode 2>/dev/null | jq -r 'if type == "boolean" then tostring else . end' 2>/dev/null || echo "false")
 ```
 
 ## 1a. LIST subcommand

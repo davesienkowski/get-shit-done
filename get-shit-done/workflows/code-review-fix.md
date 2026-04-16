@@ -74,7 +74,7 @@ FIX_REPORT_PATH="${PHASE_DIR}/${PADDED_PHASE}-REVIEW-FIX.md"
 Check if code review is enabled via config:
 
 ```bash
-CODE_REVIEW_ENABLED=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.code_review true)
+CODE_REVIEW_ENABLED=$(gsd-sdk query config-get workflow.code_review 2>/dev/null || echo "true")
 ```
 
 If CODE_REVIEW_ENABLED is "false":

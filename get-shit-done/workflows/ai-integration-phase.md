@@ -38,7 +38,7 @@ PLANNER_MODEL=$(gsd-sdk query resolve-model gsd-eval-planner 2>/dev/null | jq -r
 
 Check config:
 ```bash
-AI_PHASE_ENABLED=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.ai_integration_phase true)
+AI_PHASE_ENABLED=$(gsd-sdk query config-get workflow.ai_integration_phase 2>/dev/null || echo "true")
 ```
 
 **If `AI_PHASE_ENABLED` is `false`:**

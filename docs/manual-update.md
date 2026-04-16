@@ -45,10 +45,6 @@ npm install -g .
 
 Set `GSD_SKIP_SDK_INSTALL=1` when invoking `node bin/install.js` if you must skip the automatic SDK global install (CI or air-gapped environments).
 
-### Loud config reads
-
-Workflows use `get-shit-done/bin/gsd-config-get.cjs` for `config-get` so a missing or outdated `gsd-sdk` fails with a clear message instead of silently falling back to defaults (see issue #2309).
-
 ## Runtime flags
 
 Replace `--claude` with the flag for your runtime:
@@ -72,7 +68,7 @@ Use `--local` instead of `--global` for a project-scoped install.
 
 The installer performs a clean wipe-and-replace of GSD-managed directories only:
 
-- `~/.claude/get-shit-done/` — workflows, references, templates (includes `bin/gsd-config-get.cjs`)
+- `~/.claude/get-shit-done/` — workflows, references, templates
 - `~/.claude/commands/gsd/` — slash commands
 - `~/.claude/agents/gsd-*.md` — GSD agents
 - `~/.claude/hooks/dist/` — compiled hooks

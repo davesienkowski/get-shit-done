@@ -141,7 +141,7 @@ For each REQ-ID, determine status using all three sources:
 Skip if `workflow.nyquist_validation` is explicitly `false` (absent = enabled).
 
 ```bash
-NYQUIST_CONFIG=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.nyquist_validation --raw)
+NYQUIST_CONFIG=$(gsd-sdk query config-get workflow.nyquist_validation --raw 2>/dev/null)
 ```
 
 If `false`: skip entirely.

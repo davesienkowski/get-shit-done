@@ -58,7 +58,7 @@ gaps = [
 **Read worktree config:**
 
 ```bash
-USE_WORKTREES=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.use_worktrees true)
+USE_WORKTREES=$(gsd-sdk query config-get workflow.use_worktrees 2>/dev/null || echo "true")
 ```
 
 **Report diagnosis plan to user:**

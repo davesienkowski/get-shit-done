@@ -624,8 +624,8 @@ Check for auto-advance trigger:
    ```
 3. Read chain flag and user preference:
    ```bash
-   AUTO_CHAIN=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow._auto_chain_active false)
-   AUTO_CFG=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.auto_advance false)
+   AUTO_CHAIN=$(gsd-sdk query config-get workflow._auto_chain_active 2>/dev/null || echo "false")
+   AUTO_CFG=$(gsd-sdk query config-get workflow.auto_advance 2>/dev/null || echo "false")
    ```
 
 **If `--auto` flag present AND `AUTO_CHAIN` is not true:**

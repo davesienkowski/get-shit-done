@@ -27,7 +27,7 @@ Extract: `branching_strategy`, `branch_name`.
 
 Detect base branch for PRs and merges:
 ```bash
-BASE_BRANCH=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" git.base_branch )
+BASE_BRANCH=$(gsd-sdk query config-get git.base_branch 2>/dev/null || echo "")
 if [ -z "$BASE_BRANCH" ] || [ "$BASE_BRANCH" = "null" ]; then
   BASE_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|^refs/remotes/origin/||')
   BASE_BRANCH="${BASE_BRANCH:-main}"
@@ -165,7 +165,7 @@ Report: "PR #{number} created: {url}"
 Before prompting the user, check if an external review command is configured:
 
 ```bash
-REVIEW_CMD=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.code_review_command "" | jq -r '.' 2>/dev/null || echo "")
+REVIEW_CMD=$(gsd-sdk query config-get workflow.code_review_command 2>/dev/null | jq -r '.' 2>/dev/null || echo "")
 ```
 
 If `REVIEW_CMD` is non-empty and not `"null"`, run the external review:

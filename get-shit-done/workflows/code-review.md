@@ -74,7 +74,7 @@ fi
 Check if code review is enabled via config:
 
 ```bash
-CODE_REVIEW_ENABLED=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.code_review true)
+CODE_REVIEW_ENABLED=$(gsd-sdk query config-get workflow.code_review 2>/dev/null || echo "true")
 ```
 
 If CODE_REVIEW_ENABLED is "false":
@@ -90,14 +90,14 @@ Default is true — only skip on explicit false. This check runs AFTER phase val
 Determine review depth with priority order:
 
 1. DEPTH_OVERRIDE from --depth flag (highest priority)
-2. Config value: `node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.code_review_depth ""`
+2. Config value: `gsd-sdk query config-get workflow.code_review_depth 2>/dev/null`
 3. Default: "standard"
 
 ```bash
 if [ -n "$DEPTH_OVERRIDE" ]; then
   REVIEW_DEPTH="$DEPTH_OVERRIDE"
 else
-  CONFIG_DEPTH=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.code_review_depth )
+  CONFIG_DEPTH=$(gsd-sdk query config-get workflow.code_review_depth 2>/dev/null || echo "")
   REVIEW_DEPTH="${CONFIG_DEPTH:-standard}"
 fi
 ```

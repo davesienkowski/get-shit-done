@@ -32,8 +32,8 @@ if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 AGENT_SKILLS_RESEARCHER=$(gsd-sdk query agent-skills gsd-researcher 2>/dev/null)
 AGENT_SKILLS_PLANNER=$(gsd-sdk query agent-skills gsd-planner 2>/dev/null)
 AGENT_SKILLS_CHECKER=$(gsd-sdk query agent-skills gsd-checker 2>/dev/null)
-CONTEXT_WINDOW=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" context_window 200000)
-TDD_MODE=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.tdd_mode false)
+CONTEXT_WINDOW=$(gsd-sdk query config-get context_window 2>/dev/null || echo "200000")
+TDD_MODE=$(gsd-sdk query config-get workflow.tdd_mode 2>/dev/null || echo "false")
 ```
 
 When `TDD_MODE` is `true`, the planner agent is instructed to apply `type: tdd` to eligible tasks using heuristics from `references/tdd.md`. The planner's `<required_reading>` is extended to include `@~/.claude/get-shit-done/references/tdd.md` so gate enforcement rules are available during planning.
@@ -207,7 +207,7 @@ If `context_path` is not null, display: `Using phase context from: ${context_pat
 
 Read discuss mode for context gate label:
 ```bash
-DISCUSS_MODE=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.discuss_mode discuss)
+DISCUSS_MODE=$(gsd-sdk query config-get workflow.discuss_mode 2>/dev/null || echo "discuss")
 ```
 
 If `TEXT_MODE` is true, present as a plain-text numbered list:
@@ -251,7 +251,7 @@ If "Run discuss-phase first":
 
 ```bash
 AI_SPEC_FILE=$(ls "${PHASE_DIR}"/*-AI-SPEC.md 2>/dev/null | head -1)
-AI_PHASE_CFG=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.ai_integration_phase true)
+AI_PHASE_CFG=$(gsd-sdk query config-get workflow.ai_integration_phase 2>/dev/null || echo "true")
 ```
 
 **Skip if `AI_PHASE_CFG` is `false`.**
@@ -418,9 +418,9 @@ test -f "${PHASE_DIR}/${PADDED_PHASE}-VALIDATION.md" && echo "VALIDATION_CREATED
 > Skip if `workflow.security_enforcement` is explicitly `false`. Absent = enabled.
 
 ```bash
-SECURITY_CFG=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.security_enforcement true --raw)
-SECURITY_ASVS=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.security_asvs_level 1 --raw)
-SECURITY_BLOCK=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.security_block_on high --raw)
+SECURITY_CFG=$(gsd-sdk query config-get workflow.security_enforcement --raw 2>/dev/null || echo "true")
+SECURITY_ASVS=$(gsd-sdk query config-get workflow.security_asvs_level --raw 2>/dev/null || echo "1")
+SECURITY_BLOCK=$(gsd-sdk query config-get workflow.security_block_on --raw 2>/dev/null || echo "high")
 ```
 
 **If `SECURITY_CFG` is `false`:** Skip to step 5.6.
@@ -444,8 +444,8 @@ Continue to step 5.6. Security config is passed to the planner in step 8.
 > Skip if `workflow.ui_phase` is explicitly `false` AND `workflow.ui_safety_gate` is explicitly `false` in `.planning/config.json`. If keys are absent, treat as enabled.
 
 ```bash
-UI_PHASE_CFG=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.ui_phase true)
-UI_GATE_CFG=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.ui_safety_gate true)
+UI_PHASE_CFG=$(gsd-sdk query config-get workflow.ui_phase 2>/dev/null || echo "true")
+UI_GATE_CFG=$(gsd-sdk query config-get workflow.ui_safety_gate 2>/dev/null || echo "true")
 ```
 
 **If both are `false`:** Skip to step 6.
@@ -473,7 +473,7 @@ UI_SPEC_FILE=$(ls "${PHASE_DIR}"/*-UI-SPEC.md 2>/dev/null | head -1)
 
 Read auto-chain state:
 ```bash
-AUTO_CHAIN=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow._auto_chain_active false)
+AUTO_CHAIN=$(gsd-sdk query config-get workflow._auto_chain_active 2>/dev/null || echo "false")
 ```
 
 **If `AUTO_CHAIN` is `true` (running inside a `--chain` or `--auto` pipeline):**
@@ -624,7 +624,7 @@ Proceed to Step 7.8 (or Step 8 if pattern mapper is disabled) only if user selec
 
 Check config:
 ```bash
-PATTERN_MAPPER_CFG=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.pattern_mapper true)
+PATTERN_MAPPER_CFG=$(gsd-sdk query config-get workflow.pattern_mapper 2>/dev/null || echo "true")
 ```
 
 **If `PATTERN_MAPPER_CFG` is `false`:** Skip to step 8.
@@ -1022,8 +1022,8 @@ Skipping bounce step.
 
 **Read pass count:**
 ```bash
-BOUNCE_PASSES=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.plan_bounce_passes 2)
-BOUNCE_SCRIPT=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.plan_bounce_script "" | jq -r '.' 2>/dev/null || true)
+BOUNCE_PASSES=$(gsd-sdk query config-get workflow.plan_bounce_passes 2>/dev/null || echo "2")
+BOUNCE_SCRIPT=$(gsd-sdk query config-get workflow.plan_bounce_script 2>/dev/null | jq -r '.' 2>/dev/null || true)
 ```
 
 Display banner:

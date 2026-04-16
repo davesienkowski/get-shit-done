@@ -136,7 +136,7 @@ AGENT_SKILLS_VERIFIER=$(gsd-sdk query agent-skills gsd-verifier 2>/dev/null)
 Parse JSON for: `planner_model`, `executor_model`, `checker_model`, `verifier_model`, `commit_docs`, `branch_name`, `quick_id`, `slug`, `date`, `timestamp`, `quick_dir`, `task_dir`, `roadmap_exists`, `planning_exists`.
 
 ```bash
-USE_WORKTREES=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.use_worktrees true)
+USE_WORKTREES=$(gsd-sdk query config-get workflow.use_worktrees 2>/dev/null || echo "true")
 ```
 
 If the project uses git submodules, worktree isolation is skipped:
@@ -653,7 +653,7 @@ After executor returns:
 
        if ! git diff --quiet .planning/STATE.md .planning/ROADMAP.md 2>/dev/null || \
           [ -n "$DELETED_FILES" ]; then
-         COMMIT_DOCS=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" commit_docs true)
+         COMMIT_DOCS=$(gsd-sdk query config-get commit_docs 2>/dev/null || echo "true")
          if [ "$COMMIT_DOCS" != "false" ]; then
            git add .planning/STATE.md .planning/ROADMAP.md 2>/dev/null || true
            git commit --amend --no-edit 2>/dev/null || true
@@ -684,7 +684,7 @@ Skip this step entirely if `$FULL_MODE` is false.
 
 **Config gate:**
 ```bash
-CODE_REVIEW_ENABLED=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.code_review true)
+CODE_REVIEW_ENABLED=$(gsd-sdk query config-get workflow.code_review 2>/dev/null || echo "true")
 ```
 If `"false"`, skip with message "Code review skipped (workflow.code_review=false)".
 
@@ -845,7 +845,7 @@ Build file list:
 # Explicitly stage all artifacts before commit — PLAN.md may be untracked
 # if the executor ran without worktree isolation and committed docs early
 # Filter .planning/ files from staging if commit_docs is disabled (#1783)
-COMMIT_DOCS=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" commit_docs true)
+COMMIT_DOCS=$(gsd-sdk query config-get commit_docs 2>/dev/null || echo "true")
 if [ "$COMMIT_DOCS" = "false" ]; then
   file_list_filtered=$(echo "${file_list}" | tr ' ' '\n' | grep -v '^\.planning/' | tr '\n' ' ')
   git add ${file_list_filtered} 2>/dev/null

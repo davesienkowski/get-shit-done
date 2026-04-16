@@ -25,7 +25,7 @@ Parse: `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `padded_phase`.
 
 ```bash
 AUDITOR_MODEL=$(gsd-sdk query resolve-model gsd-security-auditor --raw)
-SECURITY_CFG=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.security_enforcement true --raw)
+SECURITY_CFG=$(gsd-sdk query config-get workflow.security_enforcement --raw 2>/dev/null || echo "true")
 ```
 
 If `SECURITY_CFG` is `false`: exit with "Security enforcement disabled. Enable via /gsd-settings."
