@@ -1,5 +1,7 @@
 # Handover: Parity exceptions doc + CJS-only matrix (next session)
 
+**Status:** The deliverables described below are implemented in **`sdk/src/query/QUERY-HANDLERS.md`** (sections **Golden parity: coverage and exceptions** and **CJS command surface vs SDK registry**). Use that file as the canonical registry + parity reference; this handover remains useful for issue **#2291** scope and parent **#2007** links.
+
 Paste this document (or `@sdk/HANDOVER-PARITY-DOCS.md`) at the start of a new chat so work continues without re-auditing issue scope.
 
 ## Goal for this session
