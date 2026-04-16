@@ -51,7 +51,9 @@ import { agentSkills } from './skills.js';
 import { roadmapUpdatePlanProgress, requirementsMarkComplete } from './roadmap.js';
 import { statePlannedPhase } from './state-mutation.js';
 import { verifySchemaDrift } from './verify.js';
-import { todoMatchPhase, statsJson, progressBar, listTodos, todoComplete } from './progress.js';
+import {
+  todoMatchPhase, statsJson, statsTable, progressBar, progressTable, listTodos, todoComplete,
+} from './progress.js';
 import { milestoneComplete } from './phase-lifecycle.js';
 import { summaryExtract, historyDigest } from './summary.js';
 import { commitToSubrepo } from './commit.js';
@@ -414,9 +416,13 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('stats', statsJson);
   registry.register('stats.json', statsJson);
   registry.register('stats json', statsJson);
+  registry.register('stats.table', statsTable);
+  registry.register('stats table', statsTable);
   registry.register('commit-to-subrepo', commitToSubrepo);
   registry.register('progress.bar', progressBar);
   registry.register('progress bar', progressBar);
+  registry.register('progress.table', progressTable);
+  registry.register('progress table', progressTable);
   registry.register('workstream.get', workstreamGet);
   registry.register('workstream get', workstreamGet);
   registry.register('workstream.list', workstreamList);

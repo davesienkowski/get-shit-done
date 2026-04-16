@@ -145,6 +145,39 @@ export const progressBar: QueryHandler = async (_args, projectDir) => {
   return { data: { bar: text, percent, completed: totalSummaries, total: totalPlans } };
 };
 
+/**
+ * Markdown progress table — port of `cmdProgressRender` `format === 'table'` from commands.cjs (lines 575–587).
+ */
+export const progressTable: QueryHandler = async (_args, projectDir) => {
+  const json = await progressJson([], projectDir);
+  const d = json.data as {
+    milestone_version: string;
+    milestone_name: string;
+    phases: Array<{
+      number: string;
+      name: string;
+      plans: number;
+      summaries: number;
+      status: string;
+    }>;
+    total_plans: number;
+    total_summaries: number;
+    percent: number;
+  };
+  const { milestone_version, milestone_name, phases, total_plans, total_summaries, percent } = d;
+  const barWidth = 10;
+  const filled = Math.round((percent / 100) * barWidth);
+  const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(barWidth - filled);
+  let out = `# ${milestone_version} ${milestone_name}\n\n`;
+  out += `**Progress:** [${bar}] ${total_summaries}/${total_plans} plans (${percent}%)\n\n`;
+  out += '| Phase | Name | Plans | Status |\n';
+  out += '|-------|------|-------|--------|\n';
+  for (const p of phases) {
+    out += `| ${p.number} | ${p.name} | ${p.summaries}/${p.plans} | ${p.status} |\n`;
+  }
+  return { data: { rendered: out } };
+};
+
 // ─── statsJson ───────────────────────────────────────────────────────────
 
 /**
@@ -309,6 +342,14 @@ export const statsJson: QueryHandler = async (args, projectDir) => {
   }
 
   return { data: result };
+};
+
+/**
+ * Markdown statistics table — port of `cmdStats` `format === 'table'` from commands.cjs (lines 942–967).
+ * Delegates to `statsJson` with `['table']` (same `rendered` string as CJS).
+ */
+export const statsTable: QueryHandler = async (_args, projectDir) => {
+  return statsJson(['table'], projectDir);
 };
 
 // ─── todoMatchPhase ──────────────────────────────────────────────────────
