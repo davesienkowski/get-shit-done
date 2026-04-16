@@ -19,7 +19,7 @@ import { existsSync, readdirSync, readFileSync, mkdirSync, writeFileSync, unlink
 import { join, relative } from 'node:path';
 import { GSDError, ErrorClassification } from '../errors.js';
 import { comparePhaseNum, normalizePhaseName, planningPaths, toPosixPath } from './helpers.js';
-import { getMilestoneInfo, roadmapAnalyze, extractCurrentMilestone, roadmapGetPhase } from './roadmap.js';
+import { getMilestoneInfo, extractCurrentMilestone, roadmapGetPhase } from './roadmap.js';
 import { getMilestonePhaseFilter } from './state.js';
 import { findPhase } from './phase.js';
 import type { QueryHandler } from './utils.js';
@@ -124,14 +124,25 @@ export const progressJson: QueryHandler = async (_args, projectDir) => {
 
 // ─── progressBar ─────────────────────────────────────────────────────────
 
+/**
+ * Progress bar line — port of `cmdProgressRender` `format === 'bar'` from commands.cjs (lines 588–593).
+ * Uses the same plan/summary counts as `progressJson` / CJS (not `roadmap.analyze` percent).
+ */
 export const progressBar: QueryHandler = async (_args, projectDir) => {
-  const analysis = await roadmapAnalyze([], projectDir);
-  const data = analysis.data as Record<string, unknown>;
-  const percent = (data.progress_percent as number) || 0;
-  const total = 20;
-  const filled = Math.round((percent / 100) * total);
-  const bar = '[' + '#'.repeat(filled) + '-'.repeat(total - filled) + ']';
-  return { data: { bar: `${bar} ${percent}%`, percent } };
+  const json = await progressJson([], projectDir);
+  const d = json.data as {
+    total_plans: number;
+    total_summaries: number;
+    percent: number;
+  };
+  const totalPlans = d.total_plans;
+  const totalSummaries = d.total_summaries;
+  const percent = d.percent;
+  const barWidth = 20;
+  const filled = Math.round((percent / 100) * barWidth);
+  const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(barWidth - filled);
+  const text = `[${bar}] ${totalSummaries}/${totalPlans} plans (${percent}%)`;
+  return { data: { bar: text, percent, completed: totalSummaries, total: totalPlans } };
 };
 
 // ─── statsJson ───────────────────────────────────────────────────────────
