@@ -328,39 +328,87 @@ export const statePatch: QueryHandler = async (args, projectDir) => {
  * Sets phase, plan, status, progress, and current focus fields.
  * Rewrites the Current Position section.
  *
- * @param args - args[0]: phase number, args[1]: phase name, args[2]: plan count
+ * Accepts gsd-tools-style argv: `--phase N [--name S] [--plans C]` or positional
+ * `[phase, name?, planCount?]` (tests and direct handler calls).
+ *
+ * @param args - Named or positional phase / name / plan count
  * @param projectDir - Project root directory
- * @returns QueryResult with { phase, name, plan_count }
+ * @returns QueryResult with phase metadata and `updated` field names (for raw parity)
  */
 export const stateBeginPhase: QueryHandler = async (args, projectDir) => {
-  const phaseNumber = args[0];
-  const phaseName = args[1] || '';
-  const planCount = args[2] || '?';
+  const named = parseNamedArgs(args, ['phase', 'name', 'plans']);
+  let phaseNumber = (named.phase as string | null) || '';
+  let phaseName = (named.name as string | null) || '';
+  let planCount = (named.plans as string | null) || '';
+
+  if (!phaseNumber && args[0] && !String(args[0]).startsWith('--')) {
+    phaseNumber = args[0];
+  }
+  if (!phaseName && args[1] && !String(args[1]).startsWith('--')) {
+    phaseName = args[1];
+  }
+  if (!planCount && args[2] && !String(args[2]).startsWith('--')) {
+    planCount = args[2];
+  }
+  if (!planCount) {
+    planCount = '?';
+  }
 
   if (!phaseNumber) {
     throw new GSDError('phase number required', ErrorClassification.Validation);
   }
 
   const today = new Date().toISOString().split('T')[0];
+  const updated: string[] = [];
 
   await readModifyWriteStateMd(projectDir, (content) => {
     // Update bold/plain fields
     const statusValue = `Executing Phase ${phaseNumber}`;
-    content = stateReplaceField(content, 'Status', statusValue) || content;
-    content = stateReplaceField(content, 'Last Activity', today) || content;
-
-    const activityDesc = `Phase ${phaseNumber} execution started`;
-    content = stateReplaceField(content, 'Last Activity Description', activityDesc) || content;
-    content = stateReplaceField(content, 'Current Phase', String(phaseNumber)) || content;
-
-    if (phaseName) {
-      content = stateReplaceField(content, 'Current Phase Name', phaseName) || content;
+    let u = stateReplaceField(content, 'Status', statusValue);
+    if (u) {
+      content = u;
+      updated.push('Status');
     }
 
-    content = stateReplaceField(content, 'Current Plan', '1') || content;
+    u = stateReplaceField(content, 'Last Activity', today);
+    if (u) {
+      content = u;
+      updated.push('Last Activity');
+    }
+
+    const activityDesc = `Phase ${phaseNumber} execution started`;
+    u = stateReplaceField(content, 'Last Activity Description', activityDesc);
+    if (u) {
+      content = u;
+      updated.push('Last Activity Description');
+    }
+
+    u = stateReplaceField(content, 'Current Phase', String(phaseNumber));
+    if (u) {
+      content = u;
+      updated.push('Current Phase');
+    }
+
+    if (phaseName) {
+      u = stateReplaceField(content, 'Current Phase Name', phaseName);
+      if (u) {
+        content = u;
+        updated.push('Current Phase Name');
+      }
+    }
+
+    u = stateReplaceField(content, 'Current Plan', '1');
+    if (u) {
+      content = u;
+      updated.push('Current Plan');
+    }
 
     if (planCount !== '?') {
-      content = stateReplaceField(content, 'Total Plans in Phase', String(planCount)) || content;
+      u = stateReplaceField(content, 'Total Plans in Phase', String(planCount));
+      if (u) {
+        content = u;
+        updated.push('Total Plans in Phase');
+      }
     }
 
     // Update **Current focus:**
@@ -368,6 +416,7 @@ export const stateBeginPhase: QueryHandler = async (args, projectDir) => {
     const focusPattern = /(\*\*Current focus:\*\*\s*).*/i;
     if (focusPattern.test(content)) {
       content = content.replace(focusPattern, (_match, prefix: string) => `${prefix}${focusLabel}`);
+      updated.push('Current focus');
     }
 
     // Update ## Current Position section
@@ -402,12 +451,21 @@ export const stateBeginPhase: QueryHandler = async (args, projectDir) => {
       }
 
       content = content.replace(positionPattern, `${header}${posBody}`);
+      updated.push('Current Position');
     }
 
     return content;
   });
 
-  return { data: { phase: phaseNumber, name: phaseName || null, plan_count: planCount } };
+  return {
+    data: {
+      updated,
+      phase: phaseNumber,
+      phase_name: phaseName || null,
+      name: phaseName || null,
+      plan_count: planCount,
+    },
+  };
 };
 
 /**
