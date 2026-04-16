@@ -1,0 +1,4 @@
+{"type":"user","userType":"external","message":{"content":"fix the login bug"},"timestamp":1700000000000}
+{"type":"assistant","message":{"content":"I will fix it."},"timestamp":1700000000001}
+{"type":"user","userType":"external","message":{"content":"add dark mode"},"timestamp":1700000000002}
+{"type":"user","userType":"internal","isMeta":true,"message":{"content":"<local-command"},"timestamp":1700000000003}

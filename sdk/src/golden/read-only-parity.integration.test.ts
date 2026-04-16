@@ -8,10 +8,16 @@ import { createRegistry } from '../query/index.js';
 import { resolve, dirname, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { READ_ONLY_JSON_PARITY_ROWS } from './read-only-golden-rows.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..', '..', '..');
+
+const EXTRACT_MESSAGES_SESSIONS_FIXTURE = resolve(
+  REPO_ROOT,
+  'sdk/src/golden/fixtures/extract-messages-sessions',
+);
 
 describe('Read-only golden parity (JSON toEqual)', () => {
   it.each(READ_ONLY_JSON_PARITY_ROWS)('$canonical matches gsd-tools.cjs JSON', async (row) => {
@@ -44,6 +50,46 @@ describe('state.load golden parity (excluding last_updated)', () => {
       return o;
     };
     expect(strip(sdkResult.data)).toEqual(strip(gsdOutput));
+  });
+});
+
+describe('state.get golden parity', () => {
+  it('matches full STATE.md when no field (same as `state get` with no section)', async () => {
+    const gsdOutput = await captureGsdToolsOutput('state', ['get'], REPO_ROOT);
+    const registry = createRegistry();
+    const sdkResult = await registry.dispatch('state.get', [], REPO_ROOT);
+    expect(sdkResult.data).toEqual(gsdOutput);
+  });
+
+  it('matches single frontmatter field when `state get <field>`', async () => {
+    const gsdOutput = await captureGsdToolsOutput('state', ['get', 'milestone'], REPO_ROOT);
+    const registry = createRegistry();
+    const sdkResult = await registry.dispatch('state.get', ['milestone'], REPO_ROOT);
+    expect(sdkResult.data).toEqual(gsdOutput);
+  });
+});
+
+describe('extract-messages golden parity (excluding output_file path)', () => {
+  it('SDK JSON matches gsd-tools.cjs; JSONL file contents match', async () => {
+    const extra = ['my-project', '--path', EXTRACT_MESSAGES_SESSIONS_FIXTURE];
+    const gsdOutput = (await captureGsdToolsOutput('extract-messages', extra, REPO_ROOT)) as Record<
+      string,
+      unknown
+    >;
+    const registry = createRegistry();
+    const sdkResult = await registry.dispatch('extract-messages', extra, REPO_ROOT);
+    const sdkData = sdkResult.data as Record<string, unknown>;
+
+    const stripPath = (d: Record<string, unknown>): Record<string, unknown> => {
+      const o = { ...d };
+      delete o.output_file;
+      return o;
+    };
+    expect(stripPath(sdkData)).toEqual(stripPath(gsdOutput));
+
+    const gsdPath = gsdOutput.output_file as string;
+    const sdkPath = sdkData.output_file as string;
+    expect(readFileSync(gsdPath, 'utf-8')).toBe(readFileSync(sdkPath, 'utf-8'));
   });
 });
 

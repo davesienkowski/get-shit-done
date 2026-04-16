@@ -59,5 +59,8 @@ export function readOnlyGoldenCanonicals(): Set<string> {
   s.add('verify.commits');
   s.add('config-path');
   s.add('state.json');
+  s.add('audit-open');
+  s.add('state.get');
+  s.add('extract.messages');
   return s;
 }
