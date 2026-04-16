@@ -846,13 +846,12 @@ Plans with `autonomous: false` require user interaction.
 
 **Auto-mode checkpoint handling:**
 
-Read auto-advance config (chain flag + user preference):
+Read auto-advance config (chain flag OR user preference — same boolean as `check.auto-mode`):
 ```bash
-AUTO_CHAIN=$(gsd-sdk query config-get workflow._auto_chain_active 2>/dev/null || echo "false")
-AUTO_CFG=$(gsd-sdk query config-get workflow.auto_advance 2>/dev/null || echo "false")
+AUTO_MODE=$(gsd-sdk query check auto-mode --pick active 2>/dev/null || echo "false")
 ```
 
-When executor returns a checkpoint AND (`AUTO_CHAIN` is `"true"` OR `AUTO_CFG` is `"true"`):
+When executor returns a checkpoint AND `AUTO_MODE` is `true`:
 - **human-verify** → Auto-spawn continuation agent with `{user_response}` = `"approved"`. Log `⚡ Auto-approved checkpoint`.
 - **decision** → Auto-spawn continuation agent with `{user_response}` = first option from checkpoint details. Log `⚡ Auto-selected: [option]`.
 - **human-action** → Present to user (existing behavior below). Auth gates cannot be automated.
@@ -1454,13 +1453,12 @@ STOP. Do not proceed to auto-advance or transition.
 **Auto-advance detection:**
 
 1. Parse `--auto` flag from $ARGUMENTS
-2. Read both the chain flag and user preference (chain flag already synced in init step):
+2. Read consolidated auto-mode (`active` = chain flag OR user preference; chain flag already synced in init step):
    ```bash
-   AUTO_CHAIN=$(gsd-sdk query config-get workflow._auto_chain_active 2>/dev/null || echo "false")
-   AUTO_CFG=$(gsd-sdk query config-get workflow.auto_advance 2>/dev/null || echo "false")
+   AUTO_MODE=$(gsd-sdk query check auto-mode --pick active 2>/dev/null || echo "false")
    ```
 
-**If `--auto` flag present OR `AUTO_CHAIN` is true OR `AUTO_CFG` is true (AND verification passed with no gaps):**
+**If `--auto` flag present OR `AUTO_MODE` is true (AND verification passed with no gaps):**
 
 ```
 ╔══════════════════════════════════════════╗
@@ -1473,7 +1471,7 @@ Execute the transition workflow inline (do NOT use Task — orchestrator context
 
 Read and follow `~/.claude/get-shit-done/workflows/transition.md`, passing through the `--auto` flag so it propagates to the next phase invocation.
 
-**If none of `--auto`, `AUTO_CHAIN`, or `AUTO_CFG` is true:**
+**If neither `--auto` nor `AUTO_MODE` is true:**
 
 **STOP. Do not auto-advance. Do not execute transition. Do not plan next phase. Present options to the user and wait.**
 
