@@ -185,7 +185,7 @@ Proceed to 3b.
 **If has_context is false:** Check if discuss is disabled via settings:
 
 ```bash
-SKIP_DISCUSS=$(gsd-sdk query config-get workflow.skip_discuss 2>/dev/null || echo "false")
+SKIP_DISCUSS=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.skip_discuss false)
 ```
 
 **If SKIP_DISCUSS is `true`:** Skip discuss entirely — the ROADMAP phase description is the spec. Display:
@@ -289,7 +289,7 @@ UI_SPEC_FILE=$(ls "${PHASE_DIR}"/*-UI-SPEC.md 2>/dev/null | head -1)
 Check if UI phase workflow is enabled:
 
 ```bash
-UI_PHASE_CFG=$(gsd-sdk query config-get workflow.ui_phase 2>/dev/null || echo "true")
+UI_PHASE_CFG=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.ui_phase true)
 ```
 
 **If `HAS_UI` is 0 (frontend indicators found) AND `UI_SPEC_FILE` is empty (no UI-SPEC exists) AND `UI_PHASE_CFG` is not `false`:**
@@ -362,7 +362,7 @@ Auto-invoke code review and fix chain. Autonomous mode chains both review and fi
 
 **Config gate:**
 ```bash
-CODE_REVIEW_ENABLED=$(gsd-sdk query config-get workflow.code_review 2>/dev/null || echo "true")
+CODE_REVIEW_ENABLED=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.code_review true)
 ```
 If `"false"`: display "Code review skipped (workflow.code_review=false)" and proceed to 3d.
 
@@ -486,7 +486,7 @@ UI_SPEC_FILE=$(ls "${PHASE_DIR}"/*-UI-SPEC.md 2>/dev/null | head -1)
 Check if UI review is enabled:
 
 ```bash
-UI_REVIEW_CFG=$(gsd-sdk query config-get workflow.ui_review 2>/dev/null || echo "true")
+UI_REVIEW_CFG=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.ui_review true)
 ```
 
 **If `UI_SPEC_FILE` is not empty AND `UI_REVIEW_CFG` is not `false`:**

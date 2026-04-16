@@ -248,8 +248,8 @@ Do NOT continue reading. Analysis without action is a stuck signal.
 Check if auto mode is active at executor start (chain flag or user preference):
 
 ```bash
-AUTO_CHAIN=$(gsd-sdk query config-get workflow._auto_chain_active 2>/dev/null || echo "false")
-AUTO_CFG=$(gsd-sdk query config-get workflow.auto_advance 2>/dev/null || echo "false")
+AUTO_CHAIN=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow._auto_chain_active false)
+AUTO_CFG=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.auto_advance false)
 ```
 
 Auto mode is active if either `AUTO_CHAIN` or `AUTO_CFG` is `"true"`. Store the result for checkpoint handling below.

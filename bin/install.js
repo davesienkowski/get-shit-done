@@ -5,6 +5,7 @@ const path = require('path');
 const os = require('os');
 const readline = require('readline');
 const crypto = require('crypto');
+const { spawnSync } = require('child_process');
 
 // Colors
 const cyan = '\x1b[36m';
@@ -6594,6 +6595,45 @@ function promptLocation(runtimes) {
 }
 
 /**
+ * Build and install the @gsd-build/sdk CLI (`gsd-sdk`) globally from sdk/ when this
+ * installer is run from a source checkout (fixes #2309 — workflows need `gsd-sdk query`).
+ * Skipped when sdk/ is missing (e.g. npm-only get-shit-done-cc) or GSD_SKIP_SDK_INSTALL=1.
+ */
+function installGsdSdkFromCheckout() {
+  if (process.env.GSD_SKIP_SDK_INSTALL === '1') {
+    console.log(`  ${dim}Skipped @gsd-build/sdk install (GSD_SKIP_SDK_INSTALL=1)${reset}\n`);
+    return;
+  }
+  const repoRoot = path.join(__dirname, '..');
+  const sdkDir = path.join(repoRoot, 'sdk');
+  const sdkPkg = path.join(sdkDir, 'package.json');
+  if (!fs.existsSync(sdkPkg)) {
+    console.log(`  ${yellow}⚠${reset}  No sdk/ next to this installer — skipped installing gsd-sdk globally.`);
+    console.log(`    After a release: ${cyan}npm install -g @gsd-build/sdk@latest${reset}`);
+    console.log(`    Or clone the repo and follow ${cyan}docs/manual-update.md${reset}.\n`);
+    return;
+  }
+  const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  console.log(`  ${cyan}Installing @gsd-build/sdk CLI (gsd-sdk) from sdk/ …${reset}`);
+  let r = spawnSync(npmCmd, ['install'], { cwd: sdkDir, stdio: 'inherit', shell: true });
+  if (r.status !== 0) {
+    console.log(`  ${yellow}⚠${reset}  sdk/ npm install failed — run manually: cd sdk && npm install && npm run build && npm install -g .`);
+    return;
+  }
+  r = spawnSync(npmCmd, ['run', 'build'], { cwd: sdkDir, stdio: 'inherit', shell: true });
+  if (r.status !== 0) {
+    console.log(`  ${yellow}⚠${reset}  sdk/ build failed — run manually: cd sdk && npm run build`);
+    return;
+  }
+  r = spawnSync(npmCmd, ['install', '-g', sdkDir], { stdio: 'inherit', shell: true });
+  if (r.status !== 0) {
+    console.log(`  ${yellow}⚠${reset}  Global install of gsd-sdk failed — try: cd sdk && npm install -g .`);
+    return;
+  }
+  console.log(`  ${green}✓${reset} Installed gsd-sdk globally from sdk/`);
+}
+
+/**
  * Install GSD for all selected runtimes
  */
 function installAllRuntimes(runtimes, isGlobal, isInteractive) {
@@ -6608,7 +6648,8 @@ function installAllRuntimes(runtimes, isGlobal, isInteractive) {
   const primaryStatuslineResult = results.find(r => statuslineRuntimes.includes(r.runtime));
 
   const finalize = (shouldInstallStatusline) => {
-    // Handle SDK installation before printing final summaries
+    // Install @gsd-build/sdk CLI before printing final summaries (workflows use gsd-sdk query)
+    installGsdSdkFromCheckout();
     const printSummaries = () => {
       for (const result of results) {
         const useStatusline = statuslineRuntimes.includes(result.runtime) && shouldInstallStatusline;
@@ -6649,6 +6690,7 @@ if (process.env.GSD_TEST_MODE) {
     mergeCodexConfig,
     installCodexConfig,
     install,
+    installGsdSdkFromCheckout,
     uninstall,
     convertClaudeCommandToCodexSkill,
     convertClaudeToOpencodeFrontmatter,
