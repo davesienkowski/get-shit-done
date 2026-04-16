@@ -11,6 +11,8 @@
  *
  * await agentSkills(['gsd-executor'], '/project');
  * // { data: { agent_type: 'gsd-executor', skills: ['plan', 'verify'], skill_count: 2 } }
+ * await agentSkills([], '/project');
+ * // { data: '' } — matches gsd-tools when no agent type is passed
  * ```
  */
 
