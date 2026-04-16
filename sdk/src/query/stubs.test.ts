@@ -125,34 +125,38 @@ describe('statePlannedPhase', () => {
 // ─── verify.ts ───────────────────────────────────────────────────────────
 
 describe('verifySchemaDrift', () => {
-  it('returns valid/issues shape', async () => {
-    const result = await verifySchemaDrift([], tmpDir);
+  it('returns drift_detected shape (cmdVerifySchemaDrift parity)', async () => {
+    const result = await verifySchemaDrift(['9'], tmpDir);
     const data = result.data as Record<string, unknown>;
-    expect(typeof data.valid).toBe('boolean');
-    expect(Array.isArray(data.issues)).toBe(true);
-    expect(typeof data.checked).toBe('number');
+    expect(typeof data.drift_detected).toBe('boolean');
+    expect(typeof data.blocking).toBe('boolean');
+    expect(Array.isArray(data.schema_files)).toBe(true);
   });
 });
 
 // ─── progress.ts ─────────────────────────────────────────────────────────
 
 describe('todoMatchPhase', () => {
-  it('returns todos array (empty when no todos dir)', async () => {
+  it('returns matches and todo_count (cmdTodoMatchPhase parity)', async () => {
     const result = await todoMatchPhase(['9'], tmpDir);
     const data = result.data as Record<string, unknown>;
-    expect(Array.isArray(data.todos)).toBe(true);
+    expect(Array.isArray(data.matches)).toBe(true);
     expect(data.phase).toBe('9');
+    expect(typeof data.todo_count).toBe('number');
   });
 });
 
 describe('statsJson', () => {
-  it('returns stats with phases_total and progress', async () => {
+  it('returns cmdStats JSON shape with phases table and git fields', async () => {
     const result = await statsJson([], tmpDir);
     const data = result.data as Record<string, unknown>;
+    expect(typeof data.milestone_version).toBe('string');
+    expect(Array.isArray(data.phases)).toBe(true);
     expect(typeof data.phases_total).toBe('number');
-    expect(typeof data.plans_total).toBe('number');
-    expect(typeof data.progress_percent).toBe('number');
-    expect(data.phases_total).toBeGreaterThanOrEqual(2);
+    expect(typeof data.total_plans).toBe('number');
+    expect(typeof data.percent).toBe('number');
+    expect((data.phases_total as number)).toBeGreaterThanOrEqual(2);
+    expect(typeof data.git_commits).toBe('number');
   });
 });
 
