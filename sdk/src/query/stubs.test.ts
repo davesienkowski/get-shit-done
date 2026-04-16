@@ -175,12 +175,17 @@ describe('summaryExtract', () => {
     expect(data.error).toBeDefined();
   });
 
-  it('extracts sections from an existing summary file', async () => {
+  it('extracts frontmatter fields from an existing summary file', async () => {
     const summaryPath = join(tmpDir, '.planning', 'phases', '09-foundation', '09-01-SUMMARY.md');
-    await writeFile(summaryPath, '# Summary\n\n## What Was Done\nBuilt it.\n\n## Tests\nAll pass.\n');
+    await writeFile(
+      summaryPath,
+      ['---', 'phase: "09"', 'one-liner: Built it.', 'key-files:', '  - x.ts', '---', '', '# Summary', ''].join('\n'),
+      'utf-8',
+    );
     const result = await summaryExtract(['.planning/phases/09-foundation/09-01-SUMMARY.md'], tmpDir);
     const data = result.data as Record<string, unknown>;
-    expect(data.sections).toBeDefined();
+    expect(data.one_liner).toBe('Built it.');
+    expect(data.key_files).toEqual(['x.ts']);
   });
 });
 
