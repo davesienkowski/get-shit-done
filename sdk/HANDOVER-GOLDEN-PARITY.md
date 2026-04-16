@@ -2,101 +2,136 @@
 
 Use this document at the start of a new session so work continues in context without re-deriving history.
 
-**Related:** `HANDOVER-PARITY-DOCS.md` describes the same parity scope for **#2291**; both point to `**sdk/src/query/QUERY-HANDLERS.md`** as the canonical matrix and golden-exception reference.
+**Related:** `HANDOVER-PARITY-DOCS.md` (#2291 scope); **`sdk/src/query/QUERY-HANDLERS.md`** (golden matrix, CJS↔SDK routing).
 
-## Goal for the next session
+---
 
-1. **Resume golden parity work** — extend or tighten `sdk/src/golden/golden.integration.test.ts` so SDK `createRegistry()` behavior matches `get-shit-done/bin/gsd-tools.cjs` for the commands that matter for Phase 3, using `captureGsdToolsOutput()` as the reference.
-2. **One-pass review** of the query registry for **gaps** (commands still CJS-only, mismatched shapes, missing tests, docs drift).
+## Goal for the next session (primary)
+
+**Port or normalize remaining read-only query handlers** so their JSON matches `get-shit-done/bin/gsd-tools.cjs`, then add **strict subprocess golden rows** (`captureGsdToolsOutput` + `registry.dispatch` with `toEqual` on `sdkResult.data`), updating `read-only-golden-rows.ts` and keeping **`golden-policy.ts`** complete.
+
+**Do not “green the suite” by deleting or shrinking golden tests.** If a handler cannot match CJS byte-for-byte without product decisions, use **documented normalization** in the test (same approach as `docs-init` omitting agent-install fields) or **fix the TypeScript handler**—same trade-off as `scan-sessions` / `workstream.status` (see below).
+
+---
 
 ## Repo / branch
 
 - **Workspace:** `D:\Repos\get-shit-done` (GSD PBR backport initiative).
-- **Current feature branch (last verified):** `feat/sdk-phase3-query-layer`.
-- **Upstream:** PRs target `gsd-build/get-shit-done` — confirm merge state before assuming anything is on `main`.
+- **Feature branch:** `feat/sdk-phase3-query-layer` (confirm against `origin` before merging).
+- **Upstream PRs:** `gsd-build/get-shit-done`.
 
-## Query layer — what is already done
+---
 
-Native TypeScript handlers live under `sdk/src/query/`. `createRegistry()` in `sdk/src/query/index.ts` wires **all** of the following (plus existing handlers from earlier work):
+## Golden parity architecture (current)
 
+| Piece | Role |
+| ----- | ---- |
+| `sdk/src/golden/registry-canonical-commands.ts` | One canonical dispatch string per unique handler (`pickCanonicalCommandName`). |
+| `sdk/src/golden/golden-integration-covered.ts` | Canonicals exercised by **`golden.integration.test.ts`** (subset/full/shape tests). |
+| `sdk/src/golden/read-only-golden-rows.ts` | **Strict** `JsonParityRow[]` for `read-only-parity.integration.test.ts` (`toEqual` on parsed CJS JSON vs `sdkResult.data`). |
+| `sdk/src/golden/read-only-parity.integration.test.ts` | Rows from `READ_ONLY_JSON_PARITY_ROWS` + **`config-path`** (plain stdout vs `{ path }`, `path.normalize`) + **`verify.commits`**. |
+| `sdk/src/golden/capture.ts` | `captureGsdToolsOutput` (JSON stdout); **`captureGsdToolsStdout`** (raw stdout, e.g. `config-path`). |
+| `sdk/src/golden/golden-policy.ts` | `GOLDEN_PARITY_INTEGRATION_COVERED` = integration covered ∪ `readOnlyGoldenCanonicals()`; everything else gets `GOLDEN_PARITY_EXCEPTIONS` (mutations vs `READ_HANDLER_ONLY_REASON` for read-only not yet in subprocess matrix). |
+| `sdk/src/golden/golden-policy.test.ts` | Calls `verifyGoldenPolicyComplete()` so every canonical is covered or excepted. |
 
-| Area                                                                             | Notes                                                                                                                                                                                             |
-| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **State (extended)**                                                             | `state.signal-waiting`, `state.signal-resume`, `state.validate`, `state.sync`, `state.prune` — ported from `get-shit-done/bin/lib/state.cjs`, registered with dotted and `state …` space aliases. |
-| **detect-custom-files**                                                          | Port of installer manifest scan (`gsd-tools` `detect-custom-files --config-dir`).                                                                                                                 |
-| **docs-init**                                                                    | Full port of `docs.cjs` `cmdDocsInit` in `sdk/src/query/docs-init.ts` (not the old minimal stub).                                                                                                 |
-| **skill-manifest**, **audit-open**, **learnings** (list/query/copy/prune/delete) | Registered as in prior work.                                                                                                                                                                      |
-| **intel.update**                                                                 | Intentional **stub** (matches CJS): returns `spawn_agent` message — not a full intel refresh.                                                                                                     |
+**Invariant:** Every canonical from `getCanonicalRegistryCommands()` is either in `GOLDEN_PARITY_INTEGRATION_COVERED` or has an exception string—**never** leave orphans by removing tests.
 
+---
 
-`QUERY_MUTATION_COMMANDS` includes writes for the new state commands where appropriate; `**state.validate`** is read-only (not in the mutation set).
+## Reference pattern: porting like `scan-sessions` and `workstream.status`
 
-## Explicitly **not** in the SDK query registry (by product decision)
+These were fixed by **aligning the TypeScript handler with the CJS implementation**, then adding a row to `READ_ONLY_JSON_PARITY_ROWS`.
 
-Do **not** implement unless requirements change:
+1. **Find the CJS source of truth**  
+   - `scan-sessions`: `get-shit-done/bin/lib/profile-pipeline.cjs` → `cmdScanSessions`  
+   - `workstream status`: `get-shit-done/bin/lib/workstream.cjs` → `cmdWorkstreamStatus`  
+   - `gsd-tools.cjs` `runCommand` switch shows the top-level command and argv.
 
-- `**graphify`** — Depends on external `graphify` CLI / Python stack; not migrated to the query layer.
-- `**from-gsd2` / `gsd2-import`** — Legacy migration helper; not needed in the registry yet.
+2. **Implement or adjust the SDK module**  
+   - Example: `sdk/src/query/profile-scan-sessions.ts` mirrors the project-array build from `cmdScanSessions`; `scanSessions` in `profile.ts` parses `--path` / `--verbose`, throws when no sessions root (same error text as CJS), returns `{ data: projects }` where `projects` matches CJS JSON array.
 
-Parity exception categories and the CJS↔SDK matrix are documented in `sdk/src/query/QUERY-HANDLERS.md` (sections **Golden parity: coverage and exceptions** and **CJS command surface vs SDK registry**).
+3. **Add a parity row** in `read-only-golden-rows.ts` with `canonical`, `sdkArgs`, `cjs`, `cjsArgs` (must match what `execFile(node, [gsdToolsPath, command, ...args])` expects).
 
-## Files to know
+4. **Run**  
+   `cd sdk && npm run build && npx vitest run src/golden/read-only-parity.integration.test.ts src/golden/golden-policy.test.ts --project integration --project unit`
 
+5. **Policy**  
+   `readOnlyGoldenCanonicals()` picks up new canonicals automatically; no manual duplicate if the canonical is already in the JSON row list.
 
-| Path                                        | Role                                                       |
-| ------------------------------------------- | ---------------------------------------------------------- |
-| `sdk/src/query/index.ts`                    | Registry factory, `QUERY_MUTATION_COMMANDS`, imports.      |
-| `sdk/src/query/state-mutation.ts`           | State mutations + signal / validate / sync / prune.        |
-| `sdk/src/query/detect-custom-files.ts`      | Custom file detection vs manifest.                         |
-| `sdk/src/query/docs-init.ts`                | Docs workflow init payload.                                |
-| `sdk/src/query/registry.ts`                 | Dispatch, `GSDError` on unknown command.                   |
-| `sdk/src/golden/golden.integration.test.ts` | Golden tests vs `gsd-tools.cjs`.                           |
-| `sdk/src/golden/capture.ts`                 | Spawns `get-shit-done/bin/gsd-tools.cjs`, parses JSON.     |
-| `sdk/src/query/QUERY-HANDLERS.md`           | Intended registry documentation (may need sync with code). |
+**When not to copy line-for-line:** subprocess-only concerns (e.g. `agents_installed` / `missing_agents` differing from in-process `~` resolution). Then **normalize in the test** (see `golden.integration.test.ts` `docs-init`: sort `existing_docs`, omit install fields)—**document in QUERY-HANDLERS.md**, do not delete the assertion.
 
+---
 
-## Golden parity — how it works today
+## Backlog: read-only handlers still deferred (high value)
 
-- Tests call `**captureGsdToolsOutput(command, args, cwd)`** and compare to `**registry.dispatch(command, args, projectDir)`** (or compare stable fields / fixtures under `sdk/src/golden/fixtures/*.golden.json`).
-- `**PROJECT_DIR`** in tests is the **SDK package dir** (`sdk/`); `**REPO_ROOT`** is the **repo root** (where `.planning/` lives) — important for commands that read project state.
-- Integration tests require Node to execute `gsd-tools.cjs` successfully (Windows: ensure `USERPROFILE` / paths if tests touch `homedir()` — see existing `skills.test.ts` patterns if applicable).
+These are typical **next targets**; confirm against `GOLDEN_PARITY_EXCEPTIONS` / `READ_HANDLER_ONLY_REASON` in `golden-policy.ts` for the live list.
 
-## Suggested next-session checklist
+| Area | CJS reference (start here) | SDK file(s) | Notes |
+| ---- | -------------------------- | ----------- | ----- |
+| **`stats` / `stats.json`** | `bin/lib/commands.cjs` `cmdStats` | `sdk/src/query/progress.ts` `statsJson` | SDK currently returns a **small aggregate**; CJS JSON path returns **milestone, phases table, git counts, requirements, last_activity**, etc. Needs full port or shared helper extracted from CJS logic. |
+| **`state.json` / `state.load`** | `bin/lib/state.cjs` `cmdStateJson` | `sdk/src/query/state.ts` `stateLoad` | Compare outputs on real `STATE.md`; align field-by-field. |
+| **`state-snapshot`** | `state.cjs` snapshot path | `state.ts` `stateSnapshot` | Same as above—structured snapshot must match. |
+| **`state.get`** | `cmdStateGet` | `state.ts` `stateGet` | Full document vs section; match CJS. |
+| **`todo.match-phase`** | `commands.cjs` `cmdTodoMatchPhase` | `progress.ts` `todoMatchPhase` | CJS returns `{ phase, matches, todo_count }` with scoring; SDK shape differed in probes—port scoring + output shape. |
+| **`verify.key-links` / `verify.references`** | `bin/lib/verify.cjs` | `sdk/src/query/verify.ts` | Detail strings (e.g. regex error text) may differ—align messages with CJS or document one intentional difference. |
+| **`verify.schema-drift`** | `verify.cjs` | `verify.ts` | Output object shape differed (`valid` vs `drift_detected`)—align naming and fields with CJS. |
+| **`summary.extract` / `history.digest`** | `commands.cjs` | `sdk/src/query/summary.ts` | Shape differs from CJS—port or subset-test with explicit field list. |
+| **`init.*` composition** (beyond rows already in `golden.integration.test.ts`) | `bin/lib/init.cjs` various `cmdInit*` | `sdk/src/query/init.ts`, `init-complex.ts` | Many payloads include `project_title`, `agents_installed`, timestamps—**subprocess vs in-process** may differ; prefer **stable-field golden** or **omit list** in test, not dropping coverage. |
+| **`audit-open` / `audit-uat`** | `bin/lib/audit.cjs`, `uat.cjs` | `audit-open.ts`, `uat.ts` | Use `--json` where applicable; align summary shapes. |
+| **`skill-manifest`** (read path) | `init.cjs` `cmdSkillManifest` | `skill-manifest.ts` | Ordering or extra keys—normalize sort in test if fs order differs. |
+| **`validate.agents`** | `validate.cjs` / agents path | `validate.ts` | Compare to CJS after fixing env-specific fields if any. |
+| **`uat.render-checkpoint`** | `uat.cjs` | `uat.ts` | Requires a valid UAT fixture path; fix template or use repo fixture. |
+| **`intel.extract-exports`** | `intel.cjs` | `intel.ts` | Compare export list to CJS for a fixed file path. |
+| **`extract.messages` / `profile-sample`** | `profile-pipeline.cjs` | `profile.ts` | CJS writes temp JSONL files and uses streaming; SDK uses simplified in-memory paths—**large port** or **explicit documented exception** with unit tests; do not silently drop golden intent. |
 
-### Review (gaps)
+**Mutations** (`QUERY_MUTATION_COMMANDS`): subprocess golden is optional; prefer temp dirs / `--dry-run` patterns already in `golden.integration.test.ts`. Policy already uses `MUTATION_DEFERRED_REASON`.
 
-- Diff `gsd-tools.cjs` `switch (command)` cases against `createRegistry()` registrations — confirm no remaining **required** commands are missing (excluding graphify / from-gsd2). **Note:** top-level CLI `**scaffold`** is not a separate registry name; use `**phase.scaffold`** / `**phase scaffold`** (documented in `QUERY-HANDLERS.md`).
-- Confirm `**QUERY-HANDLERS.md**` and `**docs/CLI-TOOLS.md**` (if present) list new commands and mutation semantics.
-- `**skill-manifest --write**` and conditional mutation events: `QUERY_MUTATION_COMMANDS` does not list `skill-manifest` (writes only with `--write`); follow-up left optional — documented in `QUERY-HANDLERS.md`.
-- `**intel.update**` remains a stub by design; documented + golden test when intel is disabled.
+---
 
-### Golden parity
+## Explicitly **not** in the SDK registry (product decision)
 
-- Add golden tests for **high-value** newly registered commands where JSON shape must match CJS (`state.validate`, `state.sync --verify`, `detect-custom-files` with temp `--config-dir`, `docs-init` with agent fields omitted, `intel.update` stub).
-- For mutations, use **temp dirs** or dedicated fixture phases (existing pattern in `golden.integration.test.ts` for `frontmatter.validate`).
-- Run `npm run build` in `sdk/` and `npx vitest run --project integration` — passed (Vitest `integration` project, 120s timeout).
+- **`graphify`**, **`from-gsd2` / `gsd2-import`** — CLI-only; no registry handler.
 
-### Fix shipped with this checklist (parity)
+---
 
-- `**stateExtractField`** (`sdk/src/query/helpers.ts` + `get-shit-done/bin/lib/state.cjs`): use horizontal whitespace only after `Field:` so YAML `progress:` blocks are not read as body `**Progress:`** values (fixes `state sync` dry-run alignment with real STATE.md layouts).
+## Files to know (updated)
 
-## Commands (quick verification)
+| Path | Role |
+| ---- | ---- |
+| `sdk/src/query/index.ts` | `createRegistry()`, `QUERY_MUTATION_COMMANDS`. |
+| `sdk/src/golden/golden-policy.ts` | Coverage set + exceptions; `verifyGoldenPolicyComplete()`. |
+| `sdk/src/golden/read-only-golden-rows.ts` | Strict read-only JSON matrix. |
+| `sdk/src/golden/read-only-parity.integration.test.ts` | Subprocess + dispatch parity tests. |
+| `sdk/src/golden/capture.ts` | `captureGsdToolsOutput`, `captureGsdToolsStdout`. |
+| `get-shit-done/bin/gsd-tools.cjs` | `runCommand` — argv routing. |
+| `get-shit-done/bin/lib/*.cjs` | Per-command implementations. |
+
+---
+
+## Commands (verification)
 
 ```bash
 cd sdk
 npm run build
-npx vitest run src/query/registry.test.ts src/query/stubs.test.ts --project unit
-npx vitest run src/golden/golden.integration.test.ts --project integration
+npm run test:unit
+npm run test:integration
 ```
 
-(Adjust `--project` names to match `sdk/vitest.config.ts` / root `vitest.config.ts`.)
+Focused:
 
-## Success criteria (for the “query + golden” milestone)
-
-- Registry covers all **agreed** GSD query commands; graphify and from-gsd2 remain **out of scope** unless explicitly re-opened.
-- Golden tests cover critical commands with **documented** exceptions (stubs, intentional subset comparisons).
-- Docs and `QUERY-HANDLERS.md` reflect the registry and any intentional differences from CJS.
+```bash
+npx vitest run src/golden/read-only-parity.integration.test.ts src/golden/golden.integration.test.ts --project integration
+npx vitest run src/golden/golden-policy.test.ts --project unit
+```
 
 ---
 
-*Generated for session handoff. Update this file when major registry or golden parity milestones change.*
+## Success criteria (extend, not replace)
+
+- **No regression:** `golden-policy.test.ts` / `verifyGoldenPolicyComplete()` stays green.
+- **Expand `READ_ONLY_JSON_PARITY_ROWS`** as handlers are aligned—**row count should go up**, not down.
+- **`QUERY-HANDLERS.md`** updated when assertion style changes (full `toEqual` vs normalized subset).
+
+---
+
+*Update this file when registry or golden milestones change.*
