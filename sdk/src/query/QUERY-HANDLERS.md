@@ -57,7 +57,23 @@ Handlers for `**state.signal-waiting`**, `**state.signal-resume**`, `**state.val
 
 ## Golden parity: coverage and exceptions
 
-Source of truth for **which** commands are compared and **how**: `sdk/src/golden/golden.integration.test.ts` (uses `captureGsdToolsOutput()` → `get-shit-done/bin/gsd-tools.cjs`). This section summarizes categories so readers do not have to infer rules from assertions alone.
+Subprocess reference: `captureGsdToolsOutput()` / `captureGsdToolsStdout()` → `get-shit-done/bin/gsd-tools.cjs` (`sdk/src/golden/capture.ts`). Plain-text commands (e.g. `config-path`) use stdout string comparison in `read-only-parity.integration.test.ts`.
+
+**Authoritative accounting (every canonical handler):** `sdk/src/golden/golden-policy.ts` merges `golden-integration-covered.ts` (canonicals hit by `golden.integration.test.ts`) with `read-only-golden-rows.ts` / special cases (`verify.commits`, `config-path`) into `GOLDEN_PARITY_INTEGRATION_COVERED`, and builds `GOLDEN_PARITY_EXCEPTIONS` for the rest. `getCanonicalRegistryCommands()` (`registry-canonical-commands.ts`) lists one dispatch string per unique handler; each canonical must be either covered or receive a built-in exception string (mutations → shared rationale; read-only without a subprocess row → per-command note). `sdk/src/golden/golden-policy.test.ts` calls `verifyGoldenPolicyComplete()` so the policy cannot drift silently.
+
+**Integration test files:**
+
+| File | Role |
+| ---- | ---- |
+| `sdk/src/golden/golden.integration.test.ts` | Primary golden suite: subset/shape/full parity as documented in the tables below. |
+| `sdk/src/golden/read-only-parity.integration.test.ts` | Read-only handlers with full `toEqual` on `sdkResult.data` vs CJS JSON; rows listed in `read-only-golden-rows.ts`. Also `config-path` / `verify.commits`. |
+
+This section summarizes **how** each covered command is compared so readers do not have to infer rules from assertions alone.
+
+### Golden registry coverage matrix (human summary)
+
+- **Covered by subprocess golden** — canonical names appear in `GOLDEN_PARITY_INTEGRATION_COVERED`; see the tables below and the two integration files for assertion style (`toEqual` vs stable-field subset).
+- **Not in covered set** — either listed in `QUERY_MUTATION_COMMANDS` (durable writes; handler tests in `sdk/src/query/*.test.ts` and mutation-focused tests) or a read-only handler whose full CJS JSON match is deferred (see auto-generated exception text in `golden-policy.ts`).
 
 ### Full JSON equality (`toEqual` on result data)
 
@@ -72,6 +88,30 @@ These tests expect `sdkResult.data` to match the parsed CJS stdout JSON (possibl
 | `state.sync`                  | With `--verify` (dry-run); full object parity.                                                        |
 | `detect-custom-files`         | Temp `--config-dir` fixture; full object parity.                                                      |
 | `intel.update`                | When intel is **disabled** in the project, stub output matches CJS (`intel.cjs`); not a full refresh. |
+
+From `read-only-parity.integration.test.ts` (full `toEqual` on this repo):
+
+| SDK dispatch (canonical) | Notes |
+| ------------------------ | ----- |
+| `resolve-model` | Args e.g. `gsd-planner`. |
+| `phase-plan-index` | Phase number arg. |
+| `roadmap.get-phase` | Phase number arg. |
+| `list.todos` | No args. |
+| `phase.next-decimal` | Phase number arg. |
+| `phases.list` | No args. |
+| `verify.summary` | Plan path. |
+| `verify.path-exists` | Path under repo. |
+| `verify.artifacts` | Plan path. |
+| `verify.commits` | Two git SHAs (`HEAD~1` / `HEAD` or fallback). |
+| `websearch` | Limited query (may hit network — test uses small limit). |
+| `workstream.get` / `workstream.list` / `workstream.status` | Default workstream where applicable (`status` uses full CJS shape when the workstream dir exists). |
+| `learnings.list` | No args. |
+| `intel.status` | No args. |
+| `intel.diff` / `intel.validate` / `intel.query` | When intel is disabled, disabled payload matches CJS (including message text). |
+| `init.list-workspaces` | No args. |
+| `agent-skills` | No agent type → JSON `""` (same as CJS). |
+| `scan-sessions` | `--json`; SDK `scanSessions` output matches CJS project array (`profile-scan-sessions.ts`). |
+| `config-path` | Plain stdout path vs `{ path }` — compared with `path.normalize` in tests. |
 
 
 ### Normalized or field-omitted comparison

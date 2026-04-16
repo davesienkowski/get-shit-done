@@ -2,6 +2,8 @@
 
 Use this document at the start of a new session so work continues in context without re-deriving history.
 
+**Related:** `HANDOVER-PARITY-DOCS.md` describes the same parity scope for **#2291**; both point to `**sdk/src/query/QUERY-HANDLERS.md`** as the canonical matrix and golden-exception reference.
+
 ## Goal for the next session
 
 1. **Resume golden parity work** — extend or tighten `sdk/src/golden/golden.integration.test.ts` so SDK `createRegistry()` behavior matches `get-shit-done/bin/gsd-tools.cjs` for the commands that matter for Phase 3, using `captureGsdToolsOutput()` as the reference.
@@ -56,14 +58,14 @@ Parity exception categories and the CJS↔SDK matrix are documented in `sdk/src/
 ## Golden parity — how it works today
 
 - Tests call `**captureGsdToolsOutput(command, args, cwd)`** and compare to `**registry.dispatch(command, args, projectDir)`** (or compare stable fields / fixtures under `sdk/src/golden/fixtures/*.golden.json`).
-- `**PROJECT_DIR**` in tests is the **SDK package dir** (`sdk/`); `**REPO_ROOT`** is the **repo root** (where `.planning/` lives) — important for commands that read project state.
+- `**PROJECT_DIR`** in tests is the **SDK package dir** (`sdk/`); `**REPO_ROOT`** is the **repo root** (where `.planning/` lives) — important for commands that read project state.
 - Integration tests require Node to execute `gsd-tools.cjs` successfully (Windows: ensure `USERPROFILE` / paths if tests touch `homedir()` — see existing `skills.test.ts` patterns if applicable).
 
 ## Suggested next-session checklist
 
 ### Review (gaps)
 
-- Diff `gsd-tools.cjs` `switch (command)` cases against `createRegistry()` registrations — confirm no remaining **required** commands are missing (excluding graphify / from-gsd2). **Note:** top-level CLI `**scaffold`** is not a separate registry name; use `**phase.scaffold`** / `**phase scaffold**` (documented in `QUERY-HANDLERS.md`).
+- Diff `gsd-tools.cjs` `switch (command)` cases against `createRegistry()` registrations — confirm no remaining **required** commands are missing (excluding graphify / from-gsd2). **Note:** top-level CLI `**scaffold`** is not a separate registry name; use `**phase.scaffold`** / `**phase scaffold`** (documented in `QUERY-HANDLERS.md`).
 - Confirm `**QUERY-HANDLERS.md**` and `**docs/CLI-TOOLS.md**` (if present) list new commands and mutation semantics.
 - `**skill-manifest --write**` and conditional mutation events: `QUERY_MUTATION_COMMANDS` does not list `skill-manifest` (writes only with `--write`); follow-up left optional — documented in `QUERY-HANDLERS.md`.
 - `**intel.update**` remains a stub by design; documented + golden test when intel is disabled.

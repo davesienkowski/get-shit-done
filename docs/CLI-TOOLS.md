@@ -29,6 +29,8 @@ node gsd-tools.cjs <command> [args] [--raw] [--cwd <path>]
 
 **Parity & registry:** Golden-test coverage categories (full equality vs subset vs stubs), normalized comparisons, and the **CJS top-level command → SDK registry** matrix (including CLI-only and alias rows) live in the sections **Golden parity: coverage and exceptions** and **CJS command surface vs SDK registry** in that file.
 
+**Mutation semantics (SDK):** `QUERY_MUTATION_COMMANDS` in `sdk/src/query/index.ts` lists commands that emit optional mutation events after a successful dispatch. `state validate` is read-only and is not in that set. `skill-manifest` persists only with `--write` and is also omitted from the set (conditional writes). `intel update` is a documented stub, not a full refresh — see QUERY-HANDLERS.md.
+
 ---
 
 ## State Commands
