@@ -319,10 +319,11 @@ export const stateSnapshot: QueryHandler = async (_args, projectDir) => {
   // Parse numeric fields
   const totalPhases = totalPhasesRaw ? parseInt(totalPhasesRaw, 10) : null;
   const totalPlansInPhase = totalPlansRaw ? parseInt(totalPlansRaw, 10) : null;
-  const progressPercent = progressRaw ? (() => {
-    const m = progressRaw.match(/(\d+)%/);
-    return m ? parseInt(m[1], 10) : null;
-  })() : null;
+  let progressPercent: number | null = null;
+  if (progressRaw) {
+    const n = parseInt(progressRaw.replace(/%/g, ''), 10);
+    progressPercent = Number.isNaN(n) ? null : n;
+  }
 
   // Extract decisions table
   const decisions: Array<{ phase: string; summary: string; rationale: string }> = [];
