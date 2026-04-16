@@ -26,6 +26,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { planningPaths, toPosixPath } from './helpers.js';
 import { GSDError, ErrorClassification } from '../errors.js';
 import type { QueryHandler } from './utils.js';
+import { buildScanSessionsProjects, getScanSessionsRoot } from './profile-scan-sessions.js';
 
 // ─── Learnings — ~/.gsd/knowledge/ knowledge store ───────────────────────
 
@@ -278,40 +279,36 @@ export const extractMessages: QueryHandler = async (args) => {
 
 // ─── Profile — session scanning and profile generation ────────────────────
 
-const SESSIONS_DIR = join(homedir(), '.claude', 'projects');
+export const scanSessions: QueryHandler = async (args) => {
+  const pathIdx = args.indexOf('--path');
+  const overridePath = pathIdx !== -1 ? args[pathIdx + 1] : null;
+  const verboseFlag = args.includes('--verbose');
 
-export const scanSessions: QueryHandler = async (_args, _projectDir) => {
-  if (!existsSync(SESSIONS_DIR)) {
-    return { data: { projects: [], project_count: 0, session_count: 0 } };
+  if (getScanSessionsRoot(overridePath) === null) {
+    const searchedPath = overridePath || '~/.claude/projects';
+    throw new GSDError(
+      `No Claude Code sessions found at ${searchedPath}.${overridePath ? '' : ' Is Claude Code installed?'}`,
+      ErrorClassification.Validation,
+    );
   }
 
-  const projects: Record<string, unknown>[] = [];
-  let sessionCount = 0;
-
-  try {
-    const projectDirs = readdirSync(SESSIONS_DIR, { withFileTypes: true });
-    for (const pDir of projectDirs.filter(e => e.isDirectory())) {
-      const pPath = join(SESSIONS_DIR, pDir.name);
-      const sessions = readdirSync(pPath).filter(f => f.endsWith('.jsonl'));
-      sessionCount += sessions.length;
-      projects.push({ name: pDir.name, path: toPosixPath(pPath), session_count: sessions.length });
-    }
-  } catch { /* skip */ }
-
-  return { data: { projects, project_count: projects.length, session_count: sessionCount } };
+  const projects = buildScanSessionsProjects(overridePath, { verbose: verboseFlag });
+  return { data: projects };
 };
 
+const CLAUDE_PROJECTS_DIR = join(homedir(), '.claude', 'projects');
+
 export const profileSample: QueryHandler = async (_args, _projectDir) => {
-  if (!existsSync(SESSIONS_DIR)) {
+  if (!existsSync(CLAUDE_PROJECTS_DIR)) {
     return { data: { messages: [], total: 0, projects_sampled: 0 } };
   }
   const messages: string[] = [];
   let projectsSampled = 0;
 
   try {
-    const projectDirs = readdirSync(SESSIONS_DIR, { withFileTypes: true });
+    const projectDirs = readdirSync(CLAUDE_PROJECTS_DIR, { withFileTypes: true });
     for (const pDir of projectDirs.filter(e => e.isDirectory()).slice(0, 5)) {
-      const pPath = join(SESSIONS_DIR, pDir.name);
+      const pPath = join(CLAUDE_PROJECTS_DIR, pDir.name);
       const sessions = readdirSync(pPath).filter(f => f.endsWith('.jsonl')).slice(0, 3);
       for (const session of sessions) {
         try {
