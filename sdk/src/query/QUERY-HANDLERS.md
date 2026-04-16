@@ -111,6 +111,9 @@ From `read-only-parity.integration.test.ts` (full `toEqual` on this repo):
 | `init.list-workspaces` | No args. |
 | `agent-skills` | No agent type → JSON `""` (same as CJS). |
 | `scan-sessions` | `--json`; SDK `scanSessions` output matches CJS project array (`profile-scan-sessions.ts`). |
+| `summary.extract` | Fixture `sdk/src/golden/fixtures/summary-extract-sample.md`; uses `extractFrontmatterLeading` (first `---` block) for parity with `frontmatter.cjs`. |
+| `history.digest` | No args; aggregate over `.planning/phases` + archived milestone phase dirs (`commands.cjs` `cmdHistoryDigest`). |
+| `audit-uat` | No args; full JSON parity with `uat.cjs` `cmdAuditUat` (`results`, `summary` with `by_category` / `by_phase`). |
 | `config-path` | Plain stdout path vs `{ path }` — compared with `path.normalize` in tests. |
 
 
@@ -119,6 +122,7 @@ From `read-only-parity.integration.test.ts` (full `toEqual` on this repo):
 
 | SDK / test  | Rule                                                                                                                                                                     |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `audit-open` | `audit-open --json`: `**scanned_at**` stripped before `toEqual` (volatile ISO time). `sanitizeForDisplay` in `audit-open.ts` matches `security.cjs` (CRLF body lines can leave `\r` in `items.todos[].summary`, matching CLI). |
 | `docs-init` | `existing_docs` sorted by `path` before compare; `**agents_installed`** and `**missing_agents**` omitted (subprocess vs in-process path resolution for `~/.claude/...`). |
 
 

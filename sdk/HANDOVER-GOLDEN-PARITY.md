@@ -10,6 +10,10 @@ Use this document at the start of a new session so work continues in context wit
 
 **Port or normalize the next batch of read-only query handlers** (see **§ Next batch — summary / audit / skill / validate / UAT / intel / profile / init**) so JSON matches `get-shit-done/bin/gsd-tools.cjs`, then add **strict subprocess golden rows** or **documented normalization blocks** in `read-only-parity.integration.test.ts`, updating `read-only-golden-rows.ts` / `readOnlyGoldenCanonicals()` and keeping **`golden-policy.ts`** complete.
 
+**Latest (this session):** `audit-open` + `audit-uat` — SDK aligned with `audit.cjs` / `uat.cjs`; `read-only-parity.integration.test.ts`: strict row for `audit-uat`; `audit-open --json` compares with `**scanned_at**` stripped; `audit-open.ts` `sanitizeForDisplay` ported from `security.cjs` (parity with CLI on CRLF todo summaries). See `QUERY-HANDLERS.md`.
+
+**Prior:** `intel.extract-exports` — SDK handler ported to match `intel.cjs` (including `file` = resolved absolute path, `hadCjs` / `hadEsm` method rules); strict row uses `sdk/src/query/utils.ts` (empty `exports` on both sides — TS `export const x: Type =` not matched by CJS regex); documented in `QUERY-HANDLERS.md`.
+
 **Do not “green the suite” by deleting or shrinking golden tests.** If a handler cannot match CJS byte-for-byte without product decisions, use **documented normalization** in the test (same approach as `docs-init` omitting agent-install fields, or **`state.json` / `state.load` stripping `last_updated`**) or **fix the TypeScript handler**—same trade-off as `scan-sessions` / `workstream.status` / `stats.json` (see below).
 
 ---
@@ -88,17 +92,17 @@ Aligned SDK handlers with **`gsd-tools.cjs`** and expanded subprocess coverage (
 | -------- | ------------- | -------------------------- | -------------------- | ---------- | ----- |
 | 1 | `summary-extract <path>` `[--fields a,b]` | `summary-extract` | `commands.cjs` `cmdSummaryExtract` (~L425) | `summary.ts` `summaryExtract` | Pick a **stable repo path** (e.g. an existing `*-SUMMARY.md` under `.planning/phases/`). |
 | 2 | `history-digest` | `history-digest` | `commands.cjs` `cmdHistoryDigest` (~L133) | `summary.ts` `historyDigest` | Output is aggregate over repo; may be large—confirm shape vs CJS first. |
-| 3 | `audit-open` | `audit-open` `[--json]` | `audit.cjs` `auditOpenArtifacts` + optional `formatAuditReport` | `audit-open.ts` | For JSON parity use subprocess with `--json`; align object keys with `audit.cjs`. |
-| 4 | `audit-uat` | `audit-uat` | `uat.cjs` `cmdAuditUat` | `uat.ts` `auditUat` | Same: match summary JSON shape. |
+| ~~3~~ | ~~`audit-open`~~ | `audit-open` `[--json]` | `audit.cjs` `auditOpenArtifacts` + optional `formatAuditReport` | `audit-open.ts` | **Done:** `--json` parity test + `scanned_at` normalization; `sanitizeForDisplay` = `security.cjs`. |
+| ~~4~~ | ~~`audit-uat`~~ | `audit-uat` | `uat.cjs` `cmdAuditUat` | `uat.ts` `auditUat` | **Done:** `auditUat` ports `cmdAuditUat` (`parseUatItems`, milestone filter, `summary.by_*`); strict `READ_ONLY_JSON_PARITY_ROWS` row. |
 | 5 | `skill-manifest` | `skill-manifest` + args | `init.cjs` `cmdSkillManifest` (~L1829) | `skill-manifest.ts` | If key order unstable, **sort keys in test** (document in QUERY-HANDLERS). |
 | 6 | `validate agents` | `validate` + `agents` | `verify.cjs` `cmdValidateAgents` (~L997) | `validate.ts` `validateAgents` | May need **normalization** for `agents_dir`, env (`GSD_AGENTS_DIR`), or omit env-specific fields in test. |
 | 7 | `uat render-checkpoint --file <path>` | `uat` subcommand | `uat.cjs` `cmdRenderCheckpoint` | `uat.ts` `uatRenderCheckpoint` | Needs **real UAT fixture** under `.planning/phases/.../*-UAT.md` or small test fixture path. |
-| 8 | `intel extract-exports <file>` | `intel` `extract-exports` | `intel.cjs` `intelExtractExports` (~L502) | `intel.ts` `intelExtractExports` | Use a **fixed SDK source file** (e.g. `sdk/src/query/utils.ts`) so list is stable. |
+| ~~8~~ | ~~`intel extract-exports <file>`~~ | `intel` `extract-exports` | `intel.cjs` `intelExtractExports` (~L502) | `intel.ts` `intelExtractExports` | **Done:** strict row + handler parity with `intel.cjs` (fixed file e.g. `sdk/src/query/utils.ts`). |
 | 9 | `extract-messages` | `extract-messages` + project/session flags | `profile-pipeline.cjs` | `profile.ts` `extractMessages` | **Heavy** vs CJS (temp JSONL, streaming); consider **documented exception** + strong unit tests if full parity is prohibitive. |
 | 10 | `profile-sample` | `profile-sample` | `profile-pipeline.cjs` | `profile.ts` `profileSample` | Same class as extract-messages. |
 | 11 | **`init.*` read-only JSON** | various | `init.cjs` / `init-complex` | `init.ts`, `init-complex.ts` | Extend **`golden.integration.test.ts`** patterns: stable fields only, omit timestamps/agent lists if needed—**do not remove coverage**. |
 
-**Suggested order:** (1)–(2) summary/history (single-file / whole-repo), (8) intel extract-exports (narrow), (3)–(4) audit, (5)–(6) skill-manifest / validate.agents, (7) UAT checkpoint, (9)–(10) profile pipeline, (11) init last (widest surface).
+**Suggested order:** (1)–(2) summary/history (single-file / whole-repo), (5)–(6) skill-manifest / validate.agents, (7) UAT checkpoint, (9)–(10) profile pipeline, (11) init last (widest surface). Audits and `intel extract-exports` are done above.
 
 **Mutations** (`QUERY_MUTATION_COMMANDS`): subprocess golden remains optional; policy uses `MUTATION_DEFERRED_REASON`.
 
