@@ -25,16 +25,25 @@ export function resolveGsdToolsPath(): string {
  * @param projectDir - Working directory for the command
  * @returns Parsed JSON output from gsd-tools.cjs stdout
  */
-export async function captureGsdToolsOutput(
+export async function captureGsdToolsStdout(
   command: string,
   args: string[],
   projectDir: string,
-): Promise<unknown> {
+): Promise<string> {
   const gsdToolsPath = resolveGsdToolsPath();
   const { stdout } = await execFileAsync(
     process.execPath,
     [gsdToolsPath, command, ...args],
     { cwd: projectDir, timeout: 10_000 },
   );
-  return JSON.parse(stdout.trim());
+  return stdout.trim();
+}
+
+export async function captureGsdToolsOutput(
+  command: string,
+  args: string[],
+  projectDir: string,
+): Promise<unknown> {
+  const raw = await captureGsdToolsStdout(command, args, projectDir);
+  return JSON.parse(raw);
 }
