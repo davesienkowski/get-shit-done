@@ -155,10 +155,10 @@ function extractReqIds(roadmapPhase: Record<string, unknown> | null): string | n
 // ─── withProjectRoot ─────────────────────────────────────────────────────
 
 /**
- * Inject project_root, agents_installed, missing_agents, and response_language
- * into an init result object.
+ * Inject project_root, agents_installed, missing_agents, response_language,
+ * project_code, and project_title into an init result object.
  *
- * Port of withProjectRoot from init.cjs lines 32-48.
+ * Port of withProjectRoot from init.cjs lines 32-63.
  *
  * @param projectDir - Absolute project root path
  * @param result - The result object to augment
@@ -180,6 +180,22 @@ export function withProjectRoot(
   if (responseLang) {
     result.response_language = responseLang;
   }
+
+  const projectCode = config?.project_code;
+  if (projectCode) {
+    result.project_code = projectCode;
+  }
+
+  const projectMdPath = join(projectDir, '.planning', 'PROJECT.md');
+  try {
+    if (existsSync(projectMdPath)) {
+      const content = readFileSync(projectMdPath, 'utf8');
+      const h1Match = content.match(/^#\s+(.+)$/m);
+      if (h1Match) {
+        result.project_title = h1Match[1].trim();
+      }
+    }
+  } catch { /* intentionally empty */ }
 
   return result;
 }
@@ -760,7 +776,7 @@ export const initMapCodebase: QueryHandler = async (_args, projectDir) => {
     commit_docs: config.commit_docs,
     search_gitignored: config.search_gitignored,
     parallelization: config.parallelization,
-    subagent_timeout: (config as Record<string, unknown>).subagent_timeout ?? undefined,
+    subagent_timeout: config.workflow.subagent_timeout,
     codebase_dir: '.planning/codebase',
     existing_maps: existingMaps,
     has_maps: existingMaps.length > 0,
@@ -779,6 +795,7 @@ export const initMapCodebase: QueryHandler = async (_args, projectDir) => {
  * T-14-01: Validates workspace name rejects path separators.
  */
 export const initNewWorkspace: QueryHandler = async (_args, projectDir) => {
+  const config = await loadConfig(projectDir);
   const home = process.env.HOME || homedir();
   const defaultBase = join(home, 'gsd-workspaces');
 
@@ -815,7 +832,7 @@ export const initNewWorkspace: QueryHandler = async (_args, projectDir) => {
     cwd_repo_name: basename(projectDir),
   };
 
-  return { data: withProjectRoot(projectDir, result) };
+  return { data: withProjectRoot(projectDir, result, config as Record<string, unknown>) };
 };
 
 // ─── initListWorkspaces ───────────────────────────────────────────────────
