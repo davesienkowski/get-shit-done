@@ -766,7 +766,7 @@ In `--auto` mode, the discuss step MUST complete in a **single pass**. After wri
 
 Check the pass cap from config:
 ```bash
-MAX_PASSES=$(gsd-sdk query config-get workflow.max_discuss_passes 2>/dev/null || echo "3")
+MAX_PASSES=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.max_discuss_passes 3)
 ```
 
 If you have already written and committed CONTEXT.md, the discuss step is complete. Move on.
@@ -1146,8 +1146,8 @@ Check for auto-advance trigger:
    ```
 3. Read both the chain flag and user preference:
    ```bash
-   AUTO_CHAIN=$(gsd-sdk query config-get workflow._auto_chain_active 2>/dev/null || echo "false")
-   AUTO_CFG=$(gsd-sdk query config-get workflow.auto_advance 2>/dev/null || echo "false")
+   AUTO_CHAIN=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow._auto_chain_active false)
+   AUTO_CFG=$(node "$HOME/.claude/get-shit-done/bin/gsd-config-get.cjs" workflow.auto_advance false)
    ```
 
 **If `--auto` or `--chain` flag present AND `AUTO_CHAIN` is not true:** Persist chain flag to config (handles direct usage without new-project):
