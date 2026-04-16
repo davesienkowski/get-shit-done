@@ -8,9 +8,9 @@ Use this document at the start of a new session so work continues in context wit
 
 ## Goal for the next session (primary)
 
-**Port or normalize remaining read-only query handlers** so their JSON matches `get-shit-done/bin/gsd-tools.cjs`, then add **strict subprocess golden rows** (`captureGsdToolsOutput` + `registry.dispatch` with `toEqual` on `sdkResult.data`), updating `read-only-golden-rows.ts` and keeping **`golden-policy.ts`** complete.
+**Port or normalize the next batch of read-only query handlers** (see **§ Next batch — summary / audit / skill / validate / UAT / intel / profile / init**) so JSON matches `get-shit-done/bin/gsd-tools.cjs`, then add **strict subprocess golden rows** or **documented normalization blocks** in `read-only-parity.integration.test.ts`, updating `read-only-golden-rows.ts` / `readOnlyGoldenCanonicals()` and keeping **`golden-policy.ts`** complete.
 
-**Do not “green the suite” by deleting or shrinking golden tests.** If a handler cannot match CJS byte-for-byte without product decisions, use **documented normalization** in the test (same approach as `docs-init` omitting agent-install fields) or **fix the TypeScript handler**—same trade-off as `scan-sessions` / `workstream.status` (see below).
+**Do not “green the suite” by deleting or shrinking golden tests.** If a handler cannot match CJS byte-for-byte without product decisions, use **documented normalization** in the test (same approach as `docs-init` omitting agent-install fields, or **`state.json` / `state.load` stripping `last_updated`**) or **fix the TypeScript handler**—same trade-off as `scan-sessions` / `workstream.status` / `stats.json` (see below).
 
 ---
 
@@ -62,27 +62,55 @@ These were fixed by **aligning the TypeScript handler with the CJS implementatio
 
 ---
 
-## Backlog: read-only handlers still deferred (high value)
+## Completed in this line of work (batch: query parity + goldens)
 
-These are typical **next targets**; confirm against `GOLDEN_PARITY_EXCEPTIONS` / `READ_HANDLER_ONLY_REASON` in `golden-policy.ts` for the live list.
+Aligned SDK handlers with **`gsd-tools.cjs`** and expanded subprocess coverage (commit series on `feat/sdk-phase3-query-layer`):
 
-| Area | CJS reference (start here) | SDK file(s) | Notes |
-| ---- | -------------------------- | ----------- | ----- |
-| **`stats` / `stats.json`** | `bin/lib/commands.cjs` `cmdStats` | `sdk/src/query/progress.ts` `statsJson` | SDK currently returns a **small aggregate**; CJS JSON path returns **milestone, phases table, git counts, requirements, last_activity**, etc. Needs full port or shared helper extracted from CJS logic. |
-| **`state.json` / `state.load`** | `bin/lib/state.cjs` `cmdStateJson` | `sdk/src/query/state.ts` `stateLoad` | Compare outputs on real `STATE.md`; align field-by-field. |
-| **`state-snapshot`** | `state.cjs` snapshot path | `state.ts` `stateSnapshot` | Same as above—structured snapshot must match. |
-| **`state.get`** | `cmdStateGet` | `state.ts` `stateGet` | Full document vs section; match CJS. |
-| **`todo.match-phase`** | `commands.cjs` `cmdTodoMatchPhase` | `progress.ts` `todoMatchPhase` | CJS returns `{ phase, matches, todo_count }` with scoring; SDK shape differed in probes—port scoring + output shape. |
-| **`verify.key-links` / `verify.references`** | `bin/lib/verify.cjs` | `sdk/src/query/verify.ts` | Detail strings (e.g. regex error text) may differ—align messages with CJS or document one intentional difference. |
-| **`verify.schema-drift`** | `verify.cjs` | `verify.ts` | Output object shape differed (`valid` vs `drift_detected`)—align naming and fields with CJS. |
-| **`summary.extract` / `history.digest`** | `commands.cjs` | `sdk/src/query/summary.ts` | Shape differs from CJS—port or subset-test with explicit field list. |
-| **`init.*` composition** (beyond rows already in `golden.integration.test.ts`) | `bin/lib/init.cjs` various `cmdInit*` | `sdk/src/query/init.ts`, `init-complex.ts` | Many payloads include `project_title`, `agents_installed`, timestamps—**subprocess vs in-process** may differ; prefer **stable-field golden** or **omit list** in test, not dropping coverage. |
-| **`audit-open` / `audit-uat`** | `bin/lib/audit.cjs`, `uat.cjs` | `audit-open.ts`, `uat.ts` | Use `--json` where applicable; align summary shapes. |
-| **`skill-manifest`** (read path) | `init.cjs` `cmdSkillManifest` | `skill-manifest.ts` | Ordering or extra keys—normalize sort in test if fs order differs. |
-| **`validate.agents`** | `validate.cjs` / agents path | `validate.ts` | Compare to CJS after fixing env-specific fields if any. |
-| **`uat.render-checkpoint`** | `uat.cjs` | `uat.ts` | Requires a valid UAT fixture path; fix template or use repo fixture. |
-| **`intel.extract-exports`** | `intel.cjs` | `intel.ts` | Compare export list to CJS for a fixed file path. |
-| **`extract.messages` / `profile-sample`** | `profile-pipeline.cjs` | `profile.ts` | CJS writes temp JSONL files and uses streaming; SDK uses simplified in-memory paths—**large port** or **explicit documented exception** with unit tests; do not silently drop golden intent. |
+| Canonical / area | CJS | SDK | Golden notes |
+| ---------------- | --- | --- | ------------ |
+| `stats` / `stats.json` | `commands.cjs` `cmdStats` | `progress.ts` `statsJson` | Strict row; full stats object (phases table, git, requirements, etc.). |
+| `todo.match-phase` | `cmdTodoMatchPhase` | `progress.ts` `todoMatchPhase` | Strict row. |
+| `verify.key-links` | `verify.cjs` `cmdVerifyKeyLinks` | `validate.ts` `verifyKeyLinks` | Strict row; regex errors match `new RegExp` + `Invalid regex pattern`. |
+| `verify.references` | `cmdVerifyReferences` | `verify.ts` `verifyReferences` | Added `total` field (parity). |
+| `verify.schema-drift` | `cmdVerifySchemaDrift` | `verify.ts` + `schema-detect.ts` | Strict row; ports `schema-detect.cjs` logic. |
+| `state-snapshot` | `cmdStateSnapshot` | `state.ts` `stateSnapshot` | Strict row; `progress_percent` NaN fix. |
+| `state.json` / `state.load` | `cmdStateJson` | `state.ts` `stateLoad` | Dedicated test: **`last_updated` stripped** on both sides (`read-only-parity.integration.test.ts`); policy canonical **`state.json`**. |
+
+**Cherry-pick order** (if splitting PRs): `fix state-snapshot` → `schema-detect + verify` → `validate key-links` → `progress stats/todo` → `stubs` → `golden rows`.
+
+---
+
+## Next batch — summary / audit / skill / validate / UAT / intel / profile / init
+
+**Same workflow as above:** read `gsd-tools.cjs` `runCommand` for argv → implement/adjust `sdk/src/query/*.ts` → add `READ_ONLY_JSON_PARITY_ROWS` and/or a **named `describe` block** with documented omissions → `npm run build` → `read-only-parity.integration.test.ts` + `golden-policy.test.ts`.
+
+| Priority | Command (CLI) | `gsd-tools.cjs` case / args | CJS implementation | SDK module | Notes |
+| -------- | ------------- | -------------------------- | -------------------- | ---------- | ----- |
+| 1 | `summary-extract <path>` `[--fields a,b]` | `summary-extract` | `commands.cjs` `cmdSummaryExtract` (~L425) | `summary.ts` `summaryExtract` | Pick a **stable repo path** (e.g. an existing `*-SUMMARY.md` under `.planning/phases/`). |
+| 2 | `history-digest` | `history-digest` | `commands.cjs` `cmdHistoryDigest` (~L133) | `summary.ts` `historyDigest` | Output is aggregate over repo; may be large—confirm shape vs CJS first. |
+| 3 | `audit-open` | `audit-open` `[--json]` | `audit.cjs` `auditOpenArtifacts` + optional `formatAuditReport` | `audit-open.ts` | For JSON parity use subprocess with `--json`; align object keys with `audit.cjs`. |
+| 4 | `audit-uat` | `audit-uat` | `uat.cjs` `cmdAuditUat` | `uat.ts` `auditUat` | Same: match summary JSON shape. |
+| 5 | `skill-manifest` | `skill-manifest` + args | `init.cjs` `cmdSkillManifest` (~L1829) | `skill-manifest.ts` | If key order unstable, **sort keys in test** (document in QUERY-HANDLERS). |
+| 6 | `validate agents` | `validate` + `agents` | `verify.cjs` `cmdValidateAgents` (~L997) | `validate.ts` `validateAgents` | May need **normalization** for `agents_dir`, env (`GSD_AGENTS_DIR`), or omit env-specific fields in test. |
+| 7 | `uat render-checkpoint --file <path>` | `uat` subcommand | `uat.cjs` `cmdRenderCheckpoint` | `uat.ts` `uatRenderCheckpoint` | Needs **real UAT fixture** under `.planning/phases/.../*-UAT.md` or small test fixture path. |
+| 8 | `intel extract-exports <file>` | `intel` `extract-exports` | `intel.cjs` `intelExtractExports` (~L502) | `intel.ts` `intelExtractExports` | Use a **fixed SDK source file** (e.g. `sdk/src/query/utils.ts`) so list is stable. |
+| 9 | `extract-messages` | `extract-messages` + project/session flags | `profile-pipeline.cjs` | `profile.ts` `extractMessages` | **Heavy** vs CJS (temp JSONL, streaming); consider **documented exception** + strong unit tests if full parity is prohibitive. |
+| 10 | `profile-sample` | `profile-sample` | `profile-pipeline.cjs` | `profile.ts` `profileSample` | Same class as extract-messages. |
+| 11 | **`init.*` read-only JSON** | various | `init.cjs` / `init-complex` | `init.ts`, `init-complex.ts` | Extend **`golden.integration.test.ts`** patterns: stable fields only, omit timestamps/agent lists if needed—**do not remove coverage**. |
+
+**Suggested order:** (1)–(2) summary/history (single-file / whole-repo), (8) intel extract-exports (narrow), (3)–(4) audit, (5)–(6) skill-manifest / validate.agents, (7) UAT checkpoint, (9)–(10) profile pipeline, (11) init last (widest surface).
+
+**Mutations** (`QUERY_MUTATION_COMMANDS`): subprocess golden remains optional; policy uses `MUTATION_DEFERRED_REASON`.
+
+---
+
+## Backlog: other read-only handlers (lower priority or follow-ups)
+
+Confirm against `GOLDEN_PARITY_EXCEPTIONS` in `golden-policy.ts` for the live list.
+
+| Area | CJS reference | SDK file(s) | Notes |
+| ---- | ------------- | ----------- | ----- |
+| **`state.get`** | `state.cjs` `cmdStateGet` | `state.ts` `stateGet` | Add row or normalized test for optional field arg vs full document. |
 
 **Mutations** (`QUERY_MUTATION_COMMANDS`): subprocess golden is optional; prefer temp dirs / `--dry-run` patterns already in `golden.integration.test.ts`. Policy already uses `MUTATION_DEFERRED_REASON`.
 
