@@ -34,7 +34,8 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1073741824).toFixed(1)} GB`;
 }
 
-function scanProjectDir(projectDirPath: string): Array<{
+/** Same as CJS `scanProjectDir` in profile-pipeline.cjs (sessions sorted newest-first). */
+export function scanProjectDir(projectDirPath: string): Array<{
   sessionId: string;
   filePath: string;
   size: number;
@@ -61,7 +62,7 @@ function scanProjectDir(projectDirPath: string): Array<{
   return sessions;
 }
 
-function readSessionIndex(projectDirPath: string): {
+export function readSessionIndex(projectDirPath: string): {
   originalPath: string | null;
   entries: Map<string, { sessionId?: string; summary?: string; messageCount?: number; created?: string }>;
 } {
@@ -82,7 +83,7 @@ function readSessionIndex(projectDirPath: string): {
   }
 }
 
-function getProjectName(projectDirName: string, indexData: ReturnType<typeof readSessionIndex>): string {
+export function getProjectName(projectDirName: string, indexData: ReturnType<typeof readSessionIndex>): string {
   if (indexData.originalPath) {
     return basename(indexData.originalPath);
   }
