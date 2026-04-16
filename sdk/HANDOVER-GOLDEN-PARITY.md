@@ -2,6 +2,8 @@
 
 Use this document at the start of a new session so work continues in context without re-deriving history.
 
+**Related:** `HANDOVER-PARITY-DOCS.md` describes the same parity scope for **#2291**; both point to **`sdk/src/query/QUERY-HANDLERS.md`** as the canonical matrix and golden-exception reference.
+
 ## Goal for the next session
 
 1. **Resume golden parity work** — extend or tighten `sdk/src/golden/golden.integration.test.ts` so SDK `createRegistry()` behavior matches `get-shit-done/bin/gsd-tools.cjs` for the commands that matter for Phase 3, using `captureGsdToolsOutput()` as the reference.
