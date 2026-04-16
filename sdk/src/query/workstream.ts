@@ -20,7 +20,6 @@ import {
   existsSync, readdirSync, readFileSync, writeFileSync,
   mkdirSync, renameSync, rmdirSync, unlinkSync,
 } from 'node:fs';
-import { mkdir } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 
 import { toPosixPath } from './helpers.js';
@@ -170,9 +169,8 @@ export const workstreamSet: QueryHandler = async (args, projectDir) => {
     return { data: { active: null, error: 'not_found', workstream: name } };
   }
 
-  const previous = getActiveWorkstream(projectDir);
   setActiveWorkstream(projectDir, name);
-  return { data: { active: name, previous: previous || null, set: true } };
+  return { data: { active: name, set: true } };
 };
 
 export const workstreamStatus: QueryHandler = async (args, projectDir) => {
@@ -246,7 +244,91 @@ export const workstreamComplete: QueryHandler = async (args, projectDir) => {
   };
 };
 
-export const workstreamProgress: QueryHandler = async (args, projectDir) => {
-  const { progressBar } = await import('./progress.js');
-  return progressBar(args, projectDir);
+/**
+ * Port of `cmdWorkstreamProgress` from `workstream.cjs` — aggregate status for each workstream.
+ * (Not the same as roadmap `progress` / `progressBar`.)
+ */
+export const workstreamProgress: QueryHandler = async (_args, projectDir) => {
+  const root = planningRoot(projectDir);
+  const wsRoot = workstreamsDir(projectDir);
+
+  if (!existsSync(wsRoot)) {
+    return {
+      data: {
+        mode: 'flat',
+        workstreams: [],
+        message: 'No workstreams — operating in flat mode',
+      },
+    };
+  }
+
+  const active = getActiveWorkstream(projectDir);
+  const entries = readdirSync(wsRoot, { withFileTypes: true });
+  const workstreams: Array<{
+    name: string;
+    active: boolean;
+    status: string;
+    current_phase: string | null;
+    phases: string;
+    plans: string;
+    progress_percent: number;
+  }> = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+
+    const wsDir = join(wsRoot, entry.name);
+    const phasesDir = join(wsDir, 'phases');
+
+    const phaseDirsProgress = readSubdirectories(phasesDir);
+    const phaseCount = phaseDirsProgress.length;
+    let completedCount = 0;
+    let totalPlans = 0;
+    let completedPlans = 0;
+    for (const d of phaseDirsProgress) {
+      try {
+        const phaseFiles = readdirSync(join(phasesDir, d));
+        const plans = filterPlanFiles(phaseFiles);
+        const summaries = filterSummaryFiles(phaseFiles);
+        totalPlans += plans.length;
+        completedPlans += Math.min(summaries.length, plans.length);
+        if (plans.length > 0 && summaries.length >= plans.length) completedCount++;
+      } catch { /* skip */ }
+    }
+
+    let roadmapPhaseCount = phaseCount;
+    try {
+      const roadmapContent = readFileSync(join(wsDir, 'ROADMAP.md'), 'utf-8');
+      const phaseMatches = roadmapContent.match(/^###?\s+Phase\s+\d/gm);
+      if (phaseMatches) roadmapPhaseCount = phaseMatches.length;
+    } catch { /* no roadmap */ }
+
+    let status = 'unknown';
+    let currentPhase: string | null = null;
+    try {
+      const stateContent = readFileSync(join(wsDir, 'STATE.md'), 'utf-8');
+      status = stateExtractField(stateContent, 'Status') || 'unknown';
+      currentPhase = stateExtractField(stateContent, 'Current Phase');
+    } catch { /* skip */ }
+
+    workstreams.push({
+      name: entry.name,
+      active: entry.name === active,
+      status,
+      current_phase: currentPhase,
+      phases: `${completedCount}/${roadmapPhaseCount}`,
+      plans: `${completedPlans}/${totalPlans}`,
+      progress_percent:
+        roadmapPhaseCount > 0 ? Math.round((completedCount / roadmapPhaseCount) * 100) : 0,
+    });
+  }
+
+  return {
+    data: {
+      mode: 'workstream',
+      active,
+      workstreams,
+      count: workstreams.length,
+    },
+  };
 };

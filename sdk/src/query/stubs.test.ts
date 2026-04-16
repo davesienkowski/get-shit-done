@@ -11,7 +11,8 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import { agentSkills } from './skills.js';
-import { roadmapUpdatePlanProgress, requirementsMarkComplete } from './roadmap.js';
+import { roadmapUpdatePlanProgress } from './roadmap-update-plan-progress.js';
+import { requirementsMarkComplete } from './roadmap.js';
 import { statePlannedPhase } from './state-mutation.js';
 import { verifySchemaDrift } from './verify.js';
 import { todoMatchPhase, statsJson, progressBar } from './progress.js';
@@ -86,11 +87,8 @@ describe('roadmapUpdatePlanProgress', () => {
     expect(typeof data.updated).toBe('boolean');
   });
 
-  it('returns false when no phase arg', async () => {
-    const result = await roadmapUpdatePlanProgress([], tmpDir);
-    const data = result.data as Record<string, unknown>;
-    expect(data.updated).toBe(false);
-    expect(data.reason).toBeDefined();
+  it('throws when no phase arg', async () => {
+    await expect(roadmapUpdatePlanProgress([], tmpDir)).rejects.toThrow();
   });
 });
 
@@ -98,29 +96,29 @@ describe('requirementsMarkComplete', () => {
   it('returns QueryResult without error', async () => {
     const result = await requirementsMarkComplete(['REQ-01'], tmpDir);
     const data = result.data as Record<string, unknown>;
-    expect(typeof data.marked).toBe('boolean');
+    expect(typeof data.updated).toBe('boolean');
   });
 
-  it('returns false when no IDs provided', async () => {
-    const result = await requirementsMarkComplete([], tmpDir);
-    const data = result.data as Record<string, unknown>;
-    expect(data.marked).toBe(false);
+  it('throws when no IDs provided', async () => {
+    await expect(requirementsMarkComplete([], tmpDir)).rejects.toThrow();
   });
 });
 
 // ─── state-mutation.ts ───────────────────────────────────────────────────
 
 describe('statePlannedPhase', () => {
-  it('updates STATE.md and returns success', async () => {
+  it('returns cmdStatePlannedPhase-shaped data', async () => {
     const result = await statePlannedPhase(['--phase', '10', '--name', 'queries', '--plans', '2'], tmpDir);
     const data = result.data as Record<string, unknown>;
-    expect(typeof data.updated).toBe('boolean');
+    expect(Array.isArray(data.updated)).toBe(true);
+    expect(data.phase).toBe('10');
+    expect(data.plan_count).toBe(2);
   });
 
-  it('returns false without phase arg', async () => {
+  it('allows empty argv (no fields updated in bare STATE)', async () => {
     const result = await statePlannedPhase([], tmpDir);
     const data = result.data as Record<string, unknown>;
-    expect(data.updated).toBe(false);
+    expect(data.updated).toEqual([]);
   });
 });
 

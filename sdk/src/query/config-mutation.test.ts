@@ -263,7 +263,7 @@ describe('configSetModelProfile', () => {
       JSON.stringify({ model_profile: 'balanced' }),
     );
     const result = await configSetModelProfile(['quality'], tmpDir);
-    expect((result.data as { set: boolean }).set).toBe(true);
+    expect((result.data as { updated: boolean }).updated).toBe(true);
     expect((result.data as { profile: string }).profile).toBe('quality');
 
     const raw = JSON.parse(await readFile(join(tmpDir, '.planning', 'config.json'), 'utf-8'));
