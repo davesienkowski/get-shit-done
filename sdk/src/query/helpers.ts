@@ -351,3 +351,32 @@ export async function resolvePathUnderProject(projectDir: string, userPath: stri
   }
   return realCandidate;
 }
+
+// ─── sanitizeForDisplay (security.cjs) ───────────────────────────────────────
+
+/** Port of `sanitizeForPrompt` from `security.cjs`. */
+export function sanitizeForPrompt(text: string): string {
+  let sanitized = text;
+  sanitized = sanitized.replace(/[\u200B-\u200F\u2028-\u202F\uFEFF\u00AD]/g, '');
+  sanitized = sanitized.replace(
+    /<(\/?)(?:system|assistant|human)>/gi,
+    (_, slash: string) => `＜${slash || ''}system-text＞`,
+  );
+  sanitized = sanitized.replace(/\[(SYSTEM|INST)\]/gi, '[$1-TEXT]');
+  sanitized = sanitized.replace(/<<\s*SYS\s*>>/gi, '«SYS-TEXT»');
+  return sanitized;
+}
+
+/** Port of `sanitizeForDisplay` from `security.cjs` (matches CLI JSON). */
+export function sanitizeForDisplay(text: string): string {
+  let sanitized = sanitizeForPrompt(text);
+  const protocolLeakPatterns = [
+    /^\s*(?:assistant|user|system)\s+to=[^:\s]+:[^\n]+$/i,
+    /^\s*<\|(?:assistant|user|system)[^|]*\|>\s*$/i,
+  ];
+  sanitized = sanitized
+    .split('\n')
+    .filter(line => !protocolLeakPatterns.some(pattern => pattern.test(line)))
+    .join('\n');
+  return sanitized;
+}
