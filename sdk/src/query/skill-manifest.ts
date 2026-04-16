@@ -3,13 +3,15 @@
  *
  * Full port of `buildSkillManifest` / `cmdSkillManifest` from
  * `get-shit-done/bin/lib/init.cjs` (lines 1640–1847).
+ * Uses {@link extractFrontmatterLeading} — same as CJS `frontmatter.cjs` `extractFrontmatter`
+ * (first `---` block only; skills with later `---` rules must not use TS `extractFrontmatter`'s last-block rule).
  */
 
 import { existsSync, readdirSync, readFileSync, writeFileSync, type Dirent } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 
-import { extractFrontmatter } from './frontmatter.js';
+import { extractFrontmatterLeading } from './frontmatter.js';
 import type { QueryHandler } from './utils.js';
 
 export interface SkillManifestSkill {
@@ -136,7 +138,7 @@ export function buildSkillManifest(cwd: string, skillsDir: string | null = null)
         continue;
       }
 
-      const frontmatter = extractFrontmatter(content);
+      const frontmatter = extractFrontmatterLeading(content);
       const name = (frontmatter.name as string) || entryName;
       const description = (frontmatter.description as string) || '';
 
