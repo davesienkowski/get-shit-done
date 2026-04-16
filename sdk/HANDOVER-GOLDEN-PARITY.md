@@ -1,0 +1,181 @@
+# Handover: Query layer + golden parity (next session)
+
+Use this document at the start of a new session so work continues in context without re-deriving history.
+
+**Related:** `HANDOVER-PARITY-DOCS.md` (#2302 scope); **`sdk/src/query/QUERY-HANDLERS.md`** (golden matrix, CJS↔SDK routing).
+
+---
+
+## Goal for the next session (primary)
+
+**Port or normalize the next batch of read-only query handlers** (see **§ Next batch — summary / audit / skill / validate / UAT / intel / profile / init**) so JSON matches `get-shit-done/bin/gsd-tools.cjs`, then add **strict subprocess golden rows** or **documented normalization blocks** in `read-only-parity.integration.test.ts`, updating `read-only-golden-rows.ts` / `readOnlyGoldenCanonicals()` and keeping **`golden-policy.ts`** complete.
+
+**Follow-up:** confirm **`GOLDEN_PARITY_EXCEPTIONS`** for any remaining read-only registry gaps (`learnings.query`, `progress.bar`, `profile-questionnaire` — still exception-only until strict rows); extend **`read-only-golden-rows.ts`** when aligned.
+
+**Latest (this session):** **`verify.references`** — strict `READ_ONLY_JSON_PARITY_ROWS` row; fixture `sdk/src/golden/fixtures/verify-references-sample.md` (stable `valid` / `found` / `missing` / `total`). See `QUERY-HANDLERS.md`.
+
+**Prior:** **`init.*` composition goldens** — `golden.integration.test.ts` subprocess checks for `init.new-milestone`, `init.phase-op`, `init.todos`, `init.milestone-op`, `init.map-codebase`, `init.new-project`, `init.progress`, `init.manager`, `init.new-workspace` (normalization: omit agents, todos timestamps, sorted arrays, workspace repo paths); `GOLDEN_INTEGRATION_MAIN_FILE_CANONICALS` updated. SDK: `withProjectRoot` aligned with `init.cjs` (`project_title` from PROJECT.md H1, `project_code`); `workflow.subagent_timeout` default **300000** in `config.ts`; `initMapCodebase` / `init-complex` pass config into `withProjectRoot`. See `QUERY-HANDLERS.md` **Normalized** table.
+
+**Prior:** `profile-sample` — `profile-sample.ts` ports `cmdProfileSample` (shared `streamExtractMessages` / `isGenuineUserMessage` / `truncateContent` from `profile-extract-messages.ts`); `profile.ts` parses `--path`, `--limit`, `--max-per-project`, `--max-chars` like `gsd-tools.cjs`. Golden: strip `output_file`, compare `profile-sample.jsonl` bytes; fixture `sdk/src/golden/fixtures/profile-sample-sessions/`. `readOnlyGoldenCanonicals()` includes `profile-sample`. See `QUERY-HANDLERS.md`.
+
+**Prior:** `extract-messages` / `extract.messages` — `profile-extract-messages.ts` ports `cmdExtractMessages` (`streamExtractMessages`, `isGenuineUserMessage`, temp JSONL, project resolution from `profile-pipeline.cjs`); `profile.ts` uses `--session` (alias `--session-id`) and `--path` like `gsd-tools.cjs`. Golden: `read-only-parity.integration.test.ts` strips `output_file`, compares JSONL bytes; fixture `sdk/src/golden/fixtures/extract-messages-sessions/`. `readOnlyGoldenCanonicals()` includes `extract.messages`. See `QUERY-HANDLERS.md`.
+
+**Prior:** `uat.render-checkpoint` — `uat.ts` aligned with `uat.cjs` (`resolvePathUnderProject`, `sanitizeForDisplay` / `helpers.ts`, `buildUatCheckpoint` same strings as CJS); strict `READ_ONLY_JSON_PARITY_ROWS` row + fixture `sdk/src/golden/fixtures/uat-render-checkpoint-sample.md`. `sanitizeForDisplay` / `sanitizeForPrompt` moved to `helpers.ts` for shared use with `audit-open.ts`.
+
+**Prior:** `validate.agents` + `state.get` — `validate.ts` resolves `agents_dir` like `core.cjs` `getAgentsDir`; `MODEL_PROFILES` synced with `model-profiles.cjs` (`gsd-pattern-mapper`); strict row for `validate.agents`. `state.get`: subprocess tests for full document (no args) and `milestone` field; `readOnlyGoldenCanonicals()` includes `state.get`. See `QUERY-HANDLERS.md`.
+
+**Prior:** `skill-manifest` — `skill-manifest.ts` uses `extractFrontmatterLeading` (first frontmatter block) to match `init.cjs` / `frontmatter.cjs` (TS `extractFrontmatter` uses last block and diverged on skills with multiple `---`); strict `READ_ONLY_JSON_PARITY_ROWS` row. See `QUERY-HANDLERS.md`.
+
+**Earlier:** `audit-open` + `audit-uat` — SDK aligned with `audit.cjs` / `uat.cjs`; `read-only-parity.integration.test.ts`: strict row for `audit-uat`; `audit-open --json` compares with `**scanned_at**` stripped; `audit-open.ts` `sanitizeForDisplay` ported from `security.cjs` (parity with CLI on CRLF todo summaries). See `QUERY-HANDLERS.md`.
+
+**Prior:** `intel.extract-exports` — SDK handler ported to match `intel.cjs` (including `file` = resolved absolute path, `hadCjs` / `hadEsm` method rules); strict row uses `sdk/src/query/utils.ts` (empty `exports` on both sides — TS `export const x: Type =` not matched by CJS regex); documented in `QUERY-HANDLERS.md`.
+
+**Do not “green the suite” by deleting or shrinking golden tests.** If a handler cannot match CJS byte-for-byte without product decisions, use **documented normalization** in the test (same approach as `docs-init` omitting agent-install fields, or **`state.json` / `state.load` stripping `last_updated`**) or **fix the TypeScript handler**—same trade-off as `scan-sessions` / `workstream.status` / `stats.json` (see below).
+
+---
+
+## Repo / branch
+
+- **Workspace:** `D:\Repos\get-shit-done` (GSD PBR backport initiative).
+- **Feature branch:** `feat/sdk-phase3-query-layer` (confirm against `origin` before merging).
+- **Upstream PRs:** `gsd-build/get-shit-done`.
+
+---
+
+## Golden parity architecture (current)
+
+| Piece | Role |
+| ----- | ---- |
+| `sdk/src/golden/registry-canonical-commands.ts` | One canonical dispatch string per unique handler (`pickCanonicalCommandName`). |
+| `sdk/src/golden/golden-integration-covered.ts` | Canonicals exercised by **`golden.integration.test.ts`** (subset/full/shape tests). |
+| `sdk/src/golden/read-only-golden-rows.ts` | **Strict** `JsonParityRow[]` for `read-only-parity.integration.test.ts` (`toEqual` on parsed CJS JSON vs `sdkResult.data`). |
+| `sdk/src/golden/read-only-parity.integration.test.ts` | Rows from `READ_ONLY_JSON_PARITY_ROWS` + **`config-path`** (plain stdout vs `{ path }`, `path.normalize`) + **`verify.commits`**. |
+| `sdk/src/golden/capture.ts` | `captureGsdToolsOutput` (JSON stdout); **`captureGsdToolsStdout`** (raw stdout, e.g. `config-path`). |
+| `sdk/src/golden/golden-policy.ts` | `GOLDEN_PARITY_INTEGRATION_COVERED` = integration covered ∪ `readOnlyGoldenCanonicals()`; everything else gets `GOLDEN_PARITY_EXCEPTIONS` (mutations vs `READ_HANDLER_ONLY_REASON` for read-only not yet in subprocess matrix). |
+| `sdk/src/golden/golden-policy.test.ts` | Calls `verifyGoldenPolicyComplete()` so every canonical is covered or excepted. |
+
+**Invariant:** Every canonical from `getCanonicalRegistryCommands()` is either in `GOLDEN_PARITY_INTEGRATION_COVERED` or has an exception string—**never** leave orphans by removing tests.
+
+---
+
+## Reference pattern: porting like `scan-sessions` and `workstream.status`
+
+These were fixed by **aligning the TypeScript handler with the CJS implementation**, then adding a row to `READ_ONLY_JSON_PARITY_ROWS`.
+
+1. **Find the CJS source of truth**  
+   - `scan-sessions`: `get-shit-done/bin/lib/profile-pipeline.cjs` → `cmdScanSessions`  
+   - `workstream status`: `get-shit-done/bin/lib/workstream.cjs` → `cmdWorkstreamStatus`  
+   - `gsd-tools.cjs` `runCommand` switch shows the top-level command and argv.
+
+2. **Implement or adjust the SDK module**  
+   - Example: `sdk/src/query/profile-scan-sessions.ts` mirrors the project-array build from `cmdScanSessions`; `scanSessions` in `profile.ts` parses `--path` / `--verbose`, throws when no sessions root (same error text as CJS), returns `{ data: projects }` where `projects` matches CJS JSON array.
+
+3. **Add a parity row** in `read-only-golden-rows.ts` with `canonical`, `sdkArgs`, `cjs`, `cjsArgs` (must match what `execFile(node, [gsdToolsPath, command, ...args])` expects).
+
+4. **Run**  
+   `cd sdk && npm run build && npx vitest run src/golden/read-only-parity.integration.test.ts src/golden/golden-policy.test.ts --project integration --project unit`
+
+5. **Policy**  
+   `readOnlyGoldenCanonicals()` picks up new canonicals automatically; no manual duplicate if the canonical is already in the JSON row list.
+
+**When not to copy line-for-line:** subprocess-only concerns (e.g. `agents_installed` / `missing_agents` differing from in-process `~` resolution). Then **normalize in the test** (see `golden.integration.test.ts` `docs-init`: sort `existing_docs`, omit install fields)—**document in QUERY-HANDLERS.md**, do not delete the assertion.
+
+---
+
+## Completed in this line of work (batch: query parity + goldens)
+
+Aligned SDK handlers with **`gsd-tools.cjs`** and expanded subprocess coverage (commit series on `feat/sdk-phase3-query-layer`):
+
+| Canonical / area | CJS | SDK | Golden notes |
+| ---------------- | --- | --- | ------------ |
+| `stats` / `stats.json` | `commands.cjs` `cmdStats` | `progress.ts` `statsJson` | Strict row; full stats object (phases table, git, requirements, etc.). |
+| `todo.match-phase` | `cmdTodoMatchPhase` | `progress.ts` `todoMatchPhase` | Strict row. |
+| `verify.key-links` | `verify.cjs` `cmdVerifyKeyLinks` | `validate.ts` `verifyKeyLinks` | Strict row; regex errors match `new RegExp` + `Invalid regex pattern`. |
+| `verify.references` | `cmdVerifyReferences` | `verify.ts` `verifyReferences` | Added `total` field (parity). |
+| `verify.schema-drift` | `cmdVerifySchemaDrift` | `verify.ts` + `schema-detect.ts` | Strict row; ports `schema-detect.cjs` logic. |
+| `state-snapshot` | `cmdStateSnapshot` | `state.ts` `stateSnapshot` | Strict row; `progress_percent` NaN fix. |
+| `state.json` / `state.load` | `cmdStateJson` | `state.ts` `stateLoad` | Dedicated test: **`last_updated` stripped** on both sides (`read-only-parity.integration.test.ts`); policy canonical **`state.json`**. |
+
+**Cherry-pick order** (if splitting PRs): `fix state-snapshot` → `schema-detect + verify` → `validate key-links` → `progress stats/todo` → `stubs` → `golden rows`.
+
+---
+
+## Next batch — summary / audit / skill / validate / UAT / intel / profile / init
+
+**Same workflow as above:** read `gsd-tools.cjs` `runCommand` for argv → implement/adjust `sdk/src/query/*.ts` → add `READ_ONLY_JSON_PARITY_ROWS` and/or a **named `describe` block** with documented omissions → `npm run build` → `read-only-parity.integration.test.ts` + `golden-policy.test.ts`.
+
+| Priority | Command (CLI) | `gsd-tools.cjs` case / args | CJS implementation | SDK module | Notes |
+| -------- | ------------- | -------------------------- | -------------------- | ---------- | ----- |
+| ~~1~~ | ~~`summary-extract <path>`~~ `[--fields a,b]` | `summary-extract` | `commands.cjs` `cmdSummaryExtract` (~L425) | `summary.ts` `summaryExtract` | **Done:** strict `READ_ONLY_JSON_PARITY_ROWS`; `summary.ts` aligned with `commands.cjs`; `extractFrontmatterLeading` in `frontmatter.ts` for first-`---`-block parity with `frontmatter.cjs`. |
+| ~~2~~ | ~~`history-digest`~~ | `history-digest` | `commands.cjs` `cmdHistoryDigest` (~L133) | `summary.ts` `historyDigest` | **Done:** same row / handler alignment as above. |
+| ~~3~~ | ~~`audit-open`~~ | `audit-open` `[--json]` | `audit.cjs` `auditOpenArtifacts` + optional `formatAuditReport` | `audit-open.ts` | **Done:** `--json` parity test + `scanned_at` normalization; `sanitizeForDisplay` = `security.cjs`. |
+| ~~4~~ | ~~`audit-uat`~~ | `audit-uat` | `uat.cjs` `cmdAuditUat` | `uat.ts` `auditUat` | **Done:** `auditUat` ports `cmdAuditUat` (`parseUatItems`, milestone filter, `summary.by_*`); strict `READ_ONLY_JSON_PARITY_ROWS` row. |
+| ~~5~~ | ~~`skill-manifest`~~ | `skill-manifest` + args | `init.cjs` `cmdSkillManifest` (~L1829) | `skill-manifest.ts` | **Done:** strict row; `extractFrontmatterLeading` for CJS parity (see `QUERY-HANDLERS.md`). |
+| ~~6~~ | ~~`validate agents`~~ | `validate` + `agents` | `verify.cjs` `cmdValidateAgents` (~L997) | `validate.ts` `validateAgents` | **Done:** strict row; `getAgentsDir` parity with `core.cjs`; `MODEL_PROFILES` includes `gsd-pattern-mapper` (sync with `model-profiles.cjs`). |
+| ~~7~~ | ~~`uat render-checkpoint --file <path>`~~ | `uat` subcommand | `uat.cjs` `cmdRenderCheckpoint` | `uat.ts` `uatRenderCheckpoint` | **Done:** strict row; fixture `sdk/src/golden/fixtures/uat-render-checkpoint-sample.md`; see `QUERY-HANDLERS.md`. |
+| ~~8~~ | ~~`intel extract-exports <file>`~~ | `intel` `extract-exports` | `intel.cjs` `intelExtractExports` (~L502) | `intel.ts` `intelExtractExports` | **Done:** strict row + handler parity with `intel.cjs` (fixed file e.g. `sdk/src/query/utils.ts`). |
+| ~~9~~ | ~~`extract-messages`~~ | `extract-messages` + project/session flags | `profile-pipeline.cjs` | `profile.ts` `extractMessages` | **Done:** `profile-extract-messages.ts` + golden `output_file` strip + JSONL compare; fixture `extract-messages-sessions/`. |
+| ~~10~~ | ~~`profile-sample`~~ | `profile-sample` | `profile-pipeline.cjs` | `profile.ts` `profileSample` | **Done:** `profile-sample.ts` + golden `output_file` strip + JSONL compare; fixture `profile-sample-sessions/`. |
+| ~~11~~ | ~~**`init.*` read-only JSON**~~ | various | `init.cjs` / `init-complex` | `init.ts`, `init-complex.ts` | **Done:** `golden.integration.test.ts` + nine init composition tests; `withProjectRoot` / `subagent_timeout` / `GOLDEN_INTEGRATION_MAIN_FILE_CANONICALS`; see `QUERY-HANDLERS.md`. |
+
+**Suggested order:** This batch is complete — follow-ups via **`GOLDEN_PARITY_EXCEPTIONS`** / new strict rows as needed (`learnings.query`, `progress.bar`, `profile-questionnaire`, etc.).
+
+**Mutations** (`QUERY_MUTATION_COMMANDS`): subprocess golden remains optional; policy uses `MUTATION_DEFERRED_REASON`.
+
+---
+
+## Backlog: other read-only handlers (lower priority or follow-ups)
+
+Confirm against `GOLDEN_PARITY_EXCEPTIONS` in `golden-policy.ts` for the live list.
+
+**Mutations** (`QUERY_MUTATION_COMMANDS`): subprocess golden is optional; prefer temp dirs / `--dry-run` patterns already in `golden.integration.test.ts`. Policy already uses `MUTATION_DEFERRED_REASON`.
+
+---
+
+## Explicitly **not** in the SDK registry (product decision)
+
+- **`graphify`**, **`from-gsd2` / `gsd2-import`** — CLI-only; no registry handler.
+
+---
+
+## Files to know (updated)
+
+| Path | Role |
+| ---- | ---- |
+| `sdk/src/query/index.ts` | `createRegistry()`, `QUERY_MUTATION_COMMANDS`. |
+| `sdk/src/golden/golden-policy.ts` | Coverage set + exceptions; `verifyGoldenPolicyComplete()`. |
+| `sdk/src/golden/read-only-golden-rows.ts` | Strict read-only JSON matrix. |
+| `sdk/src/golden/read-only-parity.integration.test.ts` | Subprocess + dispatch parity tests. |
+| `sdk/src/golden/capture.ts` | `captureGsdToolsOutput`, `captureGsdToolsStdout`. |
+| `get-shit-done/bin/gsd-tools.cjs` | `runCommand` — argv routing. |
+| `get-shit-done/bin/lib/*.cjs` | Per-command implementations. |
+
+---
+
+## Commands (verification)
+
+```bash
+cd sdk
+npm run build
+npm run test:unit
+npm run test:integration
+```
+
+Focused:
+
+```bash
+npx vitest run src/golden/read-only-parity.integration.test.ts src/golden/golden.integration.test.ts --project integration
+npx vitest run src/golden/golden-policy.test.ts --project unit
+```
+
+---
+
+## Success criteria (extend, not replace)
+
+- **No regression:** `golden-policy.test.ts` / `verifyGoldenPolicyComplete()` stays green.
+- **Expand `READ_ONLY_JSON_PARITY_ROWS`** as handlers are aligned—**row count should go up**, not down.
+- **`QUERY-HANDLERS.md`** updated when assertion style changes (full `toEqual` vs normalized subset).
+
+---
+
+*Update this file when registry or golden milestones change.*
