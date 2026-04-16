@@ -8,7 +8,7 @@ Use this document at the start of a new session so work continues in context wit
 
 ## Goal for the next session (primary)
 
-**Port or normalize the next batch of read-only query handlers** (see **§ Next batch — summary / audit / skill / validate / UAT / intel / profile / init**) so JSON matches `get-shit-done/bin/gsd-tools.cjs`, then add **strict subprocess golden rows** or **documented normalization blocks** in `read-only-parity.integration.test.ts`, updating `read-only-golden-rows.ts` / `readOnlyGoldenCanonicals()` and keeping **`golden-policy.ts`** complete.
+**Port or normalize the next batch of read-only query handlers** (see **§ Next batch — audit / skill / validate / UAT / intel / profile / init**) so JSON matches `get-shit-done/bin/gsd-tools.cjs`, then add **strict subprocess golden rows** or **documented normalization blocks** in `read-only-parity.integration.test.ts`, updating `read-only-golden-rows.ts` / `readOnlyGoldenCanonicals()` and keeping **`golden-policy.ts`** complete.
 
 **Do not “green the suite” by deleting or shrinking golden tests.** If a handler cannot match CJS byte-for-byte without product decisions, use **documented normalization** in the test (same approach as `docs-init` omitting agent-install fields, or **`state.json` / `state.load` stripping `last_updated`**) or **fix the TypeScript handler**—same trade-off as `scan-sessions` / `workstream.status` / `stats.json` (see below).
 
@@ -75,30 +75,32 @@ Aligned SDK handlers with **`gsd-tools.cjs`** and expanded subprocess coverage (
 | `verify.schema-drift` | `cmdVerifySchemaDrift` | `verify.ts` + `schema-detect.ts` | Strict row; ports `schema-detect.cjs` logic. |
 | `state-snapshot` | `cmdStateSnapshot` | `state.ts` `stateSnapshot` | Strict row; `progress_percent` NaN fix. |
 | `state.json` / `state.load` | `cmdStateJson` | `state.ts` `stateLoad` | Dedicated test: **`last_updated` stripped** on both sides (`read-only-parity.integration.test.ts`); policy canonical **`state.json`**. |
+| `summary-extract` | `cmdSummaryExtract` | `summary.ts` `summaryExtract` | Strict row; fixture `sdk/src/golden/fixtures/summary-extract-sample.md`; **`extractFrontmatterLeading`** matches `frontmatter.cjs` (first block only). |
+| `history-digest` | `cmdHistoryDigest` | `summary.ts` `historyDigest` | Strict row; full-repo aggregate JSON (`getArchivedPhaseDirs` + frontmatter merge per CJS). |
 
 **Cherry-pick order** (if splitting PRs): `fix state-snapshot` → `schema-detect + verify` → `validate key-links` → `progress stats/todo` → `stubs` → `golden rows`.
 
 ---
 
-## Next batch — summary / audit / skill / validate / UAT / intel / profile / init
+## Next batch — audit / skill / validate / UAT / intel / profile / init
 
 **Same workflow as above:** read `gsd-tools.cjs` `runCommand` for argv → implement/adjust `sdk/src/query/*.ts` → add `READ_ONLY_JSON_PARITY_ROWS` and/or a **named `describe` block** with documented omissions → `npm run build` → `read-only-parity.integration.test.ts` + `golden-policy.test.ts`.
 
 | Priority | Command (CLI) | `gsd-tools.cjs` case / args | CJS implementation | SDK module | Notes |
 | -------- | ------------- | -------------------------- | -------------------- | ---------- | ----- |
-| 1 | `summary-extract <path>` `[--fields a,b]` | `summary-extract` | `commands.cjs` `cmdSummaryExtract` (~L425) | `summary.ts` `summaryExtract` | Pick a **stable repo path** (e.g. an existing `*-SUMMARY.md` under `.planning/phases/`). |
-| 2 | `history-digest` | `history-digest` | `commands.cjs` `cmdHistoryDigest` (~L133) | `summary.ts` `historyDigest` | Output is aggregate over repo; may be large—confirm shape vs CJS first. |
-| 3 | `audit-open` | `audit-open` `[--json]` | `audit.cjs` `auditOpenArtifacts` + optional `formatAuditReport` | `audit-open.ts` | For JSON parity use subprocess with `--json`; align object keys with `audit.cjs`. |
-| 4 | `audit-uat` | `audit-uat` | `uat.cjs` `cmdAuditUat` | `uat.ts` `auditUat` | Same: match summary JSON shape. |
-| 5 | `skill-manifest` | `skill-manifest` + args | `init.cjs` `cmdSkillManifest` (~L1829) | `skill-manifest.ts` | If key order unstable, **sort keys in test** (document in QUERY-HANDLERS). |
-| 6 | `validate agents` | `validate` + `agents` | `verify.cjs` `cmdValidateAgents` (~L997) | `validate.ts` `validateAgents` | May need **normalization** for `agents_dir`, env (`GSD_AGENTS_DIR`), or omit env-specific fields in test. |
-| 7 | `uat render-checkpoint --file <path>` | `uat` subcommand | `uat.cjs` `cmdRenderCheckpoint` | `uat.ts` `uatRenderCheckpoint` | Needs **real UAT fixture** under `.planning/phases/.../*-UAT.md` or small test fixture path. |
-| 8 | `intel extract-exports <file>` | `intel` `extract-exports` | `intel.cjs` `intelExtractExports` (~L502) | `intel.ts` `intelExtractExports` | Use a **fixed SDK source file** (e.g. `sdk/src/query/utils.ts`) so list is stable. |
-| 9 | `extract-messages` | `extract-messages` + project/session flags | `profile-pipeline.cjs` | `profile.ts` `extractMessages` | **Heavy** vs CJS (temp JSONL, streaming); consider **documented exception** + strong unit tests if full parity is prohibitive. |
-| 10 | `profile-sample` | `profile-sample` | `profile-pipeline.cjs` | `profile.ts` `profileSample` | Same class as extract-messages. |
-| 11 | **`init.*` read-only JSON** | various | `init.cjs` / `init-complex` | `init.ts`, `init-complex.ts` | Extend **`golden.integration.test.ts`** patterns: stable fields only, omit timestamps/agent lists if needed—**do not remove coverage**. |
+| 1 | `audit-open` | `audit-open` `[--json]` | `audit.cjs` `auditOpenArtifacts` + optional `formatAuditReport` | `audit-open.ts` | For JSON parity use subprocess with `--json`; align object keys with `audit.cjs`. |
+| 2 | `audit-uat` | `audit-uat` | `uat.cjs` `cmdAuditUat` | `uat.ts` `auditUat` | Same: match summary JSON shape. |
+| 3 | `skill-manifest` | `skill-manifest` + args | `init.cjs` `cmdSkillManifest` (~L1829) | `skill-manifest.ts` | If key order unstable, **sort keys in test** (document in QUERY-HANDLERS). |
+| 4 | `validate agents` | `validate` + `agents` | `verify.cjs` `cmdValidateAgents` (~L997) | `validate.ts` `validateAgents` | May need **normalization** for `agents_dir`, env (`GSD_AGENTS_DIR`), or omit env-specific fields in test. |
+| 5 | `uat render-checkpoint --file <path>` | `uat` subcommand | `uat.cjs` `cmdRenderCheckpoint` | `uat.ts` `uatRenderCheckpoint` | Needs **real UAT fixture** under `.planning/phases/.../*-UAT.md` or small test fixture path. |
+| 6 | `intel extract-exports <file>` | `intel` `extract-exports` | `intel.cjs` `intelExtractExports` (~L502) | `intel.ts` `intelExtractExports` | Use a **fixed SDK source file** (e.g. `sdk/src/query/utils.ts`) so list is stable. |
+| 7 | `extract-messages` | `extract-messages` + project/session flags | `profile-pipeline.cjs` | `profile.ts` `extractMessages` | **Heavy** vs CJS (temp JSONL, streaming); consider **documented exception** + strong unit tests if full parity is prohibitive. |
+| 8 | `profile-sample` | `profile-sample` | `profile-pipeline.cjs` | `profile.ts` `profileSample` | Same class as extract-messages. |
+| 9 | **`init.*` read-only JSON** | various | `init.cjs` / `init-complex` | `init.ts`, `init-complex.ts` | Extend **`golden.integration.test.ts`** patterns: stable fields only, omit timestamps/agent lists if needed—**do not remove coverage**. |
 
-**Suggested order:** (1)–(2) summary/history (single-file / whole-repo), (8) intel extract-exports (narrow), (3)–(4) audit, (5)–(6) skill-manifest / validate.agents, (7) UAT checkpoint, (9)–(10) profile pipeline, (11) init last (widest surface).
+**Suggested order:** (6) intel extract-exports (narrow), (1)–(2) audit, (3)–(4) skill-manifest / validate.agents, (5) UAT checkpoint, (7)–(8) profile pipeline, (9) init last (widest surface).
+
+**Done (this line of work):** `summary-extract` + `history-digest` — strict `READ_ONLY_JSON_PARITY_ROWS`; `summary.ts` aligned with `commands.cjs`; `extractFrontmatterLeading` in `frontmatter.ts` for first-`---`-block parity with `frontmatter.cjs`.
 
 **Mutations** (`QUERY_MUTATION_COMMANDS`): subprocess golden remains optional; policy uses `MUTATION_DEFERRED_REASON`.
 

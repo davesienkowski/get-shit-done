@@ -111,6 +111,8 @@ From `read-only-parity.integration.test.ts` (full `toEqual` on this repo):
 | `init.list-workspaces` | No args. |
 | `agent-skills` | No agent type → JSON `""` (same as CJS). |
 | `scan-sessions` | `--json`; SDK `scanSessions` output matches CJS project array (`profile-scan-sessions.ts`). |
+| `summary.extract` | Fixture `sdk/src/golden/fixtures/summary-extract-sample.md`; uses `extractFrontmatterLeading` (first `---` block) for parity with `frontmatter.cjs`. |
+| `history.digest` | No args; aggregate over `.planning/phases` + archived milestone phase dirs (`commands.cjs` `cmdHistoryDigest`). |
 | `config-path` | Plain stdout path vs `{ path }` — compared with `path.normalize` in tests. |
 
 

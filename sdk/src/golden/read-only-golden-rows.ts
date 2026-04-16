@@ -44,6 +44,13 @@ export const READ_ONLY_JSON_PARITY_ROWS: JsonParityRow[] = [
   { canonical: 'verify.key-links', sdkArgs: [GOLDEN_PLAN], cjs: 'verify', cjsArgs: ['key-links', GOLDEN_PLAN] },
   { canonical: 'verify.schema-drift', sdkArgs: ['9'], cjs: 'verify', cjsArgs: ['schema-drift', '9'] },
   { canonical: 'state-snapshot', sdkArgs: [], cjs: 'state-snapshot', cjsArgs: [] },
+  {
+    canonical: 'summary.extract',
+    sdkArgs: ['sdk/src/golden/fixtures/summary-extract-sample.md'],
+    cjs: 'summary-extract',
+    cjsArgs: ['sdk/src/golden/fixtures/summary-extract-sample.md'],
+  },
+  { canonical: 'history.digest', sdkArgs: [], cjs: 'history-digest', cjsArgs: [] },
 ];
 
 /** Canonicals from JSON rows plus special-case subprocess tests in read-only-parity integration. */
