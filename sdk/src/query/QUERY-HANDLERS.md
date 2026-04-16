@@ -188,15 +188,23 @@ Handlers in `createRegistry()` that are **not** covered by `golden.integration.t
 
 ---
 
-## Decision routing (SDK-only, Tier 1)
+## Decision routing (SDK-only)
 
-These handlers implement `.planning/research/decision-routing-audit.md` Tier 1 — **no `gsd-tools.cjs` mirror yet** (orchestration JSON only). Invoke via `gsd-sdk query` / `registry.dispatch()` after `normalizeQueryCommand()` where argv uses `check …` / `route …` prefixes.
+These handlers implement `.planning/research/decision-routing-audit.md` — **no `gsd-tools.cjs` mirror yet** (orchestration JSON only). Invoke via `gsd-sdk query` / `registry.dispatch()` after `normalizeQueryCommand()` where argv uses `check …` / `route …` prefixes.
+
+### Tier 1
 
 | Dispatch | Purpose |
 | -------- | ------- |
 | `check.config-gates` / `check config-gates [workflow]` | Single JSON blob of merged `workflow.*` (+ `context_window`) for batch config gates. |
 | `check.phase-ready` / `check phase-ready <phase>` | Phase directory stats, `dependencies_met`, `next_step` (`discuss` / `plan` / `execute` / `verify` / `complete`). |
 | `route.next-action` / `route next-action` | Suggested next slash command from `next.md`-style rules (`/gsd-discuss-phase`, `/gsd-execute-phase`, `/gsd-resume-work`, gates, etc.). |
+
+### Tier 2
+
+| Dispatch | Purpose |
+| -------- | ------- |
+| `check.auto-mode` / `check auto-mode` | `active` (OR of `workflow.auto_advance` and `workflow._auto_chain_active`), `source` (`none` / `auto_advance` / `auto_chain` / `both`), plus the two booleans. Replaces paired `config-get` calls in checkpoint and auto-advance steps. Use `--pick active` or `--pick auto_chain_active` when a workflow only needs one field. |
 
 **Stability:** Shapes are versioned with the audit doc; add integration tests when workflows adopt these queries. Re-run after file writes that change `.planning/` (stale read caveat in audit §6).
 

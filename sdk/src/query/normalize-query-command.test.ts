@@ -39,6 +39,7 @@ describe('normalizeQueryCommand', () => {
       ['plan-phase'],
     ]);
     expect(normalizeQueryCommand('check', ['phase-ready', '3'])).toEqual(['check.phase-ready', ['3']]);
+    expect(normalizeQueryCommand('check', ['auto-mode'])).toEqual(['check.auto-mode', []]);
     expect(normalizeQueryCommand('route', ['next-action'])).toEqual(['route.next-action', []]);
 
     expect(normalizeQueryCommand('phase', ['add-batch', '--descriptions', '[]'])).toEqual([

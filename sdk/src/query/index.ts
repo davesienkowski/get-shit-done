@@ -79,6 +79,7 @@ import { skillManifest } from './skill-manifest.js';
 import { auditOpen } from './audit-open.js';
 import { detectCustomFiles } from './detect-custom-files.js';
 import { checkConfigGates } from './config-gates.js';
+import { checkAutoMode } from './check-auto-mode.js';
 import { checkPhaseReady } from './phase-ready.js';
 import { routeNextAction } from './route-next-action.js';
 import { GSDEventStream } from '../event-stream.js';
@@ -339,6 +340,8 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   // Decision routing (SDK-only — no `gsd-tools.cjs` mirror yet; see QUERY-HANDLERS.md)
   registry.register('check.config-gates', checkConfigGates);
   registry.register('check config-gates', checkConfigGates);
+  registry.register('check.auto-mode', checkAutoMode);
+  registry.register('check auto-mode', checkAutoMode);
   registry.register('check.phase-ready', checkPhaseReady);
   registry.register('check phase-ready', checkPhaseReady);
   registry.register('route.next-action', routeNextAction);
