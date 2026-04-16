@@ -12,7 +12,7 @@ This document records contracts for the typed query layer consumed by `gsd-sdk q
 
 ## `gsd-sdk query` routing
 
-1. **`normalizeQueryCommand()`** (`normalize-query-command.ts`) — maps the first argv tokens to the same **command + subcommand** patterns as `gsd-tools` `runCommand()` where needed (e.g. `state json` → `state.json`, `init execute-phase 9` → `init.execute-phase` with args `['9']`, `scaffold …` → `phase.scaffold`).
+1. **`normalizeQueryCommand()`** (`normalize-query-command.ts`) — maps the first argv tokens to the same **command + subcommand** patterns as `gsd-tools` `runCommand()` where needed (e.g. `state json` → `state.json`, `init execute-phase 9` → `init.execute-phase` with args `['9']`, `scaffold …` → `phase.scaffold`). Re-exported from **`@gsd-build/sdk`** and **`createRegistry`’s module** (`sdk/src/query/index.ts`) so programmatic callers can mirror CLI tokenization without importing a deep path.
 2. **`resolveQueryArgv()`** (`registry.ts`) — **longest-prefix match** on the normalized argv: tries joined keys `a.b.c` then `a b c` for each prefix length, longest first. Example: `state update status X` → handler `state.update` with args `[status, X]`.
 3. **Dotted single token**: one token like `init.new-project` matches the registry; if the first pass finds no handler, a single dotted token is split and matching runs again.
 4. **No CJS passthrough**: if nothing matches a registered handler, the CLI exits with an error. Operations not ported to the query registry must use `node …/gsd-tools.cjs` directly — see `docs/CLI-TOOLS.md`.
@@ -53,6 +53,11 @@ This document records contracts for the typed query layer consumed by `gsd-sdk q
 
 Handlers for `**state.signal-waiting`**, `**state.signal-resume**`, `**state.validate**`, `**state.sync**` (supports `--verify` dry-run), and `**state.prune**` live in `state-mutation.ts`, with dotted and `state …` space aliases in `index.ts`.
 
+**`state.json` vs `state.load` (different CJS commands):**
+
+- **`state.json`** / `state json` — port of **`cmdStateJson`** (`state.ts` `stateJson`): rebuilt STATE.md frontmatter JSON. Read-only golden: `read-only-parity.integration.test.ts` compares to CJS `state json` with **`last_updated`** stripped.
+- **`state.load`** / `state load` — port of **`cmdStateLoad`** (`state-project-load.ts` `stateProjectLoad`): `{ config, state_raw, state_exists, roadmap_exists, config_exists }`; **`config`** comes from **`get-shit-done/bin/lib/core.cjs`** `loadConfig` (resolved via the same candidate paths as a normal GSD install). Read-only golden: full `toEqual` vs `state load`. If `core.cjs` cannot be resolved, dispatch throws **`GSDError`** (document for minimal `@gsd-build/sdk`-only installs).
+
 `stateExtractField` in `helpers.ts` uses **horizontal whitespace only** after `Field:` so YAML keys such as lowercase `progress:` in frontmatter are not mistaken for the body `Progress:` line (see `get-shit-done/bin/lib/state.cjs` — same rule).
 
 ## Golden parity: coverage and exceptions
@@ -66,7 +71,7 @@ Subprocess reference: `captureGsdToolsOutput()` / `captureGsdToolsStdout()` → 
 | File | Role |
 | ---- | ---- |
 | `sdk/src/golden/golden.integration.test.ts` | Primary golden suite: subset/shape/full parity as documented in the tables below. |
-| `sdk/src/golden/read-only-parity.integration.test.ts` | Read-only handlers with full `toEqual` on `sdkResult.data` vs CJS JSON; rows listed in `read-only-golden-rows.ts`. Also `config-path` / `verify.commits`. |
+| `sdk/src/golden/read-only-parity.integration.test.ts` | Read-only handlers with full `toEqual` on `sdkResult.data` vs CJS JSON; rows listed in `read-only-golden-rows.ts`. Also `config-path` / `verify.commits`, dedicated blocks for **`state.json`** (strip `last_updated`) and **`state.load`** (full `cmdStateLoad` parity). |
 
 This section summarizes **how** each covered command is compared so readers do not have to infer rules from assertions alone.
 
@@ -117,6 +122,8 @@ From `read-only-parity.integration.test.ts` (full `toEqual` on this repo):
 | `skill-manifest` | No args; full manifest parity with `init.cjs` `buildSkillManifest` / `cmdSkillManifest`. Handler uses `extractFrontmatterLeading` (first `---` block) like CJS `frontmatter.cjs` `extractFrontmatter` — not TS `extractFrontmatter` (last block), so skills with multiple `---` sections match CJS. |
 | `validate.agents` | No args; `agents_dir` matches `core.cjs` `getAgentsDir` (`GSD_AGENTS_DIR` or `sdk/dist/query/../../../agents` in this monorepo — same absolute path as CLI). `MODEL_PROFILES` / `expected` list stays aligned with `get-shit-done/bin/lib/model-profiles.cjs`. |
 | `state.get` | Dedicated tests: no args → full `{ content }` vs `state get`; one field (`milestone`) → `{ milestone: "…" }` vs `state get milestone` (frontmatter line match). |
+| `state.json` | `state json` vs SDK; **`last_updated`** stripped before `toEqual` (volatile). |
+| `state.load` | `state load` vs SDK; full **`cmdStateLoad`** object graph (`config`, `state_raw`, existence flags). |
 | `uat.render-checkpoint` | Fixture `sdk/src/golden/fixtures/uat-render-checkpoint-sample.md`; full JSON parity with `uat.cjs` `cmdRenderCheckpoint` (`file_path`, `test_number`, `test_name`, `checkpoint` — same box + `buildCheckpoint` text as CJS; `sanitizeForDisplay` on name/expected). |
 | `config-path` | Plain stdout path vs `{ path }` — compared with `path.normalize` in tests. |
 
@@ -178,6 +185,20 @@ Assertions deliberately compare only stable or structural fields (not full `toEq
 ### Registered but not in the golden suite
 
 Handlers in `createRegistry()` that are **not** covered by `golden.integration.test.ts` are not automatically “non-parity” — they simply have **no** automated cross-check against CJS yet. Add golden tests when tightening coverage; until then, treat absence here as a **test gap**, not a behavior guarantee.
+
+---
+
+## Decision routing (SDK-only, Tier 1)
+
+These handlers implement `.planning/research/decision-routing-audit.md` Tier 1 — **no `gsd-tools.cjs` mirror yet** (orchestration JSON only). Invoke via `gsd-sdk query` / `registry.dispatch()` after `normalizeQueryCommand()` where argv uses `check …` / `route …` prefixes.
+
+| Dispatch | Purpose |
+| -------- | ------- |
+| `check.config-gates` / `check config-gates [workflow]` | Single JSON blob of merged `workflow.*` (+ `context_window`) for batch config gates. |
+| `check.phase-ready` / `check phase-ready <phase>` | Phase directory stats, `dependencies_met`, `next_step` (`discuss` / `plan` / `execute` / `verify` / `complete`). |
+| `route.next-action` / `route next-action` | Suggested next slash command from `next.md`-style rules (`/gsd-discuss-phase`, `/gsd-execute-phase`, `/gsd-resume-work`, gates, etc.). |
+
+**Stability:** Shapes are versioned with the audit doc; add integration tests when workflows adopt these queries. Re-run after file writes that change `.planning/` (stale read caveat in audit §6).
 
 ---
 

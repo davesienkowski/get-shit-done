@@ -24,6 +24,8 @@ const MERGE_FIRST_WITH_SUBCOMMAND = new Set<string>([
   'uat',
   'todo',
   'milestone',
+  'check',
+  'route',
 ]);
 
 /**

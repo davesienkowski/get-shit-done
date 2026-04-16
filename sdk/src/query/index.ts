@@ -18,7 +18,8 @@ import { QueryRegistry } from './registry.js';
 import { generateSlug, currentTimestamp } from './utils.js';
 import { frontmatterGet } from './frontmatter.js';
 import { configGet, configPath, resolveModel } from './config-query.js';
-import { stateLoad, stateGet, stateSnapshot } from './state.js';
+import { stateJson, stateGet, stateSnapshot } from './state.js';
+import { stateProjectLoad } from './state-project-load.js';
 import { findPhase, phasePlanIndex } from './phase.js';
 import { roadmapAnalyze, roadmapGetPhase } from './roadmap.js';
 import { progressJson } from './progress.js';
@@ -77,6 +78,9 @@ import {
 import { skillManifest } from './skill-manifest.js';
 import { auditOpen } from './audit-open.js';
 import { detectCustomFiles } from './detect-custom-files.js';
+import { checkConfigGates } from './config-gates.js';
+import { checkPhaseReady } from './phase-ready.js';
+import { routeNextAction } from './route-next-action.js';
 import { GSDEventStream } from '../event-stream.js';
 import {
   GSDEventType,
@@ -93,6 +97,8 @@ import type { QueryHandler, QueryResult } from './utils.js';
 
 export type { QueryResult, QueryHandler } from './utils.js';
 export { extractField } from './registry.js';
+/** Same argv normalization as `gsd-sdk query` — use when calling `registry.dispatch()` with CLI-style `command` + `args`. */
+export { normalizeQueryCommand } from './normalize-query-command.js';
 
 // ─── Mutation commands set ────────────────────────────────────────────────
 
@@ -250,8 +256,8 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('config-get', configGet);
   registry.register('config-path', configPath);
   registry.register('resolve-model', resolveModel);
-  registry.register('state.load', stateLoad);
-  registry.register('state.json', stateLoad);
+  registry.register('state.load', stateProjectLoad);
+  registry.register('state.json', stateJson);
   registry.register('state.get', stateGet);
   registry.register('state-snapshot', stateSnapshot);
   registry.register('find-phase', findPhase);
@@ -329,6 +335,14 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
   registry.register('validate health', validateHealth);
   registry.register('validate.agents', validateAgents);
   registry.register('validate agents', validateAgents);
+
+  // Decision routing (SDK-only — no `gsd-tools.cjs` mirror yet; see QUERY-HANDLERS.md)
+  registry.register('check.config-gates', checkConfigGates);
+  registry.register('check config-gates', checkConfigGates);
+  registry.register('check.phase-ready', checkPhaseReady);
+  registry.register('check phase-ready', checkPhaseReady);
+  registry.register('route.next-action', routeNextAction);
+  registry.register('route next-action', routeNextAction);
 
   // Phase lifecycle handlers
   registry.register('phase.add', phaseAdd);

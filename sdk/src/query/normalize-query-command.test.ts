@@ -34,6 +34,13 @@ describe('normalizeQueryCommand', () => {
   });
 
   it('merges phase add-batch for future handler', () => {
+    expect(normalizeQueryCommand('check', ['config-gates', 'plan-phase'])).toEqual([
+      'check.config-gates',
+      ['plan-phase'],
+    ]);
+    expect(normalizeQueryCommand('check', ['phase-ready', '3'])).toEqual(['check.phase-ready', ['3']]);
+    expect(normalizeQueryCommand('route', ['next-action'])).toEqual(['route.next-action', []]);
+
     expect(normalizeQueryCommand('phase', ['add-batch', '--descriptions', '[]'])).toEqual([
       'phase.add-batch',
       ['--descriptions', '[]'],
