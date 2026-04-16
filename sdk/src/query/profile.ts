@@ -13,7 +13,7 @@
  * // { data: { projects: [...], project_count: 5, session_count: 42 } }
  *
  * await profileQuestionnaire([], '/project');
- * // { data: { questions: [...], total: 3 } }
+ * // { data: { mode: 'interactive', questions: [...] } } — same shape as gsd-tools.cjs
  * ```
  */
 
@@ -28,6 +28,12 @@ import { GSDError, ErrorClassification } from '../errors.js';
 import type { QueryHandler } from './utils.js';
 import { buildScanSessionsProjects, getScanSessionsRoot } from './profile-scan-sessions.js';
 import { runExtractMessages } from './profile-extract-messages.js';
+import { runProfileSample } from './profile-sample.js';
+import {
+  PROFILING_QUESTIONS,
+  generateClaudeInstruction,
+  isAmbiguousAnswer,
+} from './profile-questionnaire-data.js';
 
 // ─── Learnings — ~/.gsd/knowledge/ knowledge store ───────────────────────
 
@@ -236,66 +242,99 @@ export const scanSessions: QueryHandler = async (args) => {
   return { data: projects };
 };
 
-const CLAUDE_PROJECTS_DIR = join(homedir(), '.claude', 'projects');
-
-export const profileSample: QueryHandler = async (_args, _projectDir) => {
-  if (!existsSync(CLAUDE_PROJECTS_DIR)) {
-    return { data: { messages: [], total: 0, projects_sampled: 0 } };
-  }
-  const messages: string[] = [];
-  let projectsSampled = 0;
-
-  try {
-    const projectDirs = readdirSync(CLAUDE_PROJECTS_DIR, { withFileTypes: true });
-    for (const pDir of projectDirs.filter(e => e.isDirectory()).slice(0, 5)) {
-      const pPath = join(CLAUDE_PROJECTS_DIR, pDir.name);
-      const sessions = readdirSync(pPath).filter(f => f.endsWith('.jsonl')).slice(0, 3);
-      for (const session of sessions) {
-        try {
-          const content = readFileSync(join(pPath, session), 'utf-8');
-          for (const line of content.split('\n').filter(Boolean)) {
-            try {
-              const record = JSON.parse(line);
-              if (record.type === 'user' && typeof record.message?.content === 'string') {
-                messages.push(record.message.content.slice(0, 500));
-                if (messages.length >= 50) break;
-              }
-            } catch { /* skip malformed */ }
-          }
-        } catch { /* skip */ }
-        if (messages.length >= 50) break;
-      }
-      projectsSampled++;
-      if (messages.length >= 50) break;
-    }
-  } catch { /* skip */ }
-
-  return { data: { messages, total: messages.length, projects_sampled: projectsSampled } };
+/**
+ * Multi-project session sampling for profiling — port of `cmdProfileSample` (`profile-pipeline.cjs`).
+ * JSON matches `gsd-tools profile-sample` (`output_file` JSONL + metadata).
+ */
+export const profileSample: QueryHandler = async (args) => {
+  const pathIdx = args.indexOf('--path');
+  const overridePath = pathIdx !== -1 ? args[pathIdx + 1] : null;
+  const limitIdx = args.indexOf('--limit');
+  const limit = limitIdx !== -1 ? parseInt(args[limitIdx + 1]!, 10) : 150;
+  const maxPerIdx = args.indexOf('--max-per-project');
+  const maxPerProject = maxPerIdx !== -1 ? parseInt(args[maxPerIdx + 1]!, 10) : null;
+  const maxCharsIdx = args.indexOf('--max-chars');
+  const maxChars = maxCharsIdx !== -1 ? parseInt(args[maxCharsIdx + 1]!, 10) : 500;
+  const data = await runProfileSample(overridePath ?? null, {
+    limit,
+    maxPerProject,
+    maxChars,
+  });
+  return { data };
 };
 
-const PROFILING_QUESTIONS = [
-  { dimension: 'communication_style', header: 'Communication Style', question: 'When you ask Claude to build something, how much context do you typically provide?', options: [{ label: 'Minimal', value: 'a', rating: 'terse-direct' }, { label: 'Some context', value: 'b', rating: 'conversational' }, { label: 'Detailed specs', value: 'c', rating: 'detailed-structured' }, { label: 'It depends', value: 'd', rating: 'mixed' }] },
-  { dimension: 'decision_speed', header: 'Decision Making', question: 'When Claude presents you with options, how do you typically decide?', options: [{ label: 'Pick quickly', value: 'a', rating: 'fast-intuitive' }, { label: 'Ask for comparison', value: 'b', rating: 'deliberate-informed' }, { label: 'Research independently', value: 'c', rating: 'research-first' }, { label: 'Let Claude recommend', value: 'd', rating: 'delegator' }] },
-  { dimension: 'explanation_depth', header: 'Explanation Preferences', question: 'When Claude explains something, how much detail do you want?', options: [{ label: 'Just the code', value: 'a', rating: 'code-only' }, { label: 'Brief explanation', value: 'b', rating: 'concise' }, { label: 'Detailed walkthrough', value: 'c', rating: 'detailed' }, { label: 'Deep dive', value: 'd', rating: 'educational' }] },
-];
-
+/**
+ * Profile questionnaire — port of `cmdProfileQuestionnaire` from profile-output.cjs.
+ * Interactive: `{ mode: 'interactive', questions }` (options omit `rating`).
+ * With `--answers a,b,c,...` (8 comma-separated values, order matches questions): full analysis object (includes volatile `analyzed_at`).
+ */
 export const profileQuestionnaire: QueryHandler = async (args, _projectDir) => {
-  const answersFlag = args.indexOf('--answers');
-  if (answersFlag >= 0 && args[answersFlag + 1]) {
-    try {
-      const answers = JSON.parse(readFileSync(resolve(args[answersFlag + 1]), 'utf-8')) as Record<string, string>;
-      const analysis: Record<string, string> = {};
-      for (const q of PROFILING_QUESTIONS) {
-        const answer = answers[q.dimension];
-        const option = q.options.find(o => o.value === answer);
-        analysis[q.dimension] = option?.rating ?? 'unknown';
-      }
-      return { data: { analysis, answered: Object.keys(answers).length, questions_total: PROFILING_QUESTIONS.length } };
-    } catch {
-      return { data: { error: 'Failed to read answers file', path: args[answersFlag + 1] } };
-    }
+  const answersIdx = args.indexOf('--answers');
+  const answersStr = answersIdx !== -1 ? args[answersIdx + 1] : null;
+
+  if (!answersStr) {
+    const questionsOutput = {
+      mode: 'interactive' as const,
+      questions: PROFILING_QUESTIONS.map((q) => ({
+        dimension: q.dimension,
+        header: q.header,
+        context: q.context,
+        question: q.question,
+        options: q.options.map((o) => ({ label: o.label, value: o.value })),
+      })),
+    };
+    return { data: questionsOutput };
   }
-  return { data: { questions: PROFILING_QUESTIONS, total: PROFILING_QUESTIONS.length } };
+
+  const answerValues = answersStr.split(',').map((a) => a.trim());
+  if (answerValues.length !== PROFILING_QUESTIONS.length) {
+    throw new GSDError(
+      `Expected ${PROFILING_QUESTIONS.length} answers (comma-separated), got ${answerValues.length}`,
+      ErrorClassification.Validation,
+    );
+  }
+
+  const dimensions: Record<string, unknown> = {};
+  const analysis: Record<string, unknown> = {
+    profile_version: '1.0',
+    analyzed_at: new Date().toISOString(),
+    data_source: 'questionnaire',
+    projects_analyzed: [] as unknown[],
+    messages_analyzed: 0,
+    message_threshold: 'questionnaire',
+    sensitive_excluded: [] as unknown[],
+    dimensions,
+  };
+
+  for (let i = 0; i < PROFILING_QUESTIONS.length; i++) {
+    const question = PROFILING_QUESTIONS[i]!;
+    const answerValue = answerValues[i]!;
+    const selectedOption = question.options.find((o) => o.value === answerValue);
+    if (!selectedOption) {
+      throw new GSDError(
+        `Invalid answer "${answerValue}" for ${question.dimension}. Valid values: ${question.options.map((o) => o.value).join(', ')}`,
+        ErrorClassification.Validation,
+      );
+    }
+    const ambiguous = isAmbiguousAnswer(question.dimension, answerValue);
+    dimensions[question.dimension] = {
+      rating: selectedOption.rating,
+      confidence: ambiguous ? 'LOW' : 'MEDIUM',
+      evidence_count: 1,
+      cross_project_consistent: null,
+      evidence: [
+        {
+          signal: 'Self-reported via questionnaire',
+          quote: selectedOption.label,
+          project: 'N/A (questionnaire)',
+        },
+      ],
+      summary: `Developer self-reported as ${selectedOption.rating} for ${question.header.toLowerCase()}.`,
+      claude_instruction: generateClaudeInstruction(question.dimension, selectedOption.rating),
+    };
+  }
+
+  return { data: analysis };
 };
 
 export const writeProfile: QueryHandler = async (args, projectDir) => {
