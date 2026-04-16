@@ -1,15 +1,17 @@
 # Handover: Parity exceptions doc + CJS-only matrix (next session)
 
+**Status:** The deliverables described below are implemented in **`sdk/src/query/QUERY-HANDLERS.md`** (sections **Golden parity: coverage and exceptions** and **CJS command surface vs SDK registry**). Use that file as the canonical registry + parity reference; this handover remains useful for issue **#2302** scope and parent **#2007** links.
+
 Paste this document (or `@sdk/HANDOVER-PARITY-DOCS.md`) at the start of a new chat so work continues without re-auditing issue scope.
 
 ## Goal for this session
 
-1. **Parity “exceptions” documentation** — A clear, maintainable description of where **full JSON equality** between `gsd-tools.cjs` and `createRegistry()` is **not** expected or not attempted, and why (stubs, structural-only tests, environment-dependent fields, ordering, etc.). Map this to **#2007 / #2291** expectations: no *undocumented* gap.
+1. **Parity “exceptions” documentation** — A clear, maintainable description of where **full JSON equality** between `gsd-tools.cjs` and `createRegistry()` is **not** expected or not attempted, and why (stubs, structural-only tests, environment-dependent fields, ordering, etc.). Map this to **#2007 / #2302** expectations: no *undocumented* gap.
 2. **CJS-only matrix** — A **single authoritative table**: each relevant `**gsd-tools.cjs` surface** (top-level command or documented cluster) → **registered in SDK** vs **permanent CLI-only** vs **alias / naming difference**, with a **one-line justification** where not registered.
 
 ## Parent tracking
 
-- **Issue:** [gsd-build/get-shit-done#2291](https://github.com/gsd-build/get-shit-done/issues/2291) — Phase 3 SDK query parity, registry, docs (parent umbrella #2007).
+- **Issue:** [gsd-build/get-shit-done#2302](https://github.com/gsd-build/get-shit-done/issues/2302) — Phase 3 SDK query parity, registry, docs (parent umbrella #2007).
 - **Acceptance criteria touched here:** parity coverage/exceptions documented; registry audit reflected in a **matrix** (issue wording: “every required CJS surface either has a handler or appears in the CJS-only matrix with justification”).
 
 ## Repo / branch
@@ -75,7 +77,7 @@ Optional: footnote that `**detect-custom-files`** skips multi-repo root resoluti
 
 ## Out of scope for *this* handover session
 
-- Implementing runner alignment (`GSDTools` → registry) — separate #2291 work.
+- Implementing runner alignment (`GSDTools` → registry) — separate #2302 work.
 - Adding `@deprecated` headers to `gsd-tools.cjs` — separate task.
 - **CHANGELOG** — only if you batch doc work with release notes in same PR (optional).
 
@@ -88,7 +90,7 @@ Optional: footnote that `**detect-custom-files`** skips multi-repo root resoluti
 
 - A reader can answer: **“Which commands are fully golden-parity vs partial vs stub vs untested?”** without reading the whole test file.
 - A reader can answer: **“Which `gsd-tools` top-level commands are not registered and why?”** from one table.
-- **#2291** acceptance bullets on parity documentation and registry matrix are satisfied for the **documentation** slice (remaining issue items may still be open for code).
+- **#2302** acceptance bullets on parity documentation and registry matrix are satisfied for the **documentation** slice (remaining issue items may still be open for code).
 
 ---
 
