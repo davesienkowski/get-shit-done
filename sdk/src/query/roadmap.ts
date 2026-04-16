@@ -17,6 +17,7 @@
  * ```
  */
 
+import { existsSync } from 'node:fs';
 import { readFile, writeFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { GSDError, ErrorClassification } from '../errors.js';
@@ -414,57 +415,83 @@ export const roadmapAnalyze: QueryHandler = async (_args, projectDir) => {
   return { data: result };
 };
 
-// ─── roadmapUpdatePlanProgress ────────────────────────────────────────────
-
-export const roadmapUpdatePlanProgress: QueryHandler = async (args, projectDir) => {
-  const phase = args[0];
-  const paths = planningPaths(projectDir);
-
-  if (!phase) {
-    return { data: { updated: false, reason: 'phase argument required' } };
-  }
-
-  try {
-    let content = await readFile(paths.roadmap, 'utf-8');
-    const phaseNum = normalizePhaseName(phase);
-    const updated = content.replace(
-      /(-\s*\[\s*\]\s*(?:Plan\s+\d+|plan\s+\d+|\*\*Plan))/gi,
-      (match) => match.replace('[ ]', '[x]'),
-    );
-    if (updated !== content) {
-      await writeFile(paths.roadmap, updated, 'utf-8');
-      return { data: { updated: true, phase: phaseNum } };
-    }
-    return { data: { updated: false, phase: phaseNum, reason: 'no matching checkbox found' } };
-  } catch {
-    return { data: { updated: false, reason: 'ROADMAP.md not found or unreadable' } };
-  }
-};
-
 // ─── requirementsMarkComplete ─────────────────────────────────────────────
 
+/**
+ * Mark requirement IDs complete in REQUIREMENTS.md (checkbox + traceability table).
+ * Port of `cmdRequirementsMarkComplete` from milestone.cjs lines 11–87.
+ */
 export const requirementsMarkComplete: QueryHandler = async (args, projectDir) => {
-  const reqIds = args;
-  const paths = planningPaths(projectDir);
+  if (args.length === 0) {
+    throw new GSDError(
+      'requirement IDs required. Usage: requirements mark-complete REQ-01,REQ-02 or REQ-01 REQ-02',
+      ErrorClassification.Validation,
+    );
+  }
+
+  const reqIds = args
+    .join(' ')
+    .replace(/[\[\]]/g, '')
+    .split(/[,\s]+/)
+    .map(r => r.trim())
+    .filter(Boolean);
 
   if (reqIds.length === 0) {
-    return { data: { marked: false, reason: 'requirement IDs required' } };
+    throw new GSDError('no valid requirement IDs found', ErrorClassification.Validation);
   }
 
-  try {
-    let content = await readFile(paths.requirements, 'utf-8');
-    let changeCount = 0;
+  const paths = planningPaths(projectDir);
+  if (!existsSync(paths.requirements)) {
+    return { data: { updated: false, reason: 'REQUIREMENTS.md not found', ids: reqIds } };
+  }
 
-    for (const id of reqIds) {
-      const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const pattern = new RegExp(`(-\\s*\\[\\s*\\]\\s*)([^\\n]*${escaped})`, 'gi');
-      content = content.replace(pattern, (_m, _bracket, rest) => `- [x] ${rest}`.trim() + '\n' || `- [x] ${rest}`);
-      if (content.includes(`[x]`) && content.includes(id)) changeCount++;
+  let reqContent = (await readFile(paths.requirements, 'utf-8')).replace(/\r\n/g, '\n');
+  const updated: string[] = [];
+  const alreadyComplete: string[] = [];
+  const notFound: string[] = [];
+
+  for (const reqId of reqIds) {
+    let found = false;
+    const reqEscaped = escapeRegex(reqId);
+
+    const checkboxPattern = new RegExp(`(-\\s*\\[)[ ](\\]\\s*\\*\\*${reqEscaped}\\*\\*)`, 'gi');
+    const afterCheckbox = reqContent.replace(checkboxPattern, '$1x$2');
+    if (afterCheckbox !== reqContent) {
+      reqContent = afterCheckbox;
+      found = true;
     }
 
-    await writeFile(paths.requirements, content, 'utf-8');
-    return { data: { marked: true, ids: reqIds, changed: changeCount } };
-  } catch {
-    return { data: { marked: false, reason: 'REQUIREMENTS.md not found or unreadable' } };
+    const tablePattern = new RegExp(`(\\|\\s*${reqEscaped}\\s*\\|[^|]+\\|)\\s*Pending\\s*(\\|)`, 'gi');
+    const afterTable = reqContent.replace(tablePattern, '$1 Complete $2');
+    if (afterTable !== reqContent) {
+      reqContent = afterTable;
+      found = true;
+    }
+
+    if (found) {
+      updated.push(reqId);
+    } else {
+      const doneCheckbox = new RegExp(`-\\s*\\[x\\]\\s*\\*\\*${reqEscaped}\\*\\*`, 'i');
+      const doneTable = new RegExp(`\\|\\s*${reqEscaped}\\s*\\|[^|]+\\|\\s*Complete\\s*\\|`, 'i');
+      if (doneCheckbox.test(reqContent) || doneTable.test(reqContent)) {
+        alreadyComplete.push(reqId);
+      } else {
+        notFound.push(reqId);
+      }
+    }
   }
+
+  if (updated.length > 0) {
+    await writeFile(paths.requirements, reqContent, 'utf-8');
+  }
+
+  return {
+    data: {
+      updated: updated.length > 0,
+      marked_complete: updated,
+      already_complete: alreadyComplete,
+      not_found: notFound,
+      total: reqIds.length,
+    },
+  };
 };

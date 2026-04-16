@@ -357,7 +357,7 @@ export const intelPatchMeta: QueryHandler = async (args, projectDir) => {
     meta.updated_at = timestamp;
     meta.version = ((meta.version as number) || 0) + 1;
     writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
-    return { data: { patched: true, file: args[0], timestamp } };
+    return { data: { patched: true, file: filePath, timestamp } };
   } catch (err) {
     return { data: { patched: false, error: String(err) } };
   }

@@ -48,7 +48,8 @@ import {
 } from './init.js';
 import { initNewProject, initProgress, initManager } from './init-complex.js';
 import { agentSkills } from './skills.js';
-import { roadmapUpdatePlanProgress, requirementsMarkComplete } from './roadmap.js';
+import { requirementsMarkComplete } from './roadmap.js';
+import { roadmapUpdatePlanProgress } from './roadmap-update-plan-progress.js';
 import { statePlannedPhase } from './state-mutation.js';
 import { verifySchemaDrift } from './verify.js';
 import {

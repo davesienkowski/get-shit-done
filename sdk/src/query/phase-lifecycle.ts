@@ -24,6 +24,7 @@ import { join, relative } from 'node:path';
 import { GSDError, ErrorClassification } from '../errors.js';
 import {
   escapeRegex,
+  normalizeMd,
   normalizePhaseName,
   comparePhaseNum,
   phaseTokenMatches,
@@ -31,9 +32,15 @@ import {
   planningPaths,
   stateExtractField,
 } from './helpers.js';
+import { extractFrontmatter } from './frontmatter.js';
 import { extractCurrentMilestone } from './roadmap.js';
 import { getMilestonePhaseFilter } from './state.js';
-import { acquireStateLock, releaseStateLock, stateReplaceField } from './state-mutation.js';
+import {
+  acquireStateLock,
+  readModifyWriteStateMdFull,
+  releaseStateLock,
+  stateReplaceField,
+} from './state-mutation.js';
 import type { QueryHandler } from './utils.js';
 
 // ─── Null byte validation ────────────────────────────────────────────────
@@ -1597,18 +1604,196 @@ export const phasesArchive: QueryHandler = async (args, projectDir) => {
 
 // ─── milestoneComplete ────────────────────────────────────────────────────
 
-export const milestoneComplete: QueryHandler = async (args, projectDir) => {
-  const version = args[0] || 'current';
-  try {
-    const archiveResult = await phasesArchive([], projectDir);
-    return {
-      data: {
-        completed: true,
-        version,
-        archive: archiveResult.data,
-      },
-    };
-  } catch (err) {
-    return { data: { completed: false, reason: String(err) } };
+/** Port of `parseMultiwordArg` in `gsd-tools.cjs`. */
+function parseMultiwordArg(args: string[], flag: string): string | null {
+  const idx = args.indexOf(`--${flag}`);
+  if (idx === -1) return null;
+  const tokens: string[] = [];
+  for (let i = idx + 1; i < args.length; i++) {
+    if (args[i]!.startsWith('--')) break;
+    tokens.push(args[i]!);
   }
+  return tokens.length > 0 ? tokens.join(' ') : null;
+}
+
+/** Port of `extractOneLinerFromBody` from `core.cjs` / `summary.ts`. */
+function extractOneLinerFromBody(content: string): string | null {
+  if (!content) return null;
+  const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n*/, '');
+  const match = body.match(/^#[^\n]*\n+\*\*([^*]+)\*\*/m);
+  return match ? match[1]!.trim() : null;
+}
+
+/**
+ * Query handler for `milestone.complete` — port of `cmdMilestoneComplete` from `milestone.cjs`.
+ */
+export const milestoneComplete: QueryHandler = async (args, projectDir) => {
+  const version = args[0];
+  if (!version) {
+    throw new GSDError('version required for milestone complete (e.g., v1.0)', ErrorClassification.Validation);
+  }
+  assertNoNullBytes(version, 'version');
+
+  const nameOpt = parseMultiwordArg(args, 'name');
+  const archivePhases = args.includes('--archive-phases');
+
+  const paths = planningPaths(projectDir);
+  const roadmapPath = paths.roadmap;
+  const reqPath = paths.requirements;
+  const statePath = paths.state;
+  const milestonesPath = join(paths.planning, 'MILESTONES.md');
+  const archiveDir = join(paths.planning, 'milestones');
+  const phasesDir = paths.phases;
+  const today = new Date().toISOString().split('T')[0]!;
+  const milestoneName = nameOpt || version;
+
+  await mkdir(archiveDir, { recursive: true });
+
+  const isDirInMilestone = await getMilestonePhaseFilter(projectDir);
+
+  let phaseCount = 0;
+  let totalPlans = 0;
+  let totalTasks = 0;
+  const accomplishments: string[] = [];
+
+  try {
+    const entries = await readdir(phasesDir, { withFileTypes: true });
+    const dirs = entries.filter((e) => e.isDirectory()).map((e) => e.name).sort();
+
+    for (const dir of dirs) {
+      if (!isDirInMilestone(dir)) continue;
+
+      phaseCount++;
+      const phaseFiles = await readdir(join(phasesDir, dir));
+      const plans = phaseFiles.filter((f) => f.endsWith('-PLAN.md') || f === 'PLAN.md');
+      const summaries = phaseFiles.filter((f) => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
+      totalPlans += plans.length;
+
+      for (const s of summaries) {
+        try {
+          const content = await readFile(join(phasesDir, dir, s), 'utf-8');
+          const fm = extractFrontmatter(content);
+          const oneLiner =
+            (fm['one-liner'] as string | undefined) || extractOneLinerFromBody(content);
+          if (oneLiner) {
+            accomplishments.push(oneLiner);
+          }
+          const tasksFieldMatch = content.match(/\*\*Tasks:\*\*\s*(\d+)/);
+          if (tasksFieldMatch) {
+            totalTasks += parseInt(tasksFieldMatch[1]!, 10);
+          } else {
+            const xmlTaskMatches = content.match(/<task[\s>]/gi) || [];
+            const mdTaskMatches = content.match(/##\s*Task\s*\d+/gi) || [];
+            totalTasks += xmlTaskMatches.length || mdTaskMatches.length;
+          }
+        } catch {
+          /* intentionally empty */
+        }
+      }
+    }
+  } catch {
+    /* intentionally empty */
+  }
+
+  if (existsSync(roadmapPath)) {
+    const roadmapContent = await readFile(roadmapPath, 'utf-8');
+    await writeFile(join(archiveDir, `${version}-ROADMAP.md`), roadmapContent, 'utf-8');
+  }
+
+  if (existsSync(reqPath)) {
+    const reqContent = await readFile(reqPath, 'utf-8');
+    const archiveHeader =
+      `# Requirements Archive: ${version} ${milestoneName}\n\n` +
+      `**Archived:** ${today}\n**Status:** SHIPPED\n\n` +
+      `For current requirements, see \`.planning/REQUIREMENTS.md\`.\n\n---\n\n`;
+    await writeFile(join(archiveDir, `${version}-REQUIREMENTS.md`), archiveHeader + reqContent, 'utf-8');
+  }
+
+  const auditFile = join(projectDir, '.planning', `${version}-MILESTONE-AUDIT.md`);
+  if (existsSync(auditFile)) {
+    await rename(auditFile, join(archiveDir, `${version}-MILESTONE-AUDIT.md`));
+  }
+
+  const accomplishmentsList = accomplishments.map((a) => `- ${a}`).join('\n');
+  const milestoneEntry =
+    `## ${version} ${milestoneName} (Shipped: ${today})\n\n` +
+    `**Phases completed:** ${phaseCount} phases, ${totalPlans} plans, ${totalTasks} tasks\n\n` +
+    `**Key accomplishments:**\n${accomplishmentsList || '- (none recorded)'}\n\n---\n\n`;
+
+  if (existsSync(milestonesPath)) {
+    const existing = await readFile(milestonesPath, 'utf-8');
+    if (!existing.trim()) {
+      await writeFile(milestonesPath, normalizeMd(`# Milestones\n\n${milestoneEntry}`), 'utf-8');
+    } else {
+      const headerMatch = existing.match(/^(#{1,3}\s+[^\n]*\n\n?)/);
+      if (headerMatch) {
+        const header = headerMatch[1]!;
+        const rest = existing.slice(header.length);
+        await writeFile(milestonesPath, normalizeMd(header + milestoneEntry + rest), 'utf-8');
+      } else {
+        await writeFile(milestonesPath, normalizeMd(milestoneEntry + existing), 'utf-8');
+      }
+    }
+  } else {
+    await writeFile(milestonesPath, normalizeMd(`# Milestones\n\n${milestoneEntry}`), 'utf-8');
+  }
+
+  if (existsSync(statePath)) {
+    await readModifyWriteStateMdFull(projectDir, (stateContent) => {
+      let next = stateReplaceFieldWithFallback(
+        stateContent,
+        'Status',
+        null,
+        `${version} milestone complete`,
+      );
+      next = stateReplaceFieldWithFallback(next, 'Last Activity', 'Last activity', today);
+      next = stateReplaceFieldWithFallback(
+        next,
+        'Last Activity Description',
+        null,
+        `${version} milestone completed and archived`,
+      );
+      return next;
+    });
+  }
+
+  let phasesArchived = false;
+  if (archivePhases) {
+    try {
+      const phaseArchiveDir = join(archiveDir, `${version}-phases`);
+      await mkdir(phaseArchiveDir, { recursive: true });
+
+      const phaseEntries = await readdir(phasesDir, { withFileTypes: true });
+      const phaseDirNames = phaseEntries.filter((e) => e.isDirectory()).map((e) => e.name);
+      let archivedCount = 0;
+      for (const dir of phaseDirNames) {
+        if (!isDirInMilestone(dir)) continue;
+        await rename(join(phasesDir, dir), join(phaseArchiveDir, dir));
+        archivedCount++;
+      }
+      phasesArchived = archivedCount > 0;
+    } catch {
+      /* intentionally empty */
+    }
+  }
+
+  return {
+    data: {
+      version,
+      name: milestoneName,
+      date: today,
+      phases: phaseCount,
+      plans: totalPlans,
+      tasks: totalTasks,
+      accomplishments,
+      archived: {
+        roadmap: existsSync(join(archiveDir, `${version}-ROADMAP.md`)),
+        requirements: existsSync(join(archiveDir, `${version}-REQUIREMENTS.md`)),
+        audit: existsSync(join(archiveDir, `${version}-MILESTONE-AUDIT.md`)),
+        phases: phasesArchived,
+      },
+      milestones_updated: true,
+      state_updated: existsSync(statePath),
+    },
+  };
 };
