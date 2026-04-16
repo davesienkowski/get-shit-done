@@ -27,6 +27,7 @@ import { planningPaths, toPosixPath } from './helpers.js';
 import { GSDError, ErrorClassification } from '../errors.js';
 import type { QueryHandler } from './utils.js';
 import { buildScanSessionsProjects, getScanSessionsRoot } from './profile-scan-sessions.js';
+import { runExtractMessages } from './profile-extract-messages.js';
 
 // ─── Learnings — ~/.gsd/knowledge/ knowledge store ───────────────────────
 
@@ -192,89 +193,28 @@ export const learningsDelete: QueryHandler = async (args) => {
 /**
  * Extract user messages from Claude Code session files for a given project.
  *
- * Port of `cmdExtractMessages` from profile-pipeline.cjs lines 252-391.
- * Simplified to use the SDK's existing session scanning infrastructure.
+ * Port of `cmdExtractMessages` from profile-pipeline.cjs — JSON matches `gsd-tools extract-messages`
+ * (`output_file` JSONL + metadata). Uses `--session` (CJS); `--session-id` is accepted as an alias.
  *
- * @param args - args[0]: project name/keyword (required), --limit N, --session-id ID
+ * @param args - args[0]: project name/keyword (required), `--session <id>`, `--limit N`, `--path <dir>`
  */
 export const extractMessages: QueryHandler = async (args) => {
-  const projectArg = args[0];
-  if (!projectArg) {
-    return { data: { error: 'project name required', messages: [], total: 0 } };
-  }
-
-  const sessionsBase = join(homedir(), '.claude', 'projects');
-  if (!existsSync(sessionsBase)) {
-    return { data: { error: 'No Claude Code sessions found', messages: [], total: 0 } };
-  }
-
+  const pathIdx = args.indexOf('--path');
+  const overridePath = pathIdx !== -1 ? args[pathIdx + 1] : null;
+  const sessionIdx =
+    args.indexOf('--session') !== -1 ? args.indexOf('--session') : args.indexOf('--session-id');
+  const sessionId = sessionIdx !== -1 ? args[sessionIdx + 1]! : null;
   const limitIdx = args.indexOf('--limit');
-  const limit = limitIdx !== -1 ? parseInt(args[limitIdx + 1], 10) || 300 : 300;
-  const sessionIdIdx = args.indexOf('--session-id');
-  const sessionIdFilter = sessionIdIdx !== -1 ? args[sessionIdIdx + 1] : null;
-
-  let projectDirs: string[];
-  try {
-    projectDirs = readdirSync(sessionsBase, { withFileTypes: true })
-      .filter((e: { isDirectory(): boolean }) => e.isDirectory())
-      .map((e: { name: string }) => e.name);
-  } catch {
-    return { data: { error: 'Cannot read sessions directory', messages: [], total: 0 } };
+  const limit = limitIdx !== -1 ? (parseInt(args[limitIdx + 1]!, 10) || null) : null;
+  const projectArg = args[0];
+  if (!projectArg || projectArg.startsWith('--')) {
+    throw new GSDError(
+      'Usage: gsd-tools extract-messages <project> [--session <id>] [--limit N] [--path <dir>]\nRun scan-sessions first to see available projects.',
+      ErrorClassification.Validation,
+    );
   }
-
-  const lowerArg = projectArg.toLowerCase();
-  const matchedDir = projectDirs.find(d => d === projectArg)
-    || projectDirs.find(d => d.toLowerCase().includes(lowerArg));
-
-  if (!matchedDir) {
-    return { data: { error: `No project matching "${projectArg}"`, available: projectDirs.slice(0, 10), messages: [], total: 0 } };
-  }
-
-  const projectPath = join(sessionsBase, matchedDir);
-  let sessionFiles = readdirSync(projectPath).filter(f => f.endsWith('.jsonl'));
-  if (sessionIdFilter) {
-    sessionFiles = sessionFiles.filter(f => f.includes(sessionIdFilter));
-  }
-
-  const messages: Array<{ role: string; content: string; session: string }> = [];
-  let sessionsProcessed = 0;
-  let sessionsSkipped = 0;
-
-  for (const sessionFile of sessionFiles) {
-    if (messages.length >= limit) break;
-    try {
-      const content = readFileSync(join(projectPath, sessionFile), 'utf-8');
-      for (const line of content.split('\n').filter(Boolean)) {
-        if (messages.length >= limit) break;
-        try {
-          const record = JSON.parse(line);
-          if (record.type === 'user' && typeof record.message?.content === 'string') {
-            const text = record.message.content;
-            if (text.length > 3 && !text.startsWith('/') && !/^\s*(y|n|yes|no|ok)\s*$/i.test(text)) {
-              messages.push({
-                role: 'user',
-                content: text.length > 2000 ? text.slice(0, 2000) + '... [truncated]' : text,
-                session: sessionFile.replace('.jsonl', ''),
-              });
-            }
-          }
-        } catch { /* skip malformed line */ }
-      }
-      sessionsProcessed++;
-    } catch {
-      sessionsSkipped++;
-    }
-  }
-
-  return {
-    data: {
-      project: matchedDir,
-      sessions_processed: sessionsProcessed,
-      sessions_skipped: sessionsSkipped,
-      messages_extracted: messages.length,
-      messages,
-    },
-  };
+  const data = await runExtractMessages(projectArg, { sessionId, limit }, overridePath ?? null);
+  return { data };
 };
 
 // ─── Profile — session scanning and profile generation ────────────────────
