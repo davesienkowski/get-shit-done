@@ -18,19 +18,39 @@
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { join, relative } from 'node:path';
 
 import { GSDError, ErrorClassification } from '../errors.js';
 import { extractFrontmatter } from './frontmatter.js';
-import { planningPaths, toPosixPath } from './helpers.js';
+import { planningPaths, resolvePathUnderProject, sanitizeForDisplay, toPosixPath } from './helpers.js';
 import { getMilestonePhaseFilter } from './state.js';
 import type { QueryHandler } from './utils.js';
+
+/** Same string as `buildCheckpoint` in `get-shit-done/bin/lib/uat.cjs`. */
+function buildUatCheckpoint(currentTest: { number: number; name: string; expected: string }): string {
+  return [
+    '╔══════════════════════════════════════════════════════════════╗',
+    '║  CHECKPOINT: Verification Required                           ║',
+    '╚══════════════════════════════════════════════════════════════╝',
+    '',
+    `**Test ${currentTest.number}: ${currentTest.name}**`,
+    '',
+    currentTest.expected,
+    '',
+    '──────────────────────────────────────────────────────────────',
+    'Type `pass` or describe what\'s wrong.',
+    '──────────────────────────────────────────────────────────────',
+  ].join('\n');
+}
 
 // ─── uatRenderCheckpoint ─────────────────────────────────────────────────
 
 /**
  * Render the current UAT checkpoint — reads a UAT file, parses the
  * "Current Test" section, and returns a formatted checkpoint prompt.
+ *
+ * Port of `cmdRenderCheckpoint` from `uat.cjs` (paths via `requireSafePath`,
+ * checkpoint via `buildCheckpoint`, name/expected via `sanitizeForDisplay`).
  *
  * Args: --file <path>
  */
@@ -41,7 +61,13 @@ export const uatRenderCheckpoint: QueryHandler = async (args, projectDir) => {
     return { data: { error: 'UAT file required: use uat render-checkpoint --file <path>' } };
   }
 
-  const resolvedPath = resolve(projectDir, filePath);
+  let resolvedPath: string;
+  try {
+    resolvedPath = await resolvePathUnderProject(projectDir, filePath);
+  } catch {
+    return { data: { error: `UAT file not found: ${filePath}` } };
+  }
+
   if (!existsSync(resolvedPath)) {
     return { data: { error: `UAT file not found: ${filePath}` } };
   }
@@ -59,7 +85,7 @@ export const uatRenderCheckpoint: QueryHandler = async (args, projectDir) => {
   }
 
   if (/\[testing complete\]/i.test(section)) {
-    return { data: { complete: true, checkpoint: null } };
+    return { data: { error: 'UAT session is already complete; no pending checkpoint to render' } };
   }
 
   const numberMatch = section.match(/^number:\s*(\d+)\s*$/m);
@@ -69,42 +95,34 @@ export const uatRenderCheckpoint: QueryHandler = async (args, projectDir) => {
   const expectedInlineMatch = section.match(/^expected:\s*(.+)\s*$/m);
 
   if (!numberMatch || !nameMatch || (!expectedBlockMatch && !expectedInlineMatch)) {
-    return { data: { error: 'Current Test section is malformed — requires number, name, and expected fields' } };
+    return { data: { error: 'Current Test section is malformed' } };
   }
 
-  let expected: string;
+  let expectedRaw: string;
   if (expectedBlockMatch) {
-    expected = expectedBlockMatch[1]
+    expectedRaw = expectedBlockMatch[1]
       .split('\n')
       .map(line => line.replace(/^ {2}/, ''))
       .join('\n')
       .trim();
   } else {
-    expected = expectedInlineMatch![1].trim();
+    expectedRaw = expectedInlineMatch![1].trim();
   }
 
-  const testNumber = parseInt(numberMatch[1], 10);
-  const testName = nameMatch[1].trim();
+  const currentTest = {
+    complete: false as const,
+    number: parseInt(numberMatch[1], 10),
+    name: sanitizeForDisplay(nameMatch[1].trim()),
+    expected: sanitizeForDisplay(expectedRaw),
+  };
 
-  const checkpoint = [
-    '\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557',
-    '\u2551  CHECKPOINT: Verification Required                           \u2551',
-    '\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d',
-    '',
-    `**Test ${testNumber}: ${testName}**`,
-    '',
-    expected,
-    '',
-    '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
-    "Type `pass` or describe what's wrong.",
-    '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
-  ].join('\n');
+  const checkpoint = buildUatCheckpoint(currentTest);
 
   return {
     data: {
       file_path: toPosixPath(relative(projectDir, resolvedPath)),
-      test_number: testNumber,
-      test_name: testName,
+      test_number: currentTest.number,
+      test_name: currentTest.name,
       checkpoint,
     },
   };

@@ -8,35 +8,8 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
 import { extractFrontmatter } from './frontmatter.js';
-import { planningPaths } from './helpers.js';
+import { planningPaths, sanitizeForDisplay } from './helpers.js';
 import type { QueryHandler } from './utils.js';
-
-/** Port of `sanitizeForPrompt` from `security.cjs`. */
-function sanitizeForPrompt(text: string): string {
-  let sanitized = text;
-  sanitized = sanitized.replace(/[\u200B-\u200F\u2028-\u202F\uFEFF\u00AD]/g, '');
-  sanitized = sanitized.replace(
-    /<(\/?)(?:system|assistant|human)>/gi,
-    (_, slash: string) => `＜${slash || ''}system-text＞`,
-  );
-  sanitized = sanitized.replace(/\[(SYSTEM|INST)\]/gi, '[$1-TEXT]');
-  sanitized = sanitized.replace(/<<\s*SYS\s*>>/gi, '«SYS-TEXT»');
-  return sanitized;
-}
-
-/** Port of `sanitizeForDisplay` from `security.cjs` (not control-char stripping — matches CLI JSON). */
-function sanitizeForDisplay(text: string): string {
-  let sanitized = sanitizeForPrompt(text);
-  const protocolLeakPatterns = [
-    /^\s*(?:assistant|user|system)\s+to=[^:\s]+:[^\n]+$/i,
-    /^\s*<\|(?:assistant|user|system)[^|]*\|>\s*$/i,
-  ];
-  sanitized = sanitized
-    .split('\n')
-    .filter(line => !protocolLeakPatterns.some(pattern => pattern.test(line)))
-    .join('\n');
-  return sanitized;
-}
 
 function scanDebugSessions(planDir: string): Array<Record<string, unknown>> {
   const debugDir = join(planDir, 'debug');

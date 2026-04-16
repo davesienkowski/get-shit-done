@@ -117,6 +117,7 @@ From `read-only-parity.integration.test.ts` (full `toEqual` on this repo):
 | `skill-manifest` | No args; full manifest parity with `init.cjs` `buildSkillManifest` / `cmdSkillManifest`. Handler uses `extractFrontmatterLeading` (first `---` block) like CJS `frontmatter.cjs` `extractFrontmatter` — not TS `extractFrontmatter` (last block), so skills with multiple `---` sections match CJS. |
 | `validate.agents` | No args; `agents_dir` matches `core.cjs` `getAgentsDir` (`GSD_AGENTS_DIR` or `sdk/dist/query/../../../agents` in this monorepo — same absolute path as CLI). `MODEL_PROFILES` / `expected` list stays aligned with `get-shit-done/bin/lib/model-profiles.cjs`. |
 | `state.get` | Dedicated tests: no args → full `{ content }` vs `state get`; one field (`milestone`) → `{ milestone: "…" }` vs `state get milestone` (frontmatter line match). |
+| `uat.render-checkpoint` | Fixture `sdk/src/golden/fixtures/uat-render-checkpoint-sample.md`; full JSON parity with `uat.cjs` `cmdRenderCheckpoint` (`file_path`, `test_number`, `test_name`, `checkpoint` — same box + `buildCheckpoint` text as CJS; `sanitizeForDisplay` on name/expected). |
 | `config-path` | Plain stdout path vs `{ path }` — compared with `path.normalize` in tests. |
 
 

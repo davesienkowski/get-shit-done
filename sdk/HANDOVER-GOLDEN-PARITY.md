@@ -10,7 +10,9 @@ Use this document at the start of a new session so work continues in context wit
 
 **Port or normalize the next batch of read-only query handlers** (see **§ Next batch — summary / audit / skill / validate / UAT / intel / profile / init**) so JSON matches `get-shit-done/bin/gsd-tools.cjs`, then add **strict subprocess golden rows** or **documented normalization blocks** in `read-only-parity.integration.test.ts`, updating `read-only-golden-rows.ts` / `readOnlyGoldenCanonicals()` and keeping **`golden-policy.ts`** complete.
 
-**Latest (this session):** `validate.agents` + `state.get` — `validate.ts` resolves `agents_dir` like `core.cjs` `getAgentsDir`; `MODEL_PROFILES` synced with `model-profiles.cjs` (`gsd-pattern-mapper`); strict row for `validate.agents`. `state.get`: subprocess tests for full document (no args) and `milestone` field; `readOnlyGoldenCanonicals()` includes `state.get`. See `QUERY-HANDLERS.md`.
+**Latest (this session):** `uat.render-checkpoint` — `uat.ts` aligned with `uat.cjs` (`resolvePathUnderProject`, `sanitizeForDisplay` / `helpers.ts`, `buildUatCheckpoint` same strings as CJS); strict `READ_ONLY_JSON_PARITY_ROWS` row + fixture `sdk/src/golden/fixtures/uat-render-checkpoint-sample.md`. `sanitizeForDisplay` / `sanitizeForPrompt` moved to `helpers.ts` for shared use with `audit-open.ts`.
+
+**Prior:** `validate.agents` + `state.get` — `validate.ts` resolves `agents_dir` like `core.cjs` `getAgentsDir`; `MODEL_PROFILES` synced with `model-profiles.cjs` (`gsd-pattern-mapper`); strict row for `validate.agents`. `state.get`: subprocess tests for full document (no args) and `milestone` field; `readOnlyGoldenCanonicals()` includes `state.get`. See `QUERY-HANDLERS.md`.
 
 **Prior:** `skill-manifest` — `skill-manifest.ts` uses `extractFrontmatterLeading` (first frontmatter block) to match `init.cjs` / `frontmatter.cjs` (TS `extractFrontmatter` uses last block and diverged on skills with multiple `---`); strict `READ_ONLY_JSON_PARITY_ROWS` row. See `QUERY-HANDLERS.md`.
 
@@ -100,13 +102,13 @@ Aligned SDK handlers with **`gsd-tools.cjs`** and expanded subprocess coverage (
 | ~~4~~ | ~~`audit-uat`~~ | `audit-uat` | `uat.cjs` `cmdAuditUat` | `uat.ts` `auditUat` | **Done:** `auditUat` ports `cmdAuditUat` (`parseUatItems`, milestone filter, `summary.by_*`); strict `READ_ONLY_JSON_PARITY_ROWS` row. |
 | ~~5~~ | ~~`skill-manifest`~~ | `skill-manifest` + args | `init.cjs` `cmdSkillManifest` (~L1829) | `skill-manifest.ts` | **Done:** strict row; `extractFrontmatterLeading` for CJS parity (see `QUERY-HANDLERS.md`). |
 | ~~6~~ | ~~`validate agents`~~ | `validate` + `agents` | `verify.cjs` `cmdValidateAgents` (~L997) | `validate.ts` `validateAgents` | **Done:** strict row; `getAgentsDir` parity with `core.cjs`; `MODEL_PROFILES` includes `gsd-pattern-mapper` (sync with `model-profiles.cjs`). |
-| 7 | `uat render-checkpoint --file <path>` | `uat` subcommand | `uat.cjs` `cmdRenderCheckpoint` | `uat.ts` `uatRenderCheckpoint` | Needs **real UAT fixture** under `.planning/phases/.../*-UAT.md` or small test fixture path. |
+| ~~7~~ | ~~`uat render-checkpoint --file <path>`~~ | `uat` subcommand | `uat.cjs` `cmdRenderCheckpoint` | `uat.ts` `uatRenderCheckpoint` | **Done:** strict row; fixture `sdk/src/golden/fixtures/uat-render-checkpoint-sample.md`; see `QUERY-HANDLERS.md`. |
 | ~~8~~ | ~~`intel extract-exports <file>`~~ | `intel` `extract-exports` | `intel.cjs` `intelExtractExports` (~L502) | `intel.ts` `intelExtractExports` | **Done:** strict row + handler parity with `intel.cjs` (fixed file e.g. `sdk/src/query/utils.ts`). |
 | 9 | `extract-messages` | `extract-messages` + project/session flags | `profile-pipeline.cjs` | `profile.ts` `extractMessages` | **Heavy** vs CJS (temp JSONL, streaming); consider **documented exception** + strong unit tests if full parity is prohibitive. |
 | 10 | `profile-sample` | `profile-sample` | `profile-pipeline.cjs` | `profile.ts` `profileSample` | Same class as extract-messages. |
 | 11 | **`init.*` read-only JSON** | various | `init.cjs` / `init-complex` | `init.ts`, `init-complex.ts` | Extend **`golden.integration.test.ts`** patterns: stable fields only, omit timestamps/agent lists if needed—**do not remove coverage**. |
 
-**Suggested order:** Next: (7) UAT checkpoint, (9)–(10) profile pipeline, (11) init last (widest surface). Summary/history, audits, skill-manifest, `validate.agents`, `intel extract-exports`, and **`state.get`** subprocess golden are done (see `read-only-parity.integration.test.ts` / `QUERY-HANDLERS.md`).
+**Suggested order:** Next: (9)–(10) profile pipeline, (11) init last (widest surface). Summary/history, audits, skill-manifest, `validate.agents`, `uat.render-checkpoint`, `intel extract-exports`, and **`state.get`** subprocess golden are done (see `read-only-parity.integration.test.ts` / `QUERY-HANDLERS.md`).
 
 **Mutations** (`QUERY_MUTATION_COMMANDS`): subprocess golden remains optional; policy uses `MUTATION_DEFERRED_REASON`.
 

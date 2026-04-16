@@ -60,6 +60,12 @@ export const READ_ONLY_JSON_PARITY_ROWS: JsonParityRow[] = [
   { canonical: 'audit-uat', sdkArgs: [], cjs: 'audit-uat', cjsArgs: [] },
   { canonical: 'skill-manifest', sdkArgs: [], cjs: 'skill-manifest', cjsArgs: [] },
   { canonical: 'validate.agents', sdkArgs: [], cjs: 'validate', cjsArgs: ['agents'] },
+  {
+    canonical: 'uat.render-checkpoint',
+    sdkArgs: ['--file', 'sdk/src/golden/fixtures/uat-render-checkpoint-sample.md'],
+    cjs: 'uat',
+    cjsArgs: ['render-checkpoint', '--file', 'sdk/src/golden/fixtures/uat-render-checkpoint-sample.md'],
+  },
 ];
 
 /** Canonicals from JSON rows plus special-case subprocess tests in read-only-parity integration. */
