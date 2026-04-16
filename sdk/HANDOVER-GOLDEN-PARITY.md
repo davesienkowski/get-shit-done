@@ -1,4 +1,4 @@
-# Handover: Query layer + golden parity (next session)
+# Handover: Query layer + golden parity
 
 Use this document at the start of a new session so work continues in context without re-deriving history.
 
@@ -8,9 +8,15 @@ Use this document at the start of a new session so work continues in context wit
 
 ## Goal for the next session (primary)
 
-**Port or normalize the next batch of read-only query handlers** (see **§ Next batch — summary / audit / skill / validate / UAT / intel / profile / init**) so JSON matches `get-shit-done/bin/gsd-tools.cjs`, then add **strict subprocess golden rows** or **documented normalization blocks** in `read-only-parity.integration.test.ts`, updating `read-only-golden-rows.ts` / `readOnlyGoldenCanonicals()` and keeping **`golden-policy.ts`** complete.
+**Pick next gap from `GOLDEN_PARITY_EXCEPTIONS` / registry orphans** (run `golden-policy.test.ts`) or expand **`READ_ONLY_JSON_PARITY_ROWS`** for read-only handlers still on generic exceptions. The read-only batch in **§ Next batch** below is **done**.
 
 **Follow-up:** confirm **`GOLDEN_PARITY_EXCEPTIONS`** for any remaining read-only registry gaps (`learnings.query`, `progress.bar`, `profile-questionnaire` — still exception-only until strict rows); extend **`read-only-golden-rows.ts`** when aligned.
+
+**Done (profile-output + milestone subprocess batch):** **`write-profile`**, **`generate-claude-profile`**, **`generate-dev-preferences`**, **`generate-claude-md`** — implemented in **`sdk/src/query/profile-output.ts`** (templates from `get-shit-done/templates/`, same JSON as `profile-output.cjs`); re-exported from **`profile.ts`**. **`milestone.complete`** — full port of **`cmdMilestoneComplete`** in **`phase-lifecycle.ts`**; **`readModifyWriteStateMdFull`** in **`state-mutation.ts`** for STATE writes matching CJS. **`MUTATION_SUBPROCESS_GAP_REASON`** was **removed** from **`golden-policy.ts`** once those canonicals landed in **`GOLDEN_MUTATION_SUBPROCESS_COVERED`**. Subprocess tests: all five **`it`** blocks enabled; **`normalizeClaudeMdPath`** in **`mutation-subprocess.integration.test.ts`** compares basename for `claude_md_path` (dual sandboxes use different temp roots).
+
+**Latest (mutation subprocess batch):** **`mutation-subprocess.integration.test.ts`** — tmp fixture `sdk/src/golden/fixtures/mutation-project/` + `createMutationSandbox()` (`mutation-sandbox.ts`). **`assertJsonParity`** runs CJS and SDK on **two fresh sandboxes** (factory fn) so neither run sees the other’s filesystem mutations; dynamic argv uses `(root) => [...]` for absolute paths (e.g. `--analysis`). **`GOLDEN_MUTATION_SUBPROCESS_COVERED`** lists canonicals with **non-skipped** subprocess assertions. **`config-ensure-section`**: CJS **`cmdConfigEnsureSection`** only ensures `config.json` exists (ignores section argv); SDK still tests ensuring a named section — split test. **`commit`**: argv parsed like CJS (`--files` slice). **`commitToSubrepo`**: early return when `sub_repos` missing (CJS throws; test asserts throw + SDK object). **`configSetModelProfile`**: CJS-shaped `{ updated, profile, previousProfile, agentToModelMap }` via `getAgentToModelMapForProfile()` in `config-query.ts`. **`state.patch`**: `--key value` pairs or JSON; `{ updated, failed }`. **`frontmatter.set` / `merge`**: `--field`/`--value`, `--data`. **`workstream.progress`**: port of `cmdWorkstreamProgress` (not `progressBar`); **`workstream.set`**: success `{ active, set: true }` only. **`state.*` (subprocess):** SDK `state-mutation.ts` aligned with `state.cjs` (named argv, `statePlannedPhase` = `cmdStatePlannedPhase`, `record-session` / `add-decision` / `add-blocker` / `resolve-blocker` / `record-metric` / `update-progress` JSON shapes); enriched `fixtures/mutation-project/.planning/STATE.md`; nine `state.*` subprocess tests enabled.
+
+**Prior session:** **`progress.table`** / **`stats.table`** registered (`progress.ts`; `stats.table` delegates to `statsJson(['table'])`); **`init.remove-workspace`** subprocess golden (missing workspace: SDK `{ error }` vs CJS exit 1). `stats.table` comparison strips `**Git:**` / `**Last activity:**` lines.
 
 **Latest (this session):** **`verify.references`** — strict `READ_ONLY_JSON_PARITY_ROWS` row; fixture `sdk/src/golden/fixtures/verify-references-sample.md` (stable `valid` / `found` / `missing` / `total`). See `QUERY-HANDLERS.md`.
 
@@ -51,7 +57,10 @@ Use this document at the start of a new session so work continues in context wit
 | `sdk/src/golden/read-only-golden-rows.ts` | **Strict** `JsonParityRow[]` for `read-only-parity.integration.test.ts` (`toEqual` on parsed CJS JSON vs `sdkResult.data`). |
 | `sdk/src/golden/read-only-parity.integration.test.ts` | Rows from `READ_ONLY_JSON_PARITY_ROWS` + **`config-path`** (plain stdout vs `{ path }`, `path.normalize`) + **`verify.commits`**. |
 | `sdk/src/golden/capture.ts` | `captureGsdToolsOutput` (JSON stdout); **`captureGsdToolsStdout`** (raw stdout, e.g. `config-path`). |
-| `sdk/src/golden/golden-policy.ts` | `GOLDEN_PARITY_INTEGRATION_COVERED` = integration covered ∪ `readOnlyGoldenCanonicals()`; everything else gets `GOLDEN_PARITY_EXCEPTIONS` (mutations vs `READ_HANDLER_ONLY_REASON` for read-only not yet in subprocess matrix). |
+| `sdk/src/golden/golden-policy.ts` | `GOLDEN_PARITY_INTEGRATION_COVERED` = integration ∪ `readOnlyGoldenCanonicals()` ∪ **`GOLDEN_MUTATION_SUBPROCESS_COVERED`**; `GOLDEN_PARITY_EXCEPTIONS` includes `NO_CJS_SUBPROCESS_REASON`, then `MUTATION_DEFERRED_REASON` for remaining mutations, else read-only. |
+| `sdk/src/golden/golden-mutation-covered.ts` | Canonicals exercised by **`mutation-subprocess.integration.test.ts`** (must match non-skipped tests). |
+| `sdk/src/golden/mutation-subprocess.integration.test.ts` | Tmp fixture + `captureGsdToolsOutput` vs `registry.dispatch`; dual sandbox per comparison. |
+| `sdk/src/golden/mutation-sandbox.ts` | `createMutationSandbox({ git?: boolean })` — copy fixture, optional `git init` + commit. |
 | `sdk/src/golden/golden-policy.test.ts` | Calls `verifyGoldenPolicyComplete()` so every canonical is covered or excepted. |
 
 **Invariant:** Every canonical from `getCanonicalRegistryCommands()` is either in `GOLDEN_PARITY_INTEGRATION_COVERED` or has an exception string—**never** leave orphans by removing tests.
@@ -95,6 +104,11 @@ Aligned SDK handlers with **`gsd-tools.cjs`** and expanded subprocess coverage (
 | `verify.schema-drift` | `cmdVerifySchemaDrift` | `verify.ts` + `schema-detect.ts` | Strict row; ports `schema-detect.cjs` logic. |
 | `state-snapshot` | `cmdStateSnapshot` | `state.ts` `stateSnapshot` | Strict row; `progress_percent` NaN fix. |
 | `state.json` / `state.load` | `cmdStateJson` | `state.ts` `stateLoad` | Dedicated test: **`last_updated` stripped** on both sides (`read-only-parity.integration.test.ts`); policy canonical **`state.json`**. |
+| `summary-extract` | `cmdSummaryExtract` | `summary.ts` `summaryExtract` | Strict row; fixture `sdk/src/golden/fixtures/summary-extract-sample.md`; **`extractFrontmatterLeading`** matches `frontmatter.cjs` (first block only). |
+| `history-digest` | `cmdHistoryDigest` | `summary.ts` `historyDigest` | Strict row; full-repo aggregate JSON (`getArchivedPhaseDirs` + frontmatter merge per CJS). |
+| `intel.extract-exports` | `intelExtractExports` | `intel.ts` `intelExtractExports` | Strict row; `sdk/src/query/utils.ts` fixture; absolute `file` field matches CLI. |
+| `write-profile`, `generate-claude-*`, `generate-claude-md` | `profile-output.cjs` | `profile-output.ts` (+ `profile.ts` re-exports) | Mutation subprocess parity; `normalizeClaudeMdPath` for `claude_md_path` in tests. |
+| `milestone.complete` | `milestone.cjs` `cmdMilestoneComplete` | `phase-lifecycle.ts` + `readModifyWriteStateMdFull` (`state-mutation.ts`) | Mutation subprocess parity vs CLI JSON. |
 
 **Cherry-pick order** (if splitting PRs): `fix state-snapshot` → `schema-detect + verify` → `validate key-links` → `progress stats/todo` → `stubs` → `golden rows`.
 
@@ -118,9 +132,13 @@ Aligned SDK handlers with **`gsd-tools.cjs`** and expanded subprocess coverage (
 | ~~10~~ | ~~`profile-sample`~~ | `profile-sample` | `profile-pipeline.cjs` | `profile.ts` `profileSample` | **Done:** `profile-sample.ts` + golden `output_file` strip + JSONL compare; fixture `profile-sample-sessions/`. |
 | ~~11~~ | ~~**`init.*` read-only JSON**~~ | various | `init.cjs` / `init-complex` | `init.ts`, `init-complex.ts` | **Done:** `golden.integration.test.ts` + nine init composition tests; `withProjectRoot` / `subagent_timeout` / `GOLDEN_INTEGRATION_MAIN_FILE_CANONICALS`; see `QUERY-HANDLERS.md`. |
 
-**Suggested order:** This batch is complete — follow-ups via **`GOLDEN_PARITY_EXCEPTIONS`** / new strict rows as needed (`learnings.query`, `progress.bar`, `profile-questionnaire`, etc.).
+**Suggested order:** Audit/read-only batch above is complete — follow-ups via **`GOLDEN_PARITY_EXCEPTIONS`** / new strict rows as needed (`learnings.query`, `progress.bar`, `profile-questionnaire`, etc.).
 
-**Mutations** (`QUERY_MUTATION_COMMANDS`): subprocess golden remains optional; policy uses `MUTATION_DEFERRED_REASON`.
+**Done (this line of work):** `summary-extract` + `history-digest` — strict `READ_ONLY_JSON_PARITY_ROWS`; `summary.ts` aligned with `commands.cjs`; `extractFrontmatterLeading` in `frontmatter.ts` for first-`---`-block parity with `frontmatter.cjs`.
+
+**Done (profile-output + milestone mutation batch):** `write-profile`, `generate-claude-profile`, `generate-dev-preferences`, `generate-claude-md` (`profile-output.ts`); `milestone.complete` (`phase-lifecycle.ts` + `readModifyWriteStateMdFull`); `GOLDEN_MUTATION_SUBPROCESS_COVERED` updated; **`MUTATION_SUBPROCESS_GAP_REASON` removed** from `golden-policy.ts`.
+
+**Mutations** (`QUERY_MUTATION_COMMANDS`): subprocess coverage is **`mutation-subprocess.integration.test.ts`** + `GOLDEN_MUTATION_SUBPROCESS_COVERED`. Remaining mutation canonicals without a subprocess row use **`MUTATION_DEFERRED_REASON`** (see `golden-policy.ts`). For known gaps before parity, prefer **`it.skip`** with an explicit rationale in code comments or restore a dedicated gap map — do not rely on silent deferral alone.
 
 ---
 
@@ -128,7 +146,7 @@ Aligned SDK handlers with **`gsd-tools.cjs`** and expanded subprocess coverage (
 
 Confirm against `GOLDEN_PARITY_EXCEPTIONS` in `golden-policy.ts` for the live list.
 
-**Mutations** (`QUERY_MUTATION_COMMANDS`): subprocess golden is optional; prefer temp dirs / `--dry-run` patterns already in `golden.integration.test.ts`. Policy already uses `MUTATION_DEFERRED_REASON`.
+**Mutations:** Prefer tmp fixture + dual sandbox (see `mutation-sandbox.ts`). Do not green the suite by deleting subprocess tests; skip with **`it.skip`** and document the gap (policy entry or comment) until parity is restored.
 
 ---
 
@@ -147,6 +165,8 @@ Confirm against `GOLDEN_PARITY_EXCEPTIONS` in `golden-policy.ts` for the live li
 | `sdk/src/golden/read-only-golden-rows.ts` | Strict read-only JSON matrix. |
 | `sdk/src/golden/read-only-parity.integration.test.ts` | Subprocess + dispatch parity tests. |
 | `sdk/src/golden/capture.ts` | `captureGsdToolsOutput`, `captureGsdToolsStdout`. |
+| `sdk/src/golden/fixtures/mutation-project/` | Ephemeral copy for mutation subprocess tests (`analysis-min.json`, `workstreams/golden-ws/`, etc.). |
+| `sdk/src/query/profile-output.ts` | CJS-parity profile output handlers (`write-profile`, `generate-*`, `generate-claude-md`). |
 | `get-shit-done/bin/gsd-tools.cjs` | `runCommand` — argv routing. |
 | `get-shit-done/bin/lib/*.cjs` | Per-command implementations. |
 
@@ -165,6 +185,7 @@ Focused:
 
 ```bash
 npx vitest run src/golden/read-only-parity.integration.test.ts src/golden/golden.integration.test.ts --project integration
+npx vitest run src/golden/mutation-subprocess.integration.test.ts --project integration
 npx vitest run src/golden/golden-policy.test.ts --project unit
 ```
 
@@ -174,6 +195,7 @@ npx vitest run src/golden/golden-policy.test.ts --project unit
 
 - **No regression:** `golden-policy.test.ts` / `verifyGoldenPolicyComplete()` stays green.
 - **Expand `READ_ONLY_JSON_PARITY_ROWS`** as handlers are aligned—**row count should go up**, not down.
+- **Mutation subprocess:** `mutation-subprocess.integration.test.ts` green; `GOLDEN_MUTATION_SUBPROCESS_COVERED` matches non-skipped tests; any skipped parity documented (policy exception or test comment), not silent `MUTATION_DEFERRED_REASON` alone.
 - **`QUERY-HANDLERS.md`** updated when assertion style changes (full `toEqual` vs normalized subset).
 
 ---
