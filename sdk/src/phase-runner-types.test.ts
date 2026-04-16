@@ -363,7 +363,7 @@ describe('GSDTools typed methods', () => {
         'config-get.cjs',
         `
         const args = process.argv.slice(2);
-        if (args[0] === 'config' && args[1] === 'get' && args[2] === 'model_profile') {
+        if (args[0] === 'config-get' && args[1] === 'model_profile') {
           process.stdout.write(JSON.stringify('balanced'));
         } else {
           process.exit(1);
@@ -382,7 +382,7 @@ describe('GSDTools typed methods', () => {
         'config-get-null.cjs',
         `
         const args = process.argv.slice(2);
-        if (args[0] === 'config' && args[1] === 'get') {
+        if (args[0] === 'config-get' && args[1] === 'nonexistent_key') {
           process.stdout.write('null');
         } else {
           process.exit(1);

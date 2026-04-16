@@ -3,9 +3,11 @@
  *
  * By default routes commands through the SDK **query registry** (same handlers as
  * `gsd-sdk query`) so `PhaseRunner`, `InitRunner`, and `GSD` share contracts with
- * the typed CLI. When a workstream is set, or for `state load` (distinct from
- * `state.json` / registry `state.load`), dispatches to `gsd-tools.cjs` so
- * workstream env and legacy `cmdStateLoad` behavior stay aligned with CJS.
+ * the typed CLI. Runner hot-path helpers (`initPhaseOp`, `phasePlanIndex`,
+ * `phaseComplete`, `initNewProject`, `configSet`, `commit`) call
+ * `registry.dispatch()` with canonical keys when native query is active, avoiding
+ * repeated argv resolution. When a workstream is set, dispatches to `gsd-tools.cjs` so
+ * workstream env stays aligned with CJS.
  */
 
 import { execFile } from 'node:child_process';
@@ -20,6 +22,7 @@ import { GSDError, exitCodeFor } from './errors.js';
 import { createRegistry } from './query/index.js';
 import { resolveQueryArgv } from './query/registry.js';
 import { normalizeQueryCommand } from './query/normalize-query-command.js';
+import { formatStateLoadRawStdout } from './query/state-project-load.js';
 
 // ─── Error type ──────────────────────────────────────────────────────────────
 
@@ -44,6 +47,10 @@ const BUNDLED_GSD_TOOLS_PATH = fileURLToPath(
 );
 
 function formatRegistryRawStdout(matchedCmd: string, data: unknown): string {
+  if (matchedCmd === 'state.load') {
+    return formatStateLoadRawStdout(data);
+  }
+
   if (matchedCmd === 'commit') {
     const d = data as Record<string, unknown>;
     if (d.committed === true) {
@@ -128,11 +135,6 @@ export class GSDTools {
     return this.preferNativeQuery && !this.workstream;
   }
 
-  /** `state load` maps to CJS cmdStateLoad, not registry `state.load` (STATE.json handler). */
-  private isStateLoadSubcommand(command: string, args: string[]): boolean {
-    return command === 'state' && args[0] === 'load';
-  }
-
   private nativeMatch(command: string, args: string[]) {
     const [normCmd, normArgs] = normalizeQueryCommand(command, args);
     const tokens = [normCmd, ...normArgs];
@@ -153,6 +155,48 @@ export class GSDTools {
     return new GSDToolsError(msg, command, args, 1, '');
   }
 
+  /**
+   * Direct registry dispatch for a known handler key — skips `resolveQueryArgv` on the hot path
+   * used by PhaseRunner / InitRunner (`initPhaseOp`, `phasePlanIndex`, etc.).
+   * When native query is off (e.g. workstream or tests with `preferNativeQuery: false`), delegates to `exec`.
+   */
+  private async dispatchNativeJson(
+    legacyCommand: string,
+    legacyArgs: string[],
+    registryCmd: string,
+    registryArgs: string[],
+  ): Promise<unknown> {
+    if (!this.shouldUseNativeQuery()) {
+      return this.exec(legacyCommand, legacyArgs);
+    }
+    try {
+      const result = await this.registry.dispatch(registryCmd, registryArgs, this.projectDir);
+      return result.data;
+    } catch (err) {
+      throw this.toToolsError(legacyCommand, legacyArgs, err);
+    }
+  }
+
+  /**
+   * Same as {@link dispatchNativeJson} for handlers whose CLI contract is raw stdout (`execRaw`).
+   */
+  private async dispatchNativeRaw(
+    legacyCommand: string,
+    legacyArgs: string[],
+    registryCmd: string,
+    registryArgs: string[],
+  ): Promise<string> {
+    if (!this.shouldUseNativeQuery()) {
+      return this.execRaw(legacyCommand, legacyArgs);
+    }
+    try {
+      const result = await this.registry.dispatch(registryCmd, registryArgs, this.projectDir);
+      return formatRegistryRawStdout(registryCmd, result.data).trim();
+    } catch (err) {
+      throw this.toToolsError(legacyCommand, legacyArgs, err);
+    }
+  }
+
   // ─── Core exec ───────────────────────────────────────────────────────────
 
   /**
@@ -160,10 +204,7 @@ export class GSDTools {
    * Handles the `@file:` prefix pattern for large results.
    */
   async exec(command: string, args: string[] = []): Promise<unknown> {
-    if (
-      this.shouldUseNativeQuery() &&
-      !this.isStateLoadSubcommand(command, args)
-    ) {
+    if (this.shouldUseNativeQuery()) {
       const matched = this.nativeMatch(command, args);
       if (matched) {
         try {
@@ -285,10 +326,7 @@ export class GSDTools {
    * Use for commands like `config-set` that return plain text, not JSON.
    */
   async execRaw(command: string, args: string[] = []): Promise<string> {
-    if (
-      this.shouldUseNativeQuery() &&
-      !this.isStateLoadSubcommand(command, args)
-    ) {
+    if (this.shouldUseNativeQuery()) {
       const matched = this.nativeMatch(command, args);
       if (matched) {
         try {
@@ -352,7 +390,7 @@ export class GSDTools {
   // ─── Typed convenience methods ─────────────────────────────────────────
 
   async stateLoad(): Promise<string> {
-    return this.execRaw('state', ['load']);
+    return this.dispatchNativeRaw('state', ['load'], 'state.load', []);
   }
 
   async roadmapAnalyze(): Promise<RoadmapAnalysis> {
@@ -360,7 +398,7 @@ export class GSDTools {
   }
 
   async phaseComplete(phase: string): Promise<string> {
-    return this.execRaw('phase', ['complete', phase]);
+    return this.dispatchNativeRaw('phase', ['complete', phase], 'phase.complete', [phase]);
   }
 
   async commit(message: string, files?: string[]): Promise<string> {
@@ -368,7 +406,7 @@ export class GSDTools {
     if (files?.length) {
       args.push('--files', ...files);
     }
-    return this.execRaw('commit', args);
+    return this.dispatchNativeRaw('commit', args, 'commit', args);
   }
 
   async verifySummary(path: string): Promise<string> {
@@ -384,15 +422,25 @@ export class GSDTools {
    * Returns a typed PhaseOpInfo describing what exists on disk for this phase.
    */
   async initPhaseOp(phaseNumber: string): Promise<PhaseOpInfo> {
-    const result = await this.exec('init', ['phase-op', phaseNumber]);
+    const result = await this.dispatchNativeJson(
+      'init',
+      ['phase-op', phaseNumber],
+      'init.phase-op',
+      [phaseNumber],
+    );
     return result as PhaseOpInfo;
   }
 
   /**
-   * Get a config value from gsd-tools.cjs.
+   * Get a config value via the `config-get` surface (CJS and registry use the same key path).
    */
   async configGet(key: string): Promise<string | null> {
-    const result = await this.exec('config', ['get', key]);
+    const result = await this.dispatchNativeJson(
+      'config-get',
+      [key],
+      'config-get',
+      [key],
+    );
     return result as string | null;
   }
 
@@ -408,7 +456,12 @@ export class GSDTools {
    * Returns typed PhasePlanIndex with wave assignments and completion status.
    */
   async phasePlanIndex(phaseNumber: string): Promise<PhasePlanIndex> {
-    const result = await this.exec('phase-plan-index', [phaseNumber]);
+    const result = await this.dispatchNativeJson(
+      'phase-plan-index',
+      [phaseNumber],
+      'phase-plan-index',
+      [phaseNumber],
+    );
     return result as PhasePlanIndex;
   }
 
@@ -417,7 +470,7 @@ export class GSDTools {
    * Returns project metadata, model configs, brownfield detection, etc.
    */
   async initNewProject(): Promise<InitNewProjectInfo> {
-    const result = await this.exec('init', ['new-project']);
+    const result = await this.dispatchNativeJson('init', ['new-project'], 'init.new-project', []);
     return result as InitNewProjectInfo;
   }
 
@@ -427,7 +480,7 @@ export class GSDTools {
    * Note: config-set returns `key=value` text, not JSON, so we use execRaw.
    */
   async configSet(key: string, value: string): Promise<string> {
-    return this.execRaw('config-set', [key, value]);
+    return this.dispatchNativeRaw('config-set', [key, value], 'config-set', [key, value]);
   }
 }
 
