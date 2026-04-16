@@ -1,5 +1,5 @@
 /**
- * Workstream query handlers — list, create, set, status, complete, progress.
+ * Workstream query handlers — list, get, create, set, status, complete, progress.
  *
  * Ported from get-shit-done/bin/lib/workstream.cjs.
  * Manages .planning/workstreams/ directory for multi-workstream projects.
@@ -90,6 +90,22 @@ function setActiveWorkstream(projectDir: string, name: string | null): void {
 }
 
 // ─── Handlers ─────────────────────────────────────────────────────────────
+
+/**
+ * Current active workstream and mode (flat vs workstream).
+ *
+ * Port of `cmdWorkstreamGet` from `workstream.cjs` lines 367–371.
+ */
+export const workstreamGet: QueryHandler = async (_args, projectDir) => {
+  const active = getActiveWorkstream(projectDir);
+  const wsRoot = workstreamsDir(projectDir);
+  return {
+    data: {
+      active,
+      mode: existsSync(wsRoot) ? 'workstream' : 'flat',
+    },
+  };
+};
 
 export const workstreamList: QueryHandler = async (_args, projectDir) => {
   const dir = workstreamsDir(projectDir);

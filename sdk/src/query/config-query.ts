@@ -113,6 +113,23 @@ export const configGet: QueryHandler = async (args, projectDir) => {
   return { data: current };
 };
 
+// ─── configPath ─────────────────────────────────────────────────────────────
+
+/**
+ * Query handler for config-path — resolved `.planning/config.json` path (workstream-aware via cwd).
+ *
+ * Port of `cmdConfigPath` from `config.cjs`. The JSON query API returns `{ path }`; the CJS CLI
+ * emits the path as plain text for shell substitution.
+ *
+ * @param _args - Unused
+ * @param projectDir - Project root directory
+ * @returns QueryResult with `{ path: string }` absolute or project-relative resolution via planningPaths
+ */
+export const configPath: QueryHandler = async (_args, projectDir) => {
+  const paths = planningPaths(projectDir);
+  return { data: { path: paths.config } };
+};
+
 // ─── resolveModel ───────────────────────────────────────────────────────────
 
 /**

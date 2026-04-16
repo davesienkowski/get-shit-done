@@ -318,8 +318,11 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     }
 
     try {
+      const queryCommand = queryArgs[0];
+      const { normalizeQueryCommand } = await import('./query/normalize-query-command.js');
+      const [normCmd, normArgs] = normalizeQueryCommand(queryCommand, queryArgs.slice(1));
       const registry = createRegistry();
-      const tokens = [...queryArgs];
+      const tokens = [normCmd, ...normArgs];
       const matched = resolveQueryArgv(tokens, registry);
       if (!matched) {
         throw new GSDError(
@@ -329,7 +332,6 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       }
 
       const result = await registry.dispatch(matched.cmd, matched.args, args.projectDir);
-
       let output: unknown = result.data;
 
       if (pickField) {

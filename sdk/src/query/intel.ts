@@ -362,3 +362,22 @@ export const intelPatchMeta: QueryHandler = async (args, projectDir) => {
     return { data: { patched: false, error: String(err) } };
   }
 };
+
+// ─── intelUpdate ───────────────────────────────────────────────────────────
+
+/**
+ * Stub for triggering an intel refresh (actual work is done by gsd-intel-updater).
+ *
+ * Port of `intelUpdate` from `intel.cjs` lines 314–321.
+ */
+export const intelUpdate: QueryHandler = async (_args, projectDir) => {
+  if (!isIntelEnabled(projectDir)) {
+    return { data: { disabled: true, message: 'Intel system disabled. Set intel.enabled=true in config.json to activate.' } };
+  }
+  return {
+    data: {
+      action: 'spawn_agent',
+      message: 'Run gsd-tools intel update or spawn gsd-intel-updater agent for full refresh',
+    },
+  };
+};

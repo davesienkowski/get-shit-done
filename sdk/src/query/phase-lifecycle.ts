@@ -2,8 +2,8 @@
  * Phase lifecycle handlers — add, insert, scaffold operations.
  *
  * Ported from get-shit-done/bin/lib/phase.cjs and commands.cjs.
- * Provides phaseAdd (append phase), phaseInsert (decimal phase insertion),
- * and phaseScaffold (template file/directory creation).
+ * Provides phaseAdd (append phase), phaseAddBatch (append multiple phases),
+ * phaseInsert (decimal phase insertion), and phaseScaffold (template file/directory creation).
  *
  * Shared helpers replaceInCurrentMilestone and readModifyWriteRoadmapMd
  * are exported for use by downstream handlers (phaseComplete in Plan 03).
@@ -245,6 +245,145 @@ export const phaseAdd: QueryHandler = async (args, projectDir) => {
   return { data: result };
 };
 
+// ─── phaseAddBatch handler ────────────────────────────────────────────────
+
+/**
+ * Query handler for phase.add-batch.
+ *
+ * Port of cmdPhaseAddBatch from phase.cjs lines 411-478.
+ * Appends multiple phases in one locked ROADMAP pass (sequential or custom naming).
+ *
+ * @param args - Either `--descriptions` followed by a JSON array string, or one description per arg (`--raw` ignored)
+ */
+export const phaseAddBatch: QueryHandler = async (args, projectDir) => {
+  let descriptions: string[];
+  const descIdx = args.indexOf('--descriptions');
+  if (descIdx !== -1 && args[descIdx + 1] !== undefined) {
+    try {
+      const parsed = JSON.parse(args[descIdx + 1]) as unknown;
+      if (!Array.isArray(parsed)) {
+        throw new GSDError('--descriptions must be a JSON array', ErrorClassification.Validation);
+      }
+      descriptions = parsed.map((x) => String(x));
+    } catch (e) {
+      if (e instanceof GSDError) throw e;
+      throw new GSDError('--descriptions must be a valid JSON array', ErrorClassification.Validation);
+    }
+  } else {
+    descriptions = args.filter((a) => a !== '--raw');
+  }
+
+  if (descriptions.length === 0) {
+    throw new GSDError('descriptions array required for phase add-batch', ErrorClassification.Validation);
+  }
+
+  for (const d of descriptions) {
+    assertNoNullBytes(d, 'description');
+    if (!d.trim()) {
+      throw new GSDError('description must be non-empty', ErrorClassification.Validation);
+    }
+  }
+
+  const roadmapPath = planningPaths(projectDir).roadmap;
+  if (!existsSync(roadmapPath)) {
+    throw new GSDError('ROADMAP.md not found', ErrorClassification.Validation);
+  }
+
+  let config: Record<string, unknown> = {};
+  try {
+    config = JSON.parse(await readFile(planningPaths(projectDir).config, 'utf-8'));
+  } catch { /* use defaults */ }
+
+  const projectCode = (config.project_code as string) || '';
+  assertSafeProjectCode(projectCode);
+  const prefix = projectCode ? `${projectCode}-` : '';
+
+  const added: Array<{
+    phase_number: string | number;
+    padded: string;
+    name: string;
+    slug: string;
+    directory: string;
+    naming_mode: unknown;
+  }> = [];
+
+  await readModifyWriteRoadmapMd(projectDir, async (initialContent) => {
+    let rawContent = initialContent;
+    const content = await extractCurrentMilestone(rawContent, projectDir);
+    let maxPhase = 0;
+
+    if (config.phase_naming !== 'custom') {
+      const phasePattern = /#{2,4}\s*Phase\s+(\d+)[A-Z]?(?:\.\d+)*:/gi;
+      let m: RegExpExecArray | null;
+      while ((m = phasePattern.exec(content)) !== null) {
+        const num = parseInt(m[1], 10);
+        if (num >= 999) continue;
+        if (num > maxPhase) maxPhase = num;
+      }
+
+      const phasesOnDisk = planningPaths(projectDir).phases;
+      if (existsSync(phasesOnDisk)) {
+        const entries = await readdir(phasesOnDisk, { withFileTypes: true });
+        const dirNumPattern = /^(?:[A-Z][A-Z0-9]*-)?(\d+)-/;
+        for (const entry of entries) {
+          if (!entry.isDirectory()) continue;
+          const match = entry.name.match(dirNumPattern);
+          if (!match) continue;
+          const num = parseInt(match[1], 10);
+          if (num >= 999) continue;
+          if (num > maxPhase) maxPhase = num;
+        }
+      }
+    }
+
+    for (const description of descriptions) {
+      const slug = generateSlugInternal(description);
+      let newPhaseId: number | string;
+      let dirName: string;
+
+      if (config.phase_naming === 'custom') {
+        // Match CJS cmdPhaseAddBatch: slug.toUpperCase().replace(/-/g, '-') (identity on hyphens)
+        newPhaseId = slug.toUpperCase();
+        dirName = `${prefix}${newPhaseId}-${slug}`;
+      } else {
+        maxPhase += 1;
+        newPhaseId = maxPhase;
+        dirName = `${prefix}${String(newPhaseId).padStart(2, '0')}-${slug}`;
+      }
+
+      assertSafePhaseDirName(dirName);
+      const dirPath = join(planningPaths(projectDir).phases, dirName);
+      await mkdir(dirPath, { recursive: true });
+      await writeFile(join(dirPath, '.gitkeep'), '', 'utf-8');
+
+      const dependsOn =
+        config.phase_naming === 'custom'
+          ? ''
+          : `\n**Depends on:** Phase ${typeof newPhaseId === 'number' ? newPhaseId - 1 : 'TBD'}`;
+      const phaseEntry = `\n### Phase ${newPhaseId}: ${description}\n\n**Goal:** [To be planned]\n**Requirements**: TBD${dependsOn}\n**Plans:** 0 plans\n\nPlans:\n- [ ] TBD (run /gsd-plan-phase ${newPhaseId} to break down)\n`;
+
+      const lastSeparator = rawContent.lastIndexOf('\n---');
+      rawContent =
+        lastSeparator > 0
+          ? rawContent.slice(0, lastSeparator) + phaseEntry + rawContent.slice(lastSeparator)
+          : rawContent + phaseEntry;
+
+      added.push({
+        phase_number: typeof newPhaseId === 'number' ? newPhaseId : String(newPhaseId),
+        padded: typeof newPhaseId === 'number' ? String(newPhaseId).padStart(2, '0') : String(newPhaseId),
+        name: description,
+        slug,
+        directory: toPosixPath(relative(projectDir, join(planningPaths(projectDir).phases, dirName))),
+        naming_mode: config.phase_naming || 'sequential',
+      });
+    }
+
+    return rawContent;
+  });
+
+  return { data: { phases: added, count: added.length } };
+};
+
 // ─── phaseInsert handler ────────────────────────────────────────────────
 
 /**
@@ -409,14 +548,36 @@ async function findPhaseDir(
  * Port of cmdScaffold from commands.cjs lines 750-806.
  * Creates template files (context, uat, verification) or phase directories.
  *
- * @param args - args[0]: type (required), args[1]: phase (required), args[2]: name (optional)
+ * @param args - Positional `[type, phase, name?]` **or** gsd-tools style
+ *   `[type, '--phase', N, '--name', title]` (name may be multiple words).
  * @param projectDir - Project root directory
  * @returns QueryResult with { created, path } or { created: false, reason: 'already_exists' }
  */
-export const phaseScaffold: QueryHandler = async (args, projectDir) => {
+function normalizeScaffoldArgs(args: string[]): string[] {
   const type = args[0];
-  const phase = args[1];
-  const name = args[2] || undefined;
+  if (!type || !args.includes('--phase')) {
+    return args;
+  }
+  const phaseIdx = args.indexOf('--phase');
+  const phase = phaseIdx !== -1 && args[phaseIdx + 1] && !args[phaseIdx + 1].startsWith('--')
+    ? args[phaseIdx + 1]
+    : '';
+  const nameIdx = args.indexOf('--name');
+  let name: string | undefined;
+  if (nameIdx !== -1) {
+    const tail = args.slice(nameIdx + 1);
+    const stop = tail.findIndex(a => a.startsWith('--'));
+    const parts = stop === -1 ? tail : tail.slice(0, stop);
+    name = parts.join(' ').trim() || undefined;
+  }
+  return [type, phase, ...(name !== undefined && name !== '' ? [name] : [])];
+}
+
+export const phaseScaffold: QueryHandler = async (args, projectDir) => {
+  const normalized = normalizeScaffoldArgs(args);
+  const type = normalized[0];
+  const phase = normalized[1];
+  const name = normalized[2] || undefined;
 
   if (!type) {
     throw new GSDError('type required for scaffold', ErrorClassification.Validation);
