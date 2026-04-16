@@ -112,33 +112,35 @@ export const verifyKeyLinks: QueryHandler = async (args, projectDir) => {
 
     let sourceContent: string | null = null;
     try {
-      const fromPath = await resolvePathUnderProject(projectDir, check.from);
-      sourceContent = await readFile(fromPath, 'utf-8');
+      sourceContent = await readFile(join(projectDir, check.from), 'utf-8');
     } catch {
-      // Source file not found or path invalid
+      // Source file not found
     }
 
     if (!sourceContent) {
       check.detail = 'Source file not found';
     } else if (linkObj.pattern) {
-      const regex = regexForKeyLinkPattern(linkObj.pattern as string);
-      if (regex.test(sourceContent)) {
-        check.verified = true;
-        check.detail = 'Pattern found in source';
-      } else {
-        let targetContent: string | null = null;
-        try {
-          const toPath = await resolvePathUnderProject(projectDir, check.to);
-          targetContent = await readFile(toPath, 'utf-8');
-        } catch {
-          // Target file not found
-        }
-        if (targetContent && regex.test(targetContent)) {
+      try {
+        const regex = new RegExp(linkObj.pattern as string);
+        if (regex.test(sourceContent)) {
           check.verified = true;
-          check.detail = 'Pattern found in target';
+          check.detail = 'Pattern found in source';
         } else {
-          check.detail = `Pattern "${linkObj.pattern}" not found in source or target`;
+          let targetContent: string | null = null;
+          try {
+            targetContent = await readFile(join(projectDir, check.to), 'utf-8');
+          } catch {
+            // Target file not found
+          }
+          if (targetContent && regex.test(targetContent)) {
+            check.verified = true;
+            check.detail = 'Pattern found in target';
+          } else {
+            check.detail = `Pattern "${linkObj.pattern}" not found in source or target`;
+          }
         }
+      } catch {
+        check.detail = `Invalid regex pattern: ${linkObj.pattern}`;
       }
     } else {
       // No pattern: check if target path is referenced in source content
