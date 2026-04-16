@@ -18,12 +18,11 @@
  */
 
 import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'node:fs';
-import { writeFile } from 'node:fs/promises';
 import { join, relative, basename, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { createHash, randomBytes } from 'node:crypto';
 
-import { planningPaths, toPosixPath } from './helpers.js';
+import { planningPaths } from './helpers.js';
 import { GSDError, ErrorClassification } from '../errors.js';
 import type { QueryHandler } from './utils.js';
 import { buildScanSessionsProjects, getScanSessionsRoot } from './profile-scan-sessions.js';
@@ -109,7 +108,8 @@ export const learningsCopy: QueryHandler = async (_args, projectDir) => {
   const paths = planningPaths(projectDir);
   const learningsPath = join(paths.planning, 'LEARNINGS.md');
   if (!existsSync(learningsPath)) {
-    return { data: { copied: false, total: 0, created: 0, skipped: 0, reason: 'No LEARNINGS.md found' } };
+    // Match `learningsCopyFromProject` in learnings.cjs when LEARNINGS.md is absent
+    return { data: { total: 0, created: 0, skipped: 0 } };
   }
   const content = readFileSync(learningsPath, 'utf-8');
   const sourceProject = basename(resolve(projectDir));
@@ -337,84 +337,9 @@ export const profileQuestionnaire: QueryHandler = async (args, _projectDir) => {
   return { data: analysis };
 };
 
-export const writeProfile: QueryHandler = async (args, projectDir) => {
-  const inputFlag = args.indexOf('--input');
-  const inputPath = inputFlag >= 0 ? args[inputFlag + 1] : null;
-  if (!inputPath || !existsSync(resolve(inputPath))) {
-    return { data: { written: false, reason: 'No --input analysis file provided' } };
-  }
-  try {
-    const analysis = JSON.parse(readFileSync(resolve(inputPath), 'utf-8')) as Record<string, unknown>;
-    const profilePath = join(projectDir, '.planning', 'USER-PROFILE.md');
-    const lines = ['# User Developer Profile', '', `*Generated: ${new Date().toISOString()}*`, ''];
-    for (const [key, value] of Object.entries(analysis)) {
-      lines.push(`## ${key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`);
-      lines.push('');
-      lines.push(String(value));
-      lines.push('');
-    }
-    await writeFile(profilePath, lines.join('\n'), 'utf-8');
-    return { data: { written: true, path: toPosixPath(relative(projectDir, profilePath)) } };
-  } catch (err) {
-    return { data: { written: false, reason: String(err) } };
-  }
-};
-
-export const generateClaudeProfile: QueryHandler = async (args, _projectDir) => {
-  const analysisFlag = args.indexOf('--analysis');
-  const analysisPath = analysisFlag >= 0 ? args[analysisFlag + 1] : null;
-  let profile = '> Profile not yet configured. Run `/gsd-profile-user` to generate your developer profile.\n> This section is managed by `generate-claude-profile` -- do not edit manually.';
-
-  if (analysisPath && existsSync(resolve(analysisPath))) {
-    try {
-      const analysis = JSON.parse(readFileSync(resolve(analysisPath), 'utf-8')) as Record<string, unknown>;
-      const lines = ['## Developer Profile', ''];
-      for (const [key, value] of Object.entries(analysis)) {
-        lines.push(`- **${key.replace(/_/g, ' ')}**: ${value}`);
-      }
-      profile = lines.join('\n');
-    } catch { /* use fallback */ }
-  }
-
-  return { data: { profile, generated: true } };
-};
-
-export const generateDevPreferences: QueryHandler = async (args, projectDir) => {
-  const analysisFlag = args.indexOf('--analysis');
-  const analysisPath = analysisFlag >= 0 ? args[analysisFlag + 1] : null;
-  const prefs: Record<string, unknown> = {};
-
-  if (analysisPath && existsSync(resolve(analysisPath))) {
-    try {
-      const analysis = JSON.parse(readFileSync(resolve(analysisPath), 'utf-8')) as Record<string, unknown>;
-      Object.assign(prefs, analysis);
-    } catch { /* use empty */ }
-  }
-
-  const prefsPath = join(projectDir, '.planning', 'dev-preferences.md');
-  const lines = ['# Developer Preferences', '', `*Generated: ${new Date().toISOString()}*`, ''];
-  for (const [key, value] of Object.entries(prefs)) {
-    lines.push(`- **${key}**: ${value}`);
-  }
-  await writeFile(prefsPath, lines.join('\n'), 'utf-8');
-  return { data: { written: true, path: toPosixPath(relative(projectDir, prefsPath)), preferences: prefs } };
-};
-
-export const generateClaudeMd: QueryHandler = async (_args, projectDir) => {
-  const safeRead = (path: string): string | null => {
-    try { return existsSync(path) ? readFileSync(path, 'utf-8') : null; } catch { return null; }
-  };
-
-  const sections: string[] = [];
-
-  const projectContent = safeRead(join(projectDir, '.planning', 'PROJECT.md'));
-  if (projectContent) {
-    const h1 = projectContent.match(/^# (.+)$/m);
-    if (h1) sections.push(`## Project\n\n${h1[1]}\n`);
-  }
-
-  const stackContent = safeRead(join(projectDir, '.planning', 'codebase', 'STACK.md')) ?? safeRead(join(projectDir, '.planning', 'research', 'STACK.md'));
-  if (stackContent) sections.push(`## Technology Stack\n\n${stackContent.slice(0, 1000)}\n`);
-
-  return { data: { sections, generated: true, section_count: sections.length } };
-};
+export {
+  writeProfile,
+  generateClaudeProfile,
+  generateDevPreferences,
+  generateClaudeMd,
+} from './profile-output.js';
