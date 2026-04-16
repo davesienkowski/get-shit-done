@@ -10,6 +10,18 @@ Use this document at the start of a new session so work continues in context wit
 
 **Port or normalize the next batch of read-only query handlers** (see **§ Next batch — audit / skill / validate / UAT / intel / profile / init**) so JSON matches `get-shit-done/bin/gsd-tools.cjs`, then add **strict subprocess golden rows** or **documented normalization blocks** in `read-only-parity.integration.test.ts`, updating `read-only-golden-rows.ts` / `readOnlyGoldenCanonicals()` and keeping **`golden-policy.ts`** complete.
 
+**Latest (this session):** `extract-messages` / `extract.messages` — `profile-extract-messages.ts` ports `cmdExtractMessages` (`streamExtractMessages`, `isGenuineUserMessage`, temp JSONL, project resolution from `profile-pipeline.cjs`); `profile.ts` uses `--session` (alias `--session-id`) and `--path` like `gsd-tools.cjs`. Golden: `read-only-parity.integration.test.ts` strips `output_file`, compares JSONL bytes; fixture `sdk/src/golden/fixtures/extract-messages-sessions/`. `readOnlyGoldenCanonicals()` includes `extract.messages`. See `QUERY-HANDLERS.md`.
+
+**Prior:** `uat.render-checkpoint` — `uat.ts` aligned with `uat.cjs` (`resolvePathUnderProject`, `sanitizeForDisplay` / `helpers.ts`, `buildUatCheckpoint` same strings as CJS); strict `READ_ONLY_JSON_PARITY_ROWS` row + fixture `sdk/src/golden/fixtures/uat-render-checkpoint-sample.md`. `sanitizeForDisplay` / `sanitizeForPrompt` moved to `helpers.ts` for shared use with `audit-open.ts`.
+
+**Prior:** `validate.agents` + `state.get` — `validate.ts` resolves `agents_dir` like `core.cjs` `getAgentsDir`; `MODEL_PROFILES` synced with `model-profiles.cjs` (`gsd-pattern-mapper`); strict row for `validate.agents`. `state.get`: subprocess tests for full document (no args) and `milestone` field; `readOnlyGoldenCanonicals()` includes `state.get`. See `QUERY-HANDLERS.md`.
+
+**Prior:** `skill-manifest` — `skill-manifest.ts` uses `extractFrontmatterLeading` (first frontmatter block) to match `init.cjs` / `frontmatter.cjs` (TS `extractFrontmatter` uses last block and diverged on skills with multiple `---`); strict `READ_ONLY_JSON_PARITY_ROWS` row. See `QUERY-HANDLERS.md`.
+
+**Earlier:** `audit-open` + `audit-uat` — SDK aligned with `audit.cjs` / `uat.cjs`; `read-only-parity.integration.test.ts`: strict row for `audit-uat`; `audit-open --json` compares with `**scanned_at**` stripped; `audit-open.ts` `sanitizeForDisplay` ported from `security.cjs` (parity with CLI on CRLF todo summaries). See `QUERY-HANDLERS.md`.
+
+**Prior:** `intel.extract-exports` — SDK handler ported to match `intel.cjs` (including `file` = resolved absolute path, `hadCjs` / `hadEsm` method rules); strict row uses `sdk/src/query/utils.ts` (empty `exports` on both sides — TS `export const x: Type =` not matched by CJS regex); documented in `QUERY-HANDLERS.md`.
+
 **Do not “green the suite” by deleting or shrinking golden tests.** If a handler cannot match CJS byte-for-byte without product decisions, use **documented normalization** in the test (same approach as `docs-init` omitting agent-install fields, or **`state.json` / `state.load` stripping `last_updated`**) or **fix the TypeScript handler**—same trade-off as `scan-sessions` / `workstream.status` / `stats.json` (see below).
 
 ---
@@ -88,17 +100,17 @@ Aligned SDK handlers with **`gsd-tools.cjs`** and expanded subprocess coverage (
 
 | Priority | Command (CLI) | `gsd-tools.cjs` case / args | CJS implementation | SDK module | Notes |
 | -------- | ------------- | -------------------------- | -------------------- | ---------- | ----- |
-| 1 | `audit-open` | `audit-open` `[--json]` | `audit.cjs` `auditOpenArtifacts` + optional `formatAuditReport` | `audit-open.ts` | For JSON parity use subprocess with `--json`; align object keys with `audit.cjs`. |
-| 2 | `audit-uat` | `audit-uat` | `uat.cjs` `cmdAuditUat` | `uat.ts` `auditUat` | Same: match summary JSON shape. |
-| 3 | `skill-manifest` | `skill-manifest` + args | `init.cjs` `cmdSkillManifest` (~L1829) | `skill-manifest.ts` | If key order unstable, **sort keys in test** (document in QUERY-HANDLERS). |
-| 4 | `validate agents` | `validate` + `agents` | `verify.cjs` `cmdValidateAgents` (~L997) | `validate.ts` `validateAgents` | May need **normalization** for `agents_dir`, env (`GSD_AGENTS_DIR`), or omit env-specific fields in test. |
-| 5 | `uat render-checkpoint --file <path>` | `uat` subcommand | `uat.cjs` `cmdRenderCheckpoint` | `uat.ts` `uatRenderCheckpoint` | Needs **real UAT fixture** under `.planning/phases/.../*-UAT.md` or small test fixture path. |
-| 6 | `intel extract-exports <file>` | `intel` `extract-exports` | `intel.cjs` `intelExtractExports` (~L502) | `intel.ts` `intelExtractExports` | Use a **fixed SDK source file** (e.g. `sdk/src/query/utils.ts`) so list is stable. |
-| 7 | `extract-messages` | `extract-messages` + project/session flags | `profile-pipeline.cjs` | `profile.ts` `extractMessages` | **Heavy** vs CJS (temp JSONL, streaming); consider **documented exception** + strong unit tests if full parity is prohibitive. |
+| ~~1~~ | ~~`audit-open`~~ | — | — | **Done:** `--json` parity test + `scanned_at` normalization; `sanitizeForDisplay` = `security.cjs`. |
+| ~~2~~ | ~~`audit-uat`~~ | — | — | **Done:** `auditUat` ports `cmdAuditUat` (`parseUatItems`, milestone filter, `summary.by_*`); strict `READ_ONLY_JSON_PARITY_ROWS` row. |
+| ~~3~~ | ~~`skill-manifest`~~ | — | — | **Done:** strict row; `extractFrontmatterLeading` for CJS parity (see `QUERY-HANDLERS.md`). |
+| ~~4~~ | ~~`validate agents`~~ | — | — | **Done:** strict row; `getAgentsDir` parity with `core.cjs`; `MODEL_PROFILES` includes `gsd-pattern-mapper` (sync with `model-profiles.cjs`). |
+| ~~5~~ | ~~`uat render-checkpoint --file <path>`~~ | — | — | **Done:** strict row; fixture under `sdk/src/golden/fixtures/`; see `QUERY-HANDLERS.md`. |
+| ~~6~~ | ~~`intel extract-exports`~~ | — | — | **Done:** strict row + handler parity with `intel.cjs`. |
+| ~~7~~ | ~~`extract-messages`~~ | — | — | **Done:** `profile-extract-messages.ts` + golden `output_file` strip + JSONL compare; fixture `extract-messages-sessions/`. |
 | 8 | `profile-sample` | `profile-sample` | `profile-pipeline.cjs` | `profile.ts` `profileSample` | Same class as extract-messages. |
 | 9 | **`init.*` read-only JSON** | various | `init.cjs` / `init-complex` | `init.ts`, `init-complex.ts` | Extend **`golden.integration.test.ts`** patterns: stable fields only, omit timestamps/agent lists if needed—**do not remove coverage**. |
 
-**Suggested order:** (6) intel extract-exports (narrow), (1)–(2) audit, (3)–(4) skill-manifest / validate.agents, (5) UAT checkpoint, (7)–(8) profile pipeline, (9) init last (widest surface).
+**Suggested order:** ~~(1)–(5) through UAT render-checkpoint~~; ~~(7) extract-messages~~; next (8) profile-sample, (9) init last (widest surface).
 
 **Done (this line of work):** `summary-extract` + `history-digest` — strict `READ_ONLY_JSON_PARITY_ROWS`; `summary.ts` aligned with `commands.cjs`; `extractFrontmatterLeading` in `frontmatter.ts` for first-`---`-block parity with `frontmatter.cjs`.
 
