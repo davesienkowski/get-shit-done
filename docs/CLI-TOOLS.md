@@ -43,7 +43,7 @@ Use this when authoring workflows, not when you only need the command list below
 **1. CLI — `gsd-sdk query <argv…>`**
 
 - Resolves argv with the same **longest-prefix** rules as the typed registry (`resolveQueryArgv` in `sdk/src/query/registry.ts`). Unregistered commands **fail fast** — use `node …/gsd-tools.cjs` only for handlers not in the registry.
-- Full matrix (CJS command → registry key, CLI-only tools, aliases, golden tiers): `[sdk/src/query/QUERY-HANDLERS.md](../sdk/src/query/QUERY-HANDLERS.md)`.
+- Full matrix (CJS command → registry key, CLI-only tools, aliases, golden tiers): [sdk/src/query/QUERY-HANDLERS.md](../sdk/src/query/QUERY-HANDLERS.md).
 
 **2. TypeScript — `@gsd-build/sdk` (`GSDTools`, `createRegistry`)**
 
@@ -67,7 +67,7 @@ Use this when authoring workflows, not when you only need the command list below
 
 **Mutation events (SDK):** `QUERY_MUTATION_COMMANDS` in `sdk/src/query/index.ts` lists commands that may emit structured events after a successful dispatch. Exceptions called out in QUERY-HANDLERS: `state validate` (read-only), `skill-manifest` (writes only with `--write`), `intel update` (stub).
 
-**Golden parity:** Policy and CJS↔SDK test categories are documented under **Golden parity** in `[QUERY-HANDLERS.md](../sdk/src/query/QUERY-HANDLERS.md)`.
+**Golden parity:** Policy and CJS↔SDK test categories are documented under **Golden parity** in [QUERY-HANDLERS.md](../sdk/src/query/QUERY-HANDLERS.md).
 
 **SDK / typed registry:** Programmatic parity with these commands is implemented in `sdk/src/query/` (`createRegistry()`). Conventions, mutation event wiring, and intentional differences from CJS are documented in `sdk/src/query/QUERY-HANDLERS.md`.
 
@@ -477,7 +477,7 @@ node gsd-tools.cjs detect-custom-files --config-dir <runtime-config-dir>
 
 ## See also
 
-- `[sdk/src/query/QUERY-HANDLERS.md](../sdk/src/query/QUERY-HANDLERS.md)` — registry matrix, routing, golden parity, intentional CJS differences
+- [sdk/src/query/QUERY-HANDLERS.md](../sdk/src/query/QUERY-HANDLERS.md) — registry matrix, routing, golden parity, intentional CJS differences
 - [Architecture](ARCHITECTURE.md) — where `gsd-sdk query` fits in orchestration
 - [Command Reference](COMMANDS.md) — user-facing `/gsd:` commands
 
