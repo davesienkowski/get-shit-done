@@ -635,7 +635,7 @@ gsd-sdk query config-set workflow._auto_chain_active true
 **If `--auto` flag present OR `AUTO_MODE` is true:**
 
 Display banner:
-```
+```text
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  GSD ► AUTO-ADVANCING TO PLAN
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -1,6 +1,6 @@
 # GSD CLI Tools Reference
 
-> Surface-area reference for `**get-shit-done/bin/gsd-tools.cjs**` (legacy Node CLI). Workflows and agents should prefer `**gsd-sdk query**` or `**@gsd-build/sdk**` where a handler exists — see [SDK and programmatic access](#sdk-and-programmatic-access). For slash commands and user flows, see [Command Reference](COMMANDS.md).
+> Surface-area reference for `get-shit-done/bin/gsd-tools.cjs` (legacy Node CLI). Workflows and agents should prefer `gsd-sdk query` or `@gsd-build/sdk` where a handler exists — see [SDK and programmatic access](#sdk-and-programmatic-access). For slash commands and user flows, see [Command Reference](COMMANDS.md).
 
 ---
 
@@ -13,7 +13,7 @@
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Shipped path**   | `get-shit-done/bin/gsd-tools.cjs`                                                                                                                                                                      |
 | **Implementation** | 15 domain modules under `get-shit-done/bin/lib/`                                                                                                                                                       |
-| **Status**         | Maintained for parity tests and CJS-only entrypoints; `**gsd-sdk query`** / SDK registry are the supported path for new orchestration (see `[QUERY-HANDLERS.md](../sdk/src/query/QUERY-HANDLERS.md)`). |
+| **Status**         | Maintained for parity tests and CJS-only entrypoints; `gsd-sdk query` / SDK registry are the supported path for new orchestration (see [QUERY-HANDLERS.md](../sdk/src/query/QUERY-HANDLERS.md)). |
 
 
 **Usage (CJS):**
@@ -45,8 +45,8 @@ Use this when authoring workflows, not when you only need the command list below
 
 **2. TypeScript — `@gsd-build/sdk` (`GSDTools`, `createRegistry`)**
 
-- `GSDTools` (used by `PhaseRunner`, `InitRunner`, and `GSD.createTools()`) calls the **same** `createRegistry()` handlers as `gsd-sdk query` when native query routing is active. With a **workstream** or `**preferNativeQuery: false`** (e.g. some tests), it shells out to `gsd-tools.cjs` so behavior stays aligned with CJS.
-- Conventions: mutation event wiring, `GSDError` vs `{ data: { error } }`, locks, and stubs — `[QUERY-HANDLERS.md](../sdk/src/query/QUERY-HANDLERS.md)`.
+- `GSDTools` (used by `PhaseRunner`, `InitRunner`, and `GSD.createTools()`) shells out to `gsd-tools.cjs` via `execFile` for command execution. For in-process registry dispatch, use `createRegistry()` / `gsd-sdk query` (see [QUERY-HANDLERS.md](../sdk/src/query/QUERY-HANDLERS.md)); optional `preferNativeQuery` routes registered commands through the registry when enabled (tests often force subprocess mode for isolation).
+- Conventions: mutation event wiring, `GSDError` vs `{ data: { error } }`, locks, and stubs — [QUERY-HANDLERS.md](../sdk/src/query/QUERY-HANDLERS.md).
 
 **CJS → SDK examples (same project directory):**
 
@@ -59,7 +59,7 @@ Use this when authoring workflows, not when you only need the command list below
 | `node gsd-tools.cjs roadmap analyze`     | `gsd-sdk query roadmap analyze`      |
 
 
-**Two state read shapes (both registered, not interchangeable):** `gsd-sdk query state json` / `**state.json`** mirrors CJS `**cmdStateJson**` (rebuilt STATE.md frontmatter). `gsd-sdk query state load` / `**state.load**` mirrors CJS `**cmdStateLoad**` (`config` from `core.cjs` `loadConfig`, plus `state_raw` and existence flags). Full routing and golden rules: `[QUERY-HANDLERS.md](../sdk/src/query/QUERY-HANDLERS.md)`.
+**Two state read shapes (both registered, not interchangeable):** `gsd-sdk query state json` / `state.json` mirrors CJS `cmdStateJson` (rebuilt STATE.md frontmatter). `gsd-sdk query state load` / `state.load` mirrors CJS `cmdStateLoad` (`config` from `core.cjs` `loadConfig`, plus `state_raw` and existence flags). Full routing and golden rules: [QUERY-HANDLERS.md](../sdk/src/query/QUERY-HANDLERS.md).
 
 **CLI-only (not in registry):** e.g. **graphify**, **from-gsd2** / **gsd2-import** — call `gsd-tools.cjs` until registered.
 
@@ -402,7 +402,7 @@ node gsd-tools.cjs audit-uat
 node gsd-tools.cjs commit <message> [--files f1 f2] [--amend] [--no-verify]
 ```
 
-> `**--no-verify**`: Skips pre-commit hooks. Used by parallel executor agents during wave-based execution to avoid build lock contention (e.g., cargo lock fights in Rust projects). The orchestrator runs hooks once after each wave completes. Do not use `--no-verify` during sequential execution — let hooks run normally.
+> `--no-verify`: Skips pre-commit hooks. Used by parallel executor agents during wave-based execution to avoid build lock contention (e.g., cargo lock fights in Rust projects). The orchestrator runs hooks once after each wave completes. Do not use `--no-verify` during sequential execution — let hooks run normally.
 
 # Web search (requires Brave API key)
 node gsd-tools.cjs websearch <query> [--limit N] [--freshness day|week|month]

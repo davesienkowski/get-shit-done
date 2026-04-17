@@ -13,9 +13,9 @@ Ensure config exists and load current state:
 
 ```bash
 gsd-sdk query config-ensure-section
-GSD_CONFIG_PATH=$(gsd-sdk query config-path)
 INIT=$(gsd-sdk query state.load)
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
+GSD_CONFIG_PATH=$(echo "$INIT" | jq -r '.config_path // ".planning/config.json"')
 ```
 
 Creates config.json (at the workstream-aware path) with defaults if missing and loads current config values.

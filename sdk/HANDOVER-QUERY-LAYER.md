@@ -96,7 +96,7 @@ Work that moves **deterministic** orchestration out of AI/bash and into **SDK qu
 | Layer                    | Goal                                                                                                                                                                         | What “done” looks like                                                                  |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | **Parity / migration**   | Existing CLI behavior is **stable and testable** in the registry so callers can use `gsd-sdk query` instead of `node …/gsd-tools.cjs` without silent drift.                  | Goldens + `QUERY-HANDLERS.md`; same JSON/`--raw` contracts as CJS.                      |
-| **Offloading decisions** | **New or consolidated** queries replace repeated `grep`, `ls | wc -l`, many `config-get`s, and inline `node -e` in workflows — so the model does less parsing and branching. | Fewer inline shell blocks; measurable token/step reduction on representative workflows. |
+| **Offloading decisions** | **New or consolidated** queries replace repeated `grep`, `ls` piped to `wc -l`, many `config-get`s, and inline `node -e` in workflows — so the model does less parsing and branching. | Fewer inline shell blocks; measurable token/step reduction on representative workflows. |
 
 
 Phase 3–style registry work mainly advances **parity**. The `**decision-routing-audit.md`** proposals are mostly **offloading** — they assume parity exists for commands workflows already call.

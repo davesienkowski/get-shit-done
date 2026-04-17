@@ -31,7 +31,7 @@ Paste this document (or `@sdk/HANDOVER-PARITY-DOCS.md`) at the start of a new ch
 
 ### A) Parity exceptions section
 
-Add or extend a dedicated section (prefer `**QUERY-HANDLERS.md`** under a heading like **“Golden parity: coverage and exceptions”**, or a new `**sdk/PARITY.md`** if the team wants less churn in QUERY-HANDLERS — **pick one canonical location** and link from the other).
+Add or extend a dedicated section (prefer `QUERY-HANDLERS.md` under a heading like **"Golden parity: coverage and exceptions"**, or a new `sdk/PARITY.md` if the team wants less churn in QUERY-HANDLERS — **pick one canonical location** and link from the other).
 
 Cover at least:
 
@@ -83,7 +83,7 @@ Optional: footnote that `**detect-custom-files`** skips multi-repo root resoluti
 
 ## Verification
 
-- No code behavior change required for pure docs; run `**npm run build*`* in `**sdk/**` only if TypeScript-adjacent files were touched.
+- No code behavior change required for pure docs; run `npm run build` in `sdk/` only if TypeScript-adjacent files were touched.
 - Proofread: every **CLI-only** row has a **justification**; every **exception** in golden tests appears in the exceptions doc.
 
 ## Success criteria
