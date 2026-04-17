@@ -8,7 +8,7 @@
 
 `gsd-tools.cjs` is a Node.js CLI utility that replaces repetitive inline bash patterns across GSD's ~50 command, workflow, and agent files. It centralizes: config parsing, model resolution, phase lookup, git commits, summary verification, state management, and template operations.
 
-**Preferred for new orchestration:** Many of the same operations are available as `gsd-sdk query <command>` (see `sdk/src/query/index.ts` and `docs/QUERY-HANDLERS.md`). Use that in workflows and examples where the handler exists; keep `node … gsd-tools.cjs` for commands not yet in the registry (for example graphify) or when you need CJS-only flags.
+**Preferred for new orchestration:** Many of the same operations are available as `gsd-sdk query <command>` (see `sdk/src/query/index.ts` and [`sdk/src/query/QUERY-HANDLERS.md`](../sdk/src/query/QUERY-HANDLERS.md) — includes golden parity tiers and the CJS↔SDK matrix). Use that in workflows and examples where the handler exists; keep `node … gsd-tools.cjs` for commands not yet in the registry (for example graphify) or when you need CJS-only flags.
 
 **Location:** `get-shit-done/bin/gsd-tools.cjs`
 **Modules:** 15 domain modules in `get-shit-done/bin/lib/`
@@ -24,6 +24,10 @@ node gsd-tools.cjs <command> [args] [--raw] [--cwd <path>]
 | `--raw` | Machine-readable output (JSON or plain text, no formatting) |
 | `--cwd <path>` | Override working directory (for sandboxed subagents) |
 | `--ws <name>` | Target a specific workstream context (SDK only) |
+
+**SDK / typed registry:** Programmatic parity with these commands is implemented in `sdk/src/query/` (`createRegistry()`). Conventions, mutation event wiring, and intentional differences from CJS are documented in `sdk/src/query/QUERY-HANDLERS.md`.
+
+**Parity & registry:** Golden-test coverage categories (full equality vs subset vs stubs), normalized comparisons, and the **CJS top-level command → SDK registry** matrix (including CLI-only and alias rows) live in the sections **Golden parity: coverage and exceptions** and **CJS command surface vs SDK registry** in that file.
 
 ---
 
@@ -67,6 +71,22 @@ node gsd-tools.cjs state resolve-blocker --text "..."
 
 # Record session continuity
 node gsd-tools.cjs state record-session --stopped-at "..." [--resume-file path]
+
+# Planned phase on roadmap (without starting execution)
+node gsd-tools.cjs state planned-phase --phase N --name "..." [--plans C]
+
+# Human-in-the-loop: write or clear WAITING.json
+node gsd-tools.cjs state signal-waiting --type T --question "..." --options "A|B" [--phase N]
+node gsd-tools.cjs state signal-resume
+
+# Validate STATE.md consistency vs phase directories (warnings + drift object)
+node gsd-tools.cjs state validate
+
+# Sync progress/plan counts/last activity from disk; --verify performs a dry-run
+node gsd-tools.cjs state sync [--verify]
+
+# Prune old decisions / recently-completed / blockers to STATE-ARCHIVE.md
+node gsd-tools.cjs state prune [--keep-recent N] [--dry-run]
 ```
 
 ### State Snapshot
@@ -358,12 +378,31 @@ node gsd-tools.cjs audit-uat
 
 # Git commit with config checks
 node gsd-tools.cjs commit <message> [--files f1 f2] [--amend] [--no-verify]
+
+# Web search (requires Brave API key)
+node gsd-tools.cjs websearch <query> [--limit N] [--freshness day|week|month]
 ```
 
 > **`--no-verify`**: Skips pre-commit hooks. Used by parallel executor agents during wave-based execution to avoid build lock contention (e.g., cargo lock fights in Rust projects). The orchestrator runs hooks once after each wave completes. Do not use `--no-verify` during sequential execution — let hooks run normally.
 
-# Web search (requires Brave API key)
-node gsd-tools.cjs websearch <query> [--limit N] [--freshness day|week|month]
+---
+
+## Documentation workflow (`docs-init`)
+
+Context bundle for `/gsd-docs-update` and related workflows — existing markdown, doc tooling hints, models, and repo layout signals.
+
+```bash
+node gsd-tools.cjs docs-init
+```
+
+---
+
+## Installer: custom file detection
+
+Lists user-added files under GSD-managed install directories that are not present in `gsd-file-manifest.json` (used before installer updates that may wipe those trees).
+
+```bash
+node gsd-tools.cjs detect-custom-files --config-dir <runtime-config-dir>
 ```
 
 ---

@@ -22,7 +22,7 @@ import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { GSDError, ErrorClassification } from '../errors.js';
-import { MODEL_PROFILES, VALID_PROFILES } from './config-query.js';
+import { VALID_PROFILES, getAgentToModelMapForProfile } from './config-query.js';
 import { planningPaths } from './helpers.js';
 import { acquireStateLock, releaseStateLock } from './state-mutation.js';
 import type { QueryHandler } from './utils.js';
@@ -281,6 +281,7 @@ export const configSetModelProfile: QueryHandler = async (args, projectDir) => {
   // D6: Lock protection for read-modify-write
   const paths = planningPaths(projectDir);
   const lockPath = await acquireStateLock(paths.config);
+  let previousProfile = 'balanced';
   try {
     let config: Record<string, unknown> = {};
     try {
@@ -290,13 +291,24 @@ export const configSetModelProfile: QueryHandler = async (args, projectDir) => {
       // Start with empty config
     }
 
+    const prev =
+      typeof config.model_profile === 'string' ? config.model_profile.toLowerCase().trim() : '';
+    previousProfile = VALID_PROFILES.includes(prev) ? prev : 'balanced';
     config.model_profile = normalized;
     await atomicWriteConfig(paths.config, config);
   } finally {
     await releaseStateLock(lockPath);
   }
 
-  return { data: { set: true, profile: normalized, agents: MODEL_PROFILES } };
+  const agentToModelMap = getAgentToModelMapForProfile(normalized);
+  return {
+    data: {
+      updated: true,
+      profile: normalized,
+      previousProfile,
+      agentToModelMap,
+    },
+  };
 };
 
 // ─── configNewProject ─────────────────────────────────────────────────────

@@ -405,6 +405,7 @@ export const verifyReferences: QueryHandler = async (args, projectDir) => {
       valid: missing.length === 0,
       found: found.length,
       missing,
+      total: found.length + missing.length,
     },
   };
 };
@@ -545,44 +546,88 @@ export const verifyPathExists: QueryHandler = async (args, projectDir) => {
 
 // ─── verifySchemaDrift ────────────────────────────────────────────────────
 
+/**
+ * Detect schema drift for a phase — port of `cmdVerifySchemaDrift` from verify.cjs lines 1013–1086.
+ */
 export const verifySchemaDrift: QueryHandler = async (args, projectDir) => {
   const phaseArg = args[0];
-  const paths = planningPaths(projectDir);
+  const skipFlag = args.includes('--skip');
 
-  const issues: string[] = [];
-  const REQUIRED_FRONTMATTER = ['phase', 'plan', 'type', 'must_haves'];
-
-  try {
-    const phasesDir = paths.phases;
-    if (!existsSync(phasesDir)) {
-      return { data: { valid: true, issues: [], checked: 0 } };
-    }
-
-    const entries = readdirSync(phasesDir, { withFileTypes: true });
-    let checked = 0;
-
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      if (phaseArg && !entry.name.startsWith(normalizePhaseName(phaseArg))) continue;
-
-      const phaseDir = join(phasesDir, entry.name);
-      const files = readdirSync(phaseDir).filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md');
-
-      for (const planFile of files) {
-        checked++;
-        try {
-          const content = await readFile(join(phaseDir, planFile), 'utf-8');
-          for (const field of REQUIRED_FRONTMATTER) {
-            if (!new RegExp(`^${field}:`, 'm').test(content)) {
-              issues.push(`${planFile}: missing '${field}' in frontmatter`);
-            }
-          }
-        } catch { /* skip */ }
-      }
-    }
-
-    return { data: { valid: issues.length === 0, issues, checked } };
-  } catch {
-    return { data: { valid: true, issues: [], checked: 0 } };
+  if (!phaseArg) {
+    throw new GSDError('Usage: verify schema-drift <phase> [--skip]', ErrorClassification.Validation);
   }
+
+  const { checkSchemaDrift } = await import('./schema-detect.js');
+  const { execGit } = await import('./commit.js');
+
+  const phasesDir = planningPaths(projectDir).phases;
+  if (!existsSync(phasesDir)) {
+    return {
+      data: {
+        drift_detected: false,
+        blocking: false,
+        message: 'No phases directory',
+      },
+    };
+  }
+
+  let phaseDir: string | null = null;
+  const entries = readdirSync(phasesDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.isDirectory() && entry.name.includes(phaseArg)) {
+      phaseDir = join(phasesDir, entry.name);
+      break;
+    }
+  }
+
+  if (!phaseDir) {
+    const exact = join(phasesDir, phaseArg);
+    if (existsSync(exact)) phaseDir = exact;
+  }
+
+  if (!phaseDir) {
+    return {
+      data: {
+        drift_detected: false,
+        blocking: false,
+        message: `Phase directory not found: ${phaseArg}`,
+      },
+    };
+  }
+
+  const allFiles: string[] = [];
+  const planFiles = readdirSync(phaseDir).filter(f => f.endsWith('-PLAN.md'));
+  for (const pf of planFiles) {
+    const content = readFileSync(join(phaseDir, pf), 'utf-8');
+    const fmMatch = content.match(/files_modified:\s*\[([^\]]*)\]/);
+    if (fmMatch) {
+      const files = fmMatch[1].split(',').map(f => f.trim()).filter(Boolean);
+      allFiles.push(...files);
+    }
+  }
+
+  let executionLog = '';
+  const summaryFiles = readdirSync(phaseDir).filter(f => f.endsWith('-SUMMARY.md'));
+  for (const sf of summaryFiles) {
+    executionLog += readFileSync(join(phaseDir, sf), 'utf-8') + '\n';
+  }
+
+  const gitLog = execGit(projectDir, ['log', '--oneline', '--all', '-50']);
+  if (gitLog.exitCode === 0) {
+    executionLog += '\n' + gitLog.stdout;
+  }
+
+  const result = checkSchemaDrift(allFiles, executionLog, { skipCheck: !!skipFlag });
+
+  return {
+    data: {
+      drift_detected: result.driftDetected,
+      blocking: result.blocking,
+      schema_files: result.schemaFiles,
+      orms: result.orms,
+      unpushed_orms: result.unpushedOrms,
+      message: result.message,
+      skipped: result.skipped || false,
+    },
+  };
 };

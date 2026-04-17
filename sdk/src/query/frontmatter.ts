@@ -59,31 +59,14 @@ export function splitInlineArray(body: string): string[] {
   return items;
 }
 
-// ─── extractFrontmatter ─────────────────────────────────────────────────────
+// ─── parseFrontmatterYamlLines ───────────────────────────────────────────────
 
 /**
- * Parse YAML frontmatter from file content.
- *
- * Full stack-based parser supporting:
- * - Simple key: value pairs
- * - Nested objects via indentation
- * - Inline arrays: key: [a, b, c]
- * - Dash arrays with auto-conversion from empty objects
- * - Multiple stacked blocks (uses the LAST match)
- * - CRLF line endings
- * - Quoted value stripping
- *
- * @param content - File content potentially containing frontmatter
- * @returns Parsed frontmatter as a record, or empty object if none found
+ * Parse YAML frontmatter body (between `---` fences) using the GSD stack parser.
+ * Shared by {@link extractFrontmatterLeading} and {@link extractFrontmatter}.
  */
-export function extractFrontmatter(content: string): Record<string, unknown> {
+function parseFrontmatterYamlLines(yaml: string): Record<string, unknown> {
   const frontmatter: Record<string, unknown> = {};
-  // Find ALL frontmatter blocks. Use the LAST one (corruption recovery).
-  const allBlocks = [...content.matchAll(/(?:^|\n)\s*---\r?\n([\s\S]+?)\r?\n---/g)];
-  const match = allBlocks.length > 0 ? allBlocks[allBlocks.length - 1] : null;
-  if (!match) return frontmatter;
-
-  const yaml = match[1];
   const lines = yaml.split(/\r?\n/);
 
   // Stack to track nested objects: [{obj, key, indent}]
@@ -151,6 +134,44 @@ export function extractFrontmatter(content: string): Record<string, unknown> {
   }
 
   return frontmatter;
+}
+
+// ─── extractFrontmatterLeading ──────────────────────────────────────────────
+
+/**
+ * First leading frontmatter block only — parity with `get-shit-done/bin/lib/frontmatter.cjs`
+ * `extractFrontmatter` (used by `summary-extract` and `history-digest` in gsd-tools.cjs).
+ */
+export function extractFrontmatterLeading(content: string): Record<string, unknown> {
+  const match = content.match(/^---\r?\n([\s\S]+?)\r?\n---/);
+  if (!match) return {};
+  return parseFrontmatterYamlLines(match[1]);
+}
+
+// ─── extractFrontmatter ─────────────────────────────────────────────────────
+
+/**
+ * Parse YAML frontmatter from file content.
+ *
+ * Full stack-based parser supporting:
+ * - Simple key: value pairs
+ * - Nested objects via indentation
+ * - Inline arrays: key: [a, b, c]
+ * - Dash arrays with auto-conversion from empty objects
+ * - Multiple stacked blocks (uses the LAST match)
+ * - CRLF line endings
+ * - Quoted value stripping
+ *
+ * @param content - File content potentially containing frontmatter
+ * @returns Parsed frontmatter as a record, or empty object if none found
+ */
+export function extractFrontmatter(content: string): Record<string, unknown> {
+  // Find ALL frontmatter blocks. Use the LAST one (corruption recovery).
+  const allBlocks = [...content.matchAll(/(?:^|\n)\s*---\r?\n([\s\S]+?)\r?\n---/g)];
+  const match = allBlocks.length > 0 ? allBlocks[allBlocks.length - 1] : null;
+  if (!match) return {};
+
+  return parseFrontmatterYamlLines(match[1]);
 }
 
 // ─── stripFrontmatter ───────────────────────────────────────────────────────

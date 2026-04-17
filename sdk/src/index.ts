@@ -289,7 +289,7 @@ export class GSD {
 export { parsePlan, parsePlanFile } from './plan-parser.js';
 export { loadConfig } from './config.js';
 export type { GSDConfig } from './config.js';
-export { GSDTools, GSDToolsError, resolveGsdToolsPath } from './gsd-tools.js';
+export { GSDTools, GSDToolsError, resolveGsdToolsPath, runGsdToolsQuery } from './gsd-tools.js';
 export { runPlanSession, runPhaseStepSession } from './session-runner.js';
 export { buildExecutorPrompt, parseAgentTools } from './prompt-builder.js';
 export * from './types.js';
@@ -316,6 +316,9 @@ export type { PhaseRunnerDeps, VerificationOutcome } from './phase-runner.js';
 export { CLITransport } from './cli-transport.js';
 export { WSTransport } from './ws-transport.js';
 export type { WSTransportOptions } from './ws-transport.js';
+
+// Query registry argv normalization (matches `gsd-sdk query` and `GSDTools` hot path)
+export { normalizeQueryCommand } from './query/index.js';
 
 // Workstream utilities
 export { validateWorkstreamName, relPlanningPath } from './workstream-utils.js';

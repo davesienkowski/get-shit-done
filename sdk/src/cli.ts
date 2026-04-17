@@ -298,12 +298,6 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
 
     const queryArgs = args.queryArgv ?? [];
 
-    if (queryArgs.length === 0 || !queryArgs[0]) {
-      console.error('Error: "gsd-sdk query" requires a command');
-      process.exitCode = 10;
-      return;
-    }
-
     // Extract --pick before dispatch
     const pickIdx = queryArgs.indexOf('--pick');
     let pickField: string | undefined;
@@ -317,9 +311,18 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       queryArgs.splice(pickIdx, 2);
     }
 
+    if (queryArgs.length === 0 || !queryArgs[0]) {
+      console.error('Error: "gsd-sdk query" requires a command');
+      process.exitCode = 10;
+      return;
+    }
+
     try {
+      const queryCommand = queryArgs[0];
+      const { normalizeQueryCommand } = await import('./query/normalize-query-command.js');
+      const [normCmd, normArgs] = normalizeQueryCommand(queryCommand, queryArgs.slice(1));
       const registry = createRegistry();
-      const tokens = [...queryArgs];
+      const tokens = [normCmd, ...normArgs];
       const matched = resolveQueryArgv(tokens, registry);
       if (!matched) {
         throw new GSDError(
@@ -329,7 +332,6 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       }
 
       const result = await registry.dispatch(matched.cmd, matched.args, args.projectDir);
-
       let output: unknown = result.data;
 
       if (pickField) {
