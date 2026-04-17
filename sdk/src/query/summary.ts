@@ -34,6 +34,13 @@ function extractOneLinerFromBody(content: string): string | null {
   return match ? match[1].trim() : null;
 }
 
+/** Normalize frontmatter list fields — scalars become single-element arrays. */
+function coerceFmArray(v: unknown): unknown[] {
+  if (v === undefined || v === null) return [];
+  if (Array.isArray(v)) return v;
+  return [v];
+}
+
 function parseDecisions(decisionsList: unknown): Array<{ summary: string; rationale: string | null }> {
   if (!decisionsList || !Array.isArray(decisionsList)) return [];
   return decisionsList.map((d: unknown) => {
@@ -136,11 +143,11 @@ export const summaryExtract: QueryHandler = async (args, projectDir) => {
   const fullResult: Record<string, unknown> = {
     path: summaryPath,
     one_liner: (fm['one-liner'] as string | undefined) || extractOneLinerFromBody(content) || null,
-    key_files: (fm['key-files'] as unknown[]) || [],
+    key_files: coerceFmArray(fm['key-files']),
     tech_added: techAdded,
-    patterns: (fm['patterns-established'] as unknown[]) || [],
+    patterns: coerceFmArray(fm['patterns-established']),
     decisions: parseDecisions(fm['key-decisions']),
-    requirements_completed: (fm['requirements-completed'] as unknown[]) || [],
+    requirements_completed: coerceFmArray(fm['requirements-completed']),
   };
 
   if (fields && fields.length > 0) {
@@ -184,7 +191,7 @@ export const historyDigest: QueryHandler = async (_args, projectDir) => {
       const currentDirs = readdirSync(phasesDir, { withFileTypes: true })
         .filter(e => e.isDirectory())
         .map(e => e.name)
-        .sort();
+        .sort((a, b) => comparePhaseNum(a, b));
       for (const dir of currentDirs) {
         allPhaseDirs.push({ name: dir, fullPath: join(phasesDir, dir) });
       }
@@ -199,7 +206,9 @@ export const historyDigest: QueryHandler = async (_args, projectDir) => {
 
   try {
     for (const { name: dir, fullPath: dirPath } of allPhaseDirs) {
-      const summaries = readdirSync(dirPath).filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
+      const summaries = readdirSync(dirPath)
+        .filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md')
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
       for (const summary of summaries) {
         try {

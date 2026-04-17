@@ -304,6 +304,19 @@ describe('stateBeginPhase', () => {
     expect(content).toContain('Executing Phase 11');
     expect(content).toContain('State Mutations');
   });
+
+  it('does not treat argv after named flags as positional name/plans', async () => {
+    const { stateBeginPhase } = await import('./state-mutation.js');
+
+    const result = await stateBeginPhase(['--phase', '2', '--plans', '3'], tmpDir);
+    const data = result.data as Record<string, unknown>;
+    expect(data.phase).toBe('2');
+    expect(data.phase_name).toBeFalsy();
+    expect(data.plan_count).toBe(3);
+
+    const content = await readFile(join(tmpDir, '.planning', 'STATE.md'), 'utf-8');
+    expect(content).toContain('Plan: 1 of 3');
+  });
 });
 
 // ─── stateAdvancePlan ───────────────────────────────────────────────────────

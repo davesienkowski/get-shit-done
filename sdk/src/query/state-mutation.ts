@@ -402,18 +402,18 @@ export const stateBeginPhase: QueryHandler = async (args, projectDir) => {
   let phaseName = (named.name as string | null) || '';
   let plansStr = named.plans as string | null;
 
-  if (!phaseNumber && args[0] && !String(args[0]).startsWith('--')) {
-    phaseNumber = args[0];
-  }
-  if (!phaseName && args[1] && !String(args[1]).startsWith('--')) {
-    phaseName = args[1];
-  }
-  if (plansStr === null && args[2] && !String(args[2]).startsWith('--')) {
-    plansStr = args[2];
+  const positionalMode = args.length > 0 && !String(args[0]).startsWith('--');
+  if (positionalMode) {
+    if (!phaseNumber) phaseNumber = args[0] ?? '';
+    if (!phaseName) phaseName = (args[1] as string) ?? '';
+    if (plansStr === null && args[2] !== undefined && !String(args[2]).startsWith('--')) {
+      plansStr = args[2];
+    }
   }
 
-  const planNum =
-    plansStr !== null && plansStr !== '' ? parseInt(plansStr, 10) : null;
+  const plansParsed =
+    plansStr !== null && plansStr !== '' ? parseInt(String(plansStr), 10) : NaN;
+  const planNum = Number.isFinite(plansParsed) && !Number.isNaN(plansParsed) ? plansParsed : null;
 
   if (!phaseNumber) {
     throw new GSDError('phase number required', ErrorClassification.Validation);
@@ -912,7 +912,10 @@ export const statePlannedPhase: QueryHandler = async (args, projectDir) => {
   const parsed = parseNamedArgs(args, ['phase', 'name', 'plans']);
   const phaseNumber = parsed.phase as string | null;
   const plansRaw = parsed.plans as string | null;
-  const planCount = plansRaw !== null && plansRaw !== '' ? parseInt(plansRaw, 10) : null;
+  const plansParsed = plansRaw !== null && plansRaw !== '' ? parseInt(String(plansRaw), 10) : NaN;
+  const planCount = Number.isFinite(plansParsed) && !Number.isNaN(plansParsed) ? plansParsed : null;
+  const phaseLabel =
+    phaseNumber != null && String(phaseNumber).trim() !== '' ? String(phaseNumber).trim() : '?';
 
   const statePath = planningPaths(projectDir).state;
   if (!existsSync(statePath)) {
@@ -937,13 +940,13 @@ export const statePlannedPhase: QueryHandler = async (args, projectDir) => {
     result = stateReplaceField(
       content,
       'Last Activity Description',
-      `Phase ${phaseNumber} planning complete — ${planCount ?? '?'} plans ready`,
+      `Phase ${phaseLabel} planning complete — ${planCount ?? '?'} plans ready`,
     );
     if (result) { content = result; updated.push('Last Activity Description'); }
 
     content = updateCurrentPositionFields(content, {
       status: 'Ready to execute',
-      lastActivity: `${today} -- Phase ${phaseNumber} planning complete`,
+      lastActivity: `${today} -- Phase ${phaseLabel} planning complete`,
     });
     return content;
   });
