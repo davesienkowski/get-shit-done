@@ -33,8 +33,9 @@ export class GSDToolsError extends Error {
     public readonly args: string[],
     public readonly exitCode: number | null,
     public readonly stderr: string,
+    options?: { cause?: unknown },
   ) {
-    super(message);
+    super(message, options);
     this.name = 'GSDToolsError';
   }
 }
@@ -149,10 +150,18 @@ export class GSDTools {
         args,
         exitCodeFor(err.classification),
         '',
+        { cause: err },
       );
     }
     const msg = err instanceof Error ? err.message : String(err);
-    return new GSDToolsError(msg, command, args, 1, '');
+    return new GSDToolsError(
+      msg,
+      command,
+      args,
+      1,
+      '',
+      err instanceof Error ? { cause: err } : undefined,
+    );
   }
 
   /**
