@@ -833,12 +833,14 @@ export const stateResolveBlocker: QueryHandler = async (args, projectDir) => {
   }
 
   let removedMatchingLine = false;
+  let blockersSectionFound = false;
 
   await readModifyWriteStateMd(projectDir, (content) => {
     const sectionPattern = /(###?\s*(?:Blockers|Blockers\/Concerns|Concerns)\s*\n)([\s\S]*?)(?=\n###?|\n##[^#]|$)/i;
     const match = content.match(sectionPattern);
 
     if (match) {
+      blockersSectionFound = true;
       const sectionBody = match[2];
       const lines = sectionBody.split('\n');
       const filtered = lines.filter(line => {
@@ -865,7 +867,10 @@ export const stateResolveBlocker: QueryHandler = async (args, projectDir) => {
   if (removedMatchingLine) {
     return { data: { resolved: true, blocker: searchText } };
   }
-  return { data: { resolved: false, reason: 'Blockers section not found in STATE.md' } };
+  return { data: { resolved: false, reason: blockersSectionFound
+    ? 'Blocker text not found in STATE.md'
+    : 'Blockers section not found in STATE.md'
+  } };
 };
 
 /**
@@ -912,10 +917,14 @@ export const statePlannedPhase: QueryHandler = async (args, projectDir) => {
   const parsed = parseNamedArgs(args, ['phase', 'name', 'plans']);
   const phaseNumber = parsed.phase as string | null;
   const plansRaw = parsed.plans as string | null;
-  const plansParsed = plansRaw !== null && plansRaw !== '' ? parseInt(String(plansRaw), 10) : NaN;
-  const planCount = Number.isFinite(plansParsed) && !Number.isNaN(plansParsed) ? plansParsed : null;
-  const phaseLabel =
-    phaseNumber != null && String(phaseNumber).trim() !== '' ? String(phaseNumber).trim() : '?';
+  const parsedPlanCount = plansRaw !== null && plansRaw !== '' ? parseInt(String(plansRaw), 10) : null;
+  const planCount = parsedPlanCount !== null && Number.isNaN(parsedPlanCount) ? null : parsedPlanCount;
+
+  if (!phaseNumber) {
+    return { data: { error: '--phase is required' } };
+  }
+
+  const phaseLabel = String(phaseNumber).trim();
 
   const statePath = planningPaths(projectDir).state;
   if (!existsSync(statePath)) {
@@ -1325,7 +1334,11 @@ function prunePass(content: string, cutoff: number): { newContent: string; archi
  */
 export const statePrune: QueryHandler = async (args, projectDir) => {
   const parsed = parseNamedArgs(args, ['keep-recent'], ['dry-run', 'silent']);
-  const keepRecent = parseInt(String(parsed['keep-recent'] ?? '3'), 10) || 3;
+  const parsedKeepRecent = Number.parseInt(String(parsed['keep-recent'] ?? '3'), 10);
+  if (!Number.isInteger(parsedKeepRecent) || parsedKeepRecent < 0) {
+    return { data: { error: 'keep-recent must be a non-negative integer' } };
+  }
+  const keepRecent = parsedKeepRecent || 3;
   const dryRun = parsed['dry-run'] === true;
 
   const paths = planningPaths(projectDir);
