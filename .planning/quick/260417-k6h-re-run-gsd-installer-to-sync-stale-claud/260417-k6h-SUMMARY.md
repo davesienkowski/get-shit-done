@@ -36,7 +36,7 @@ Source: `pre-install-baseline.txt` and `install-run.log` (post-install section).
 
 ## Git commit
 
-Project has `commit_docs: false` in `.planning/config.json`. No git commit was created for `.planning/quick/…` artifacts by the orchestrator. **Commit SHA:** _n/a (local-only planning + commit_docs disabled)._
+`commit_docs` remains false for normal `gsd-sdk query commit`; artifacts were committed manually with `git add -f` (`.planning/` is gitignored). **Commit:** `4261df4` — `docs(quick-260417-k6h): record Claude harness re-sync quick task`
 
 ## Human gate (Task 3)
 

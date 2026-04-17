@@ -123,10 +123,10 @@ None — all phases complete.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260416-nw9 | SDK Phase 3: complete Tier 2 and Tier 3 decision-routing handlers | 2026-04-16 | e917eba | [260416-nw9-sdk-phase-3-complete-tier-2-and-tier-3-d](.planning/quick/260416-nw9-sdk-phase-3-complete-tier-2-and-tier-3-d/) |
-| 260417-k6h | Re-run GSD installer: sync `.claude/` harness with migrated `gsd-sdk query` sources | 2026-04-17 | — (local; commit_docs false) | [260417-k6h-re-run-gsd-installer-to-sync-stale-claud](.planning/quick/260417-k6h-re-run-gsd-installer-to-sync-stale-claud/) |
+| 260417-k6h | Re-run GSD installer: sync `.claude/` harness with migrated `gsd-sdk query` sources | 2026-04-17 | 4261df4 | [260417-k6h-re-run-gsd-installer-to-sync-stale-claud](.planning/quick/260417-k6h-re-run-gsd-installer-to-sync-stale-claud/) |
 
 ## Session Continuity
 
 Last session: 2026-04-17 — quick task 260417-k6h
-Stopped at: Completed quick task 260417-k6h — local `node bin/install.js --local --claude`; logs in `.planning/quick/260417-k6h-re-run-gsd-installer-to-sync-stale-claud/`. `.claude/` remains gitignored; planning artifacts not committed while `commit_docs` is false.
+Stopped at: Completed quick task 260417-k6h — planning artifacts committed as `4261df4` (`git add -f` under `.planning/`). Local `.claude/` harness refreshed; still gitignored at repo root.
 Resume file: None
