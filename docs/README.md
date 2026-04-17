@@ -6,6 +6,7 @@ Language versions: [English](README.md) · [Português (pt-BR)](pt-BR/README.md)
 
 ## Documentation Index
 
+<<<<<<< HEAD
 | Document | Audience | Description |
 |----------|----------|-------------|
 | [Architecture](ARCHITECTURE.md) | Contributors, advanced users | System architecture, agent model, data flow, and internal design |
@@ -17,6 +18,21 @@ Language versions: [English](README.md) · [Português (pt-BR)](pt-BR/README.md)
 | [User Guide](USER-GUIDE.md) | All users | Workflow walkthroughs, troubleshooting, and recovery |
 | [Context Monitor](context-monitor.md) | All users | Context window monitoring hook architecture |
 | [Discuss Mode](workflow-discuss-mode.md) | All users | Assumptions vs interview mode for discuss-phase |
+=======
+
+| Document                                    | Audience                     | Description                                                         |
+| ------------------------------------------- | ---------------------------- | ------------------------------------------------------------------- |
+| [Architecture](ARCHITECTURE.md)             | Contributors, advanced users | System architecture, agent model, data flow, and internal design    |
+| [Feature Reference](FEATURES.md)            | All users                    | Complete feature and function documentation with requirements       |
+| [Command Reference](COMMANDS.md)            | All users                    | Every command with syntax, flags, options, and examples             |
+| [Configuration Reference](CONFIGURATION.md) | All users                    | Full config schema, workflow toggles, model profiles, git branching |
+| [CLI Tools Reference](CLI-TOOLS.md)         | Contributors, agent authors  | CJS `gsd-tools.cjs` surface + `gsd-sdk query` / **SDK** guidance    |
+| [Agent Reference](AGENTS.md)                | Contributors, advanced users | All 18 specialized agents — roles, tools, spawn patterns            |
+| [User Guide](USER-GUIDE.md)                 | All users                    | Workflow walkthroughs, troubleshooting, and recovery                |
+| [Context Monitor](context-monitor.md)       | All users                    | Context window monitoring hook architecture                         |
+| [Discuss Mode](workflow-discuss-mode.md)    | All users                    | Assumptions vs interview mode for discuss-phase                     |
+
+>>>>>>> 9be966a (docs(sdk): registry docs and gsd-sdk query call sites (#2302 Track B))
 
 ## Quick Links
 
