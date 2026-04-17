@@ -1,0 +1,64 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-04-17T03:05:35.021Z",
+  "phase": "issue-2302",
+  "phase_name": "Track split for #2302 PRs",
+  "phase_dir": null,
+  "plan": 2,
+  "task": 2,
+  "total_tasks": 4,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "Fix stale hash splitter — write scripts/split-tracks.mjs (pattern-based)",
+      "status": "done",
+      "commit": "6dfefbd"
+    },
+    {
+      "id": 1,
+      "name": "Resolve cherry-pick conflict golden.integration.test.ts + complete cherry-pick",
+      "status": "done",
+      "commit": "24e8b71"
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 2,
+      "name": "Build clean Track B branch: git checkout feat/2302-track-b-registry-docs-v2 upstream/main + cherry-pick 22 B commits",
+      "status": "not_started"
+    },
+    {
+      "id": 3,
+      "name": "Build clean Track A branch: git checkout feat/2302-track-a-golden-v2 upstream/main + cherry-pick 47 A commits + npm test",
+      "status": "not_started"
+    },
+    {
+      "id": 4,
+      "name": "Submit 4 PRs in order: B → A → C → D (all under #2302)",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [],
+  "human_actions_pending": [],
+  "decisions": [
+    {
+      "decision": "Replace hash-based scripts with pattern-based split-tracks.mjs",
+      "rationale": "Original scripts referenced pre-rebase hashes (0/69 matched); subject patterns survive history rewrites",
+      "phase": "issue-2302"
+    },
+    {
+      "decision": "Cherry-pick onto upstream/main instead of rebase-drop",
+      "rationale": "Explicit, auditable, no risk of carrying wrong commits; previous rebase approach left track-b unfiltered",
+      "phase": "issue-2302"
+    },
+    {
+      "decision": "feat/2302-track-b-registry-docs is unfiltered (69 commits); use -v2 branch for PR",
+      "rationale": "Previous session's rebase did not correctly filter to 22 B commits",
+      "phase": "issue-2302"
+    }
+  ],
+  "uncommitted_files": [],
+  "next_action": "Run `node scripts/split-tracks.mjs` on feat/2302-track-a-golden to confirm 47/22 split, then build feat/2302-track-b-registry-docs-v2 via cherry-pick using hashes from .git-2302-track-b.txt",
+  "context_notes": "feat/2302-track-a-golden is the source-of-truth branch with 71 commits vs upstream/main (A+B mixed + 2 tooling commits). Track C (3 commits) and Track D (1 commit) are already on their own clean branches. Classification: type=sdk OR scope contains 'sdk' → Track A; QUERY-HANDLERS reference → Track A; else → Track B. Counts: 47 A + 22 B = 69."
+}
