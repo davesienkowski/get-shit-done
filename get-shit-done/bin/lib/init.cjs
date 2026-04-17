@@ -879,6 +879,7 @@ function cmdInitMilestoneOp(cwd, raw) {
 
 function cmdInitMapCodebase(cwd, raw) {
   const config = loadConfig(cwd);
+  const now = new Date();
 
   // Check for existing codebase maps
   const codebaseDir = path.join(planningRoot(cwd), 'codebase');
@@ -896,6 +897,10 @@ function cmdInitMapCodebase(cwd, raw) {
     search_gitignored: config.search_gitignored,
     parallelization: config.parallelization,
     subagent_timeout: config.subagent_timeout,
+
+    // Timestamps
+    date: now.toISOString().split('T')[0],
+    timestamp: now.toISOString(),
 
     // Paths
     codebase_dir: '.planning/codebase',
@@ -1075,15 +1080,10 @@ function cmdInitManager(cwd, raw) {
       : '—';
   }
 
-  // Sliding window: discuss is sequential — only the first undiscussed phase is available
-  let foundNextToDiscuss = false;
   for (const phase of phases) {
-    if (!foundNextToDiscuss && (phase.disk_status === 'empty' || phase.disk_status === 'no_directory')) {
-      phase.is_next_to_discuss = true;
-      foundNextToDiscuss = true;
-    } else {
-      phase.is_next_to_discuss = false;
-    }
+    phase.is_next_to_discuss =
+      (phase.disk_status === 'empty' || phase.disk_status === 'no_directory') &&
+      phase.deps_satisfied;
   }
 
   // Check for WAITING.json signal
@@ -1211,6 +1211,10 @@ function cmdInitManager(cwd, raw) {
 }
 
 function cmdInitProgress(cwd, raw) {
+  try {
+    const { pruneOrphanedWorktrees } = require('./core.cjs');
+    pruneOrphanedWorktrees(cwd);
+  } catch (_) {}
   const config = loadConfig(cwd);
   const milestone = getMilestoneInfo(cwd);
 

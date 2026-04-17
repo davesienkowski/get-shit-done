@@ -3016,6 +3016,12 @@ function installCodexConfig(targetDir, agentsSrc) {
     // Replace full .claude/get-shit-done prefix so path resolves to codex GSD install
     content = content.replace(/~\/\.claude\/get-shit-done\//g, codexGsdPath);
     content = content.replace(/\$HOME\/\.claude\/get-shit-done\//g, codexGsdPath);
+    // Replace remaining .claude paths with .codex equivalents (#2320).
+    // Capture group handles both trailing-slash form (~/.claude/) and
+    // bare end-of-string form (~/.claude) in a single pass.
+    content = content.replace(/\$HOME\/\.claude(\/|$)/g, '$HOME/.codex$1');
+    content = content.replace(/~\/\.claude(\/|$)/g, '~/.codex$1');
+    content = content.replace(/\.\/\.claude(\/|$)/g, './.codex$1');
     const { frontmatter } = extractFrontmatterAndBody(content);
     const name = extractFrontmatterField(frontmatter, 'name') || file.replace('.md', '');
     const description = extractFrontmatterField(frontmatter, 'description') || '';
@@ -4755,7 +4761,7 @@ function uninstall(isGlobal, runtime = 'claude') {
   // 4. Remove GSD hooks
   const hooksDir = path.join(targetDir, 'hooks');
   if (fs.existsSync(hooksDir)) {
-    const gsdHooks = ['gsd-statusline.js', 'gsd-check-update.js', 'gsd-context-monitor.js', 'gsd-prompt-guard.js', 'gsd-read-guard.js', 'gsd-workflow-guard.js', 'gsd-session-state.sh', 'gsd-validate-commit.sh', 'gsd-phase-boundary.sh'];
+    const gsdHooks = ['gsd-statusline.js', 'gsd-check-update.js', 'gsd-context-monitor.js', 'gsd-prompt-guard.js', 'gsd-read-guard.js', 'gsd-read-injection-scanner.js', 'gsd-workflow-guard.js', 'gsd-session-state.sh', 'gsd-validate-commit.sh', 'gsd-phase-boundary.sh'];
     let hookCount = 0;
     for (const hook of gsdHooks) {
       const hookPath = path.join(hooksDir, hook);
@@ -4810,8 +4816,8 @@ function uninstall(isGlobal, runtime = 'claude') {
       cmd && (cmd.includes('gsd-check-update') || cmd.includes('gsd-statusline') ||
         cmd.includes('gsd-session-state') || cmd.includes('gsd-context-monitor') ||
         cmd.includes('gsd-phase-boundary') || cmd.includes('gsd-prompt-guard') ||
-        cmd.includes('gsd-read-guard') || cmd.includes('gsd-validate-commit') ||
-        cmd.includes('gsd-workflow-guard'));
+        cmd.includes('gsd-read-guard') || cmd.includes('gsd-read-injection-scanner') ||
+        cmd.includes('gsd-validate-commit') || cmd.includes('gsd-workflow-guard'));
 
     for (const eventName of ['SessionStart', 'PostToolUse', 'AfterTool', 'PreToolUse', 'BeforeTool']) {
       if (settings.hooks && settings.hooks[eventName]) {
@@ -6067,6 +6073,9 @@ function install(isGlobal, runtime = 'claude') {
   const readGuardCommand = isGlobal
     ? buildHookCommand(targetDir, 'gsd-read-guard.js', hookOpts)
     : 'node ' + localPrefix + '/hooks/gsd-read-guard.js';
+  const readInjectionScannerCommand = isGlobal
+    ? buildHookCommand(targetDir, 'gsd-read-injection-scanner.js', hookOpts)
+    : 'node ' + localPrefix + '/hooks/gsd-read-injection-scanner.js';
 
   // Enable experimental agents for Gemini CLI (required for custom sub-agents)
   if (isGemini) {
@@ -6207,6 +6216,30 @@ function install(isGlobal, runtime = 'claude') {
       console.log(`  ${green}✓${reset} Configured read-before-edit guard hook`);
     } else if (!hasReadGuardHook && !fs.existsSync(readGuardFile)) {
       console.warn(`  ${yellow}⚠${reset}  Skipped read guard hook — gsd-read-guard.js not found at target`);
+    }
+
+    // Configure PostToolUse hook for read-time prompt injection scanning (#2201)
+    // Scans content returned by the Read tool for injection patterns, including
+    // summarisation-specific patterns that survive context compression.
+    const hasReadInjectionScannerHook = settings.hooks[postToolEvent].some(entry =>
+      entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-read-injection-scanner'))
+    );
+
+    const readInjectionScannerFile = path.join(targetDir, 'hooks', 'gsd-read-injection-scanner.js');
+    if (!hasReadInjectionScannerHook && fs.existsSync(readInjectionScannerFile)) {
+      settings.hooks[postToolEvent].push({
+        matcher: 'Read',
+        hooks: [
+          {
+            type: 'command',
+            command: readInjectionScannerCommand,
+            timeout: 5
+          }
+        ]
+      });
+      console.log(`  ${green}✓${reset} Configured read injection scanner hook`);
+    } else if (!hasReadInjectionScannerHook && !fs.existsSync(readInjectionScannerFile)) {
+      console.warn(`  ${yellow}⚠${reset}  Skipped read injection scanner hook — gsd-read-injection-scanner.js not found at target`);
     }
 
     // Community hooks — registered on install but opt-in at runtime.
