@@ -949,7 +949,6 @@ export const initRemoveWorkspace: QueryHandler = async (args, _projectDir) => {
 
   return { data: result };
 };
-
 // ─── initIngestDocs ───────────────────────────────────────────────────────
 
 /**
@@ -968,17 +967,4 @@ export const initIngestDocs: QueryHandler = async (_args, projectDir) => {
     commit_docs: config.commit_docs,
   };
   return { data: withProjectRoot(projectDir, result, config as Record<string, unknown>) };
-};
-
-// ─── docsInit ────────────────────────────────────────────────────────────
-
-export const docsInit: QueryHandler = async (_args, projectDir) => {
-  return {
-    data: {
-      project_exists: existsSync(join(projectDir, '.planning', 'PROJECT.md')),
-      roadmap_exists: existsSync(join(projectDir, '.planning', 'ROADMAP.md')),
-      docs_dir: '.planning/docs',
-      project_root: projectDir,
-    },
-  };
 };
