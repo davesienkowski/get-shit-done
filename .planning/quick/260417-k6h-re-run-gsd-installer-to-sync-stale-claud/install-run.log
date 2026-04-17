@@ -1,0 +1,102 @@
+
+[36m   ΓûêΓûêΓûêΓûêΓûêΓûêΓòù ΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓòùΓûêΓûêΓûêΓûêΓûêΓûêΓòù
+  ΓûêΓûêΓòöΓòÉΓòÉΓòÉΓòÉΓò¥ ΓûêΓûêΓòöΓòÉΓòÉΓòÉΓòÉΓò¥ΓûêΓûêΓòöΓòÉΓòÉΓûêΓûêΓòù
+  ΓûêΓûêΓòæ  ΓûêΓûêΓûêΓòùΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓòùΓûêΓûêΓòæ  ΓûêΓûêΓòæ
+  ΓûêΓûêΓòæ   ΓûêΓûêΓòæΓòÜΓòÉΓòÉΓòÉΓòÉΓûêΓûêΓòæΓûêΓûêΓòæ  ΓûêΓûêΓòæ
+  ΓòÜΓûêΓûêΓûêΓûêΓûêΓûêΓòöΓò¥ΓûêΓûêΓûêΓûêΓûêΓûêΓûêΓòæΓûêΓûêΓûêΓûêΓûêΓûêΓòöΓò¥
+   ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥ ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥[0m
+
+  Get Shit Done [2mv1.36.0[0m
+  A meta-prompting, context engineering and spec-driven
+  development system for Claude Code, OpenCode, Gemini, Kilo, Codex, Copilot, Antigravity, Cursor, Windsurf, Augment, Trae, Qwen Code, Cline and CodeBuddy by T├éCHES.
+
+  Installing for [36mClaude Code[0m to [36m.\.claude[0m
+
+  [32mΓ£ô[0m Installed 75 commands to commands/gsd/
+  [32mΓ£ô[0m Installed get-shit-done
+  [32mΓ£ô[0m Installed agents
+  [32mΓ£ô[0m Installed CHANGELOG.md
+  [32mΓ£ô[0m Wrote VERSION (1.36.0)
+  [32mΓ£ô[0m Wrote package.json (CommonJS mode)
+  [32mΓ£ô[0m Installed hooks (bundled)
+  [32mΓ£ô[0m Wrote file manifest (gsd-file-manifest.json)
+  ΓÜá  Skipped read injection scanner hook ΓÇö gsd-read-injection-scanner.js not found at target
+  [33mΓÜá[0m Skipping statusline (already configured)
+    Use [36m--force-statusline[0m to replace
+
+
+  [32mDone![0m Open a blank directory in Claude Code and run [36m/gsd-new-project[0m.
+
+  [36mJoin the community:[0m https://discord.gg/mYgfVNfA2r
+
+
+=== POST-INSTALL VERIFICATION ===
+Generated: 2026-04-17T14:37:48.8726218-04:00
+
+=== grep-style counts (PowerShell Select-String, line matches) ===
+
+1) gsd-tools.cjs in .claude/get-shit-done/workflows/:
+10
+
+2) gsd-tools.cjs in .claude/agents/:
+6
+
+3) gsd-sdk query in .claude/get-shit-done/workflows/:
+339
+
+4) gsd-sdk query in .claude/agents/ (gsd-*.md):
+60
+
+5) diff get-shit-done/workflows/plan-phase.md vs .claude/.../plan-phase.md:
+Comparing files GET-SHIT-DONE\WORKFLOWS\plan-phase.md and .CLAUDE\GET-SHIT-DONE\WORKFLOWS\PLAN-PHASE.MD
+***** GET-SHIT-DONE\WORKFLOWS\plan-phase.md
+    9:  
+   10:  @~/.claude/get-shit-done/references/ui-brand.md
+   11:  @~/.claude/get-shit-done/references/revision-loop.md
+   12:  @~/.claude/get-shit-done/references/gate-prompts.md
+   13:  @~/.claude/get-shit-done/references/agent-contracts.md
+   14:  @~/.claude/get-shit-done/references/gates.md
+   15:  </required_reading>
+***** .CLAUDE\GET-SHIT-DONE\WORKFLOWS\PLAN-PHASE.MD
+    9:  
+   10:  @D:/Repos/get-shit-done/.claude/get-shit-done/references/ui-brand.md
+   11:  @D:/Repos/get-shit-done/.claude/get-shit-done/references/revision-loop.md
+   12:  @D:/Repos/get-shit-done/.claude/get-shit-done/references/gate-prompts.md
+   13:  @D:/Repos/get-shit-done/.claude/get-shit-done/references/agent-contracts.md
+   14:  @D:/Repos/get-shit-done/.claude/get-shit-done/references/gates.md
+   15:  </required_reading>
+*****
+
+***** GET-SHIT-DONE\WORKFLOWS\plan-phase.md
+   41:  When `TDD_MODE` is `true`, the planner agent is instructed to apply `type: tdd` to eligible tasks using heuristics from `refere
+   42:  nces/tdd.md`. The planner's `<required_reading>` is extended to include `@~/.claude/get-shit-done/references/tdd.md` so gate en
+   43:  forcement rules are available during planning.
+   44:  
+***** .CLAUDE\GET-SHIT-DONE\WORKFLOWS\PLAN-PHASE.MD
+   41:  When `TDD_MODE` is `true`, the planner agent is instructed to apply `type: tdd` to eligible tasks using heuristics from `refere
+   42:  nces/tdd.md`. The planner's `<required_reading>` is extended to include `@D:/Repos/get-shit-done/.claude/get-shit-done/referenc
+   43:  es/tdd.md` so gate enforcement rules are available during planning.
+   44:  
+*****
+
+***** GET-SHIT-DONE\WORKFLOWS\plan-phase.md
+  437:  **If found:**
+  438:  1. Read template: `~/.claude/get-shit-done/templates/VALIDATION.md`
+  439:  2. Write to `${PHASE_DIR}/${PADDED_PHASE}-VALIDATION.md` (use Write tool)
+***** .CLAUDE\GET-SHIT-DONE\WORKFLOWS\PLAN-PHASE.MD
+  437:  **If found:**
+  438:  1. Read template: `D:/Repos/get-shit-done/.claude/get-shit-done/templates/VALIDATION.md`
+  439:  2. Write to `${PHASE_DIR}/${PADDED_PHASE}-VALIDATION.md` (use Write tool)
+*****
+
+***** GET-SHIT-DONE\WORKFLOWS\plan-phase.md
+  776:  <tdd_mode_active>
+  777:  **TDD Mode is ENABLED.** Apply TDD heuristics from @~/.claude/get-shit-done/references/tdd.md to all eligible tasks:
+  778:  - Business logic with defined I/O Gσ╞ type: tdd
+***** .CLAUDE\GET-SHIT-DONE\WORKFLOWS\PLAN-PHASE.MD
+  776:  <tdd_mode_active>
+  777:  **TDD Mode is ENABLED.** Apply TDD heuristics from @D:/Repos/get-shit-done/.claude/get-shit-done/references/tdd.md to all eligi
+  778:  ble tasks:
+  779:  - Business logic with defined I/O Gσ╞ type: tdd
+*****
+

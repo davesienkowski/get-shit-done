@@ -73,8 +73,10 @@ import {
 import {
   learningsCopy, learningsQuery, learningsListHandler, learningsPrune, learningsDelete,
   extractMessages, scanSessions, profileSample, profileQuestionnaire,
-  writeProfile, generateClaudeProfile, generateDevPreferences, generateClaudeMd,
 } from './profile.js';
+import {
+  writeProfile, generateClaudeProfile, generateDevPreferences, generateClaudeMd,
+} from './profile-output.js';
 import { skillManifest } from './skill-manifest.js';
 import { auditOpen } from './audit-open.js';
 import { detectCustomFiles } from './detect-custom-files.js';
