@@ -4,7 +4,7 @@ All notable changes to GSD will be documented in this file.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased](https://github.com/gsd-build/get-shit-done/compare/v1.36.0...HEAD)
+## [Unreleased](https://github.com/gsd-build/get-shit-done/compare/v1.37.1...HEAD)
 
 ### SDK query layer — Phase 3 (what you get)
 
