@@ -28,8 +28,8 @@ const HOOK_PATH = path.join(__dirname, '..', 'hooks', 'gsd-read-guard.js');
  */
 function runHook(payload, envOverrides = {}) {
   const input = JSON.stringify(payload);
-  // Sanitize CLAUDE_SESSION_ID so positive-path tests work inside Claude Code sessions
-  const env = { ...process.env, CLAUDE_SESSION_ID: '', ...envOverrides };
+  // Sanitize Claude Code env vars so positive-path tests work inside Claude Code sessions
+  const env = { ...process.env, CLAUDE_SESSION_ID: '', CLAUDECODE: '', ...envOverrides };
   try {
     const stdout = execFileSync(process.execPath, [HOOK_PATH], {
       input,
