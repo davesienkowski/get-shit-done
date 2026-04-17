@@ -112,10 +112,13 @@ export const verifyKeyLinks: QueryHandler = async (args, projectDir) => {
     };
 
     let sourceContent: string | null = null;
-    try {
-      sourceContent = await readFile(join(projectDir, check.from), 'utf-8');
-    } catch {
-      // Source file not found
+    if (check.from) {
+      try {
+        const sourcePath = await resolvePathUnderProject(projectDir, check.from);
+        sourceContent = await readFile(sourcePath, 'utf-8');
+      } catch {
+        // Source file not found or path escapes project
+      }
     }
 
     if (!sourceContent) {
@@ -128,10 +131,13 @@ export const verifyKeyLinks: QueryHandler = async (args, projectDir) => {
           check.detail = 'Pattern found in source';
         } else {
           let targetContent: string | null = null;
-          try {
-            targetContent = await readFile(join(projectDir, check.to), 'utf-8');
-          } catch {
-            // Target file not found
+          if (check.to) {
+            try {
+              const targetPath = await resolvePathUnderProject(projectDir, check.to);
+              targetContent = await readFile(targetPath, 'utf-8');
+            } catch {
+              // Target file not found or path escapes project
+            }
           }
           if (targetContent && regex.test(targetContent)) {
             check.verified = true;

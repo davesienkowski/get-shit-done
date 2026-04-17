@@ -22,7 +22,7 @@ import { open, unlink, stat, readFile, writeFile, readdir } from 'node:fs/promis
 import {
   constants, unlinkSync, existsSync, mkdirSync, writeFileSync, readdirSync, readFileSync,
 } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import { GSDError, ErrorClassification } from '../errors.js';
 import { extractFrontmatter, stripFrontmatter } from './frontmatter.js';
 import { reconstructFrontmatter, spliceFrontmatter } from './frontmatter-mutation.js';
@@ -122,9 +122,10 @@ function readTextArgOrFile(
   if (!filePath) {
     return (value ?? '').trim();
   }
-  const resolved = resolve(projectDir, filePath);
   const root = resolve(projectDir);
-  if (!resolved.startsWith(root) && resolved !== root) {
+  const resolved = isAbsolute(filePath) ? resolve(filePath) : resolve(root, filePath);
+  const rel = relative(root, resolved);
+  if (rel.startsWith('..') || isAbsolute(rel)) {
     throw new Error(`${label} path rejected: outside project directory`);
   }
   try {
@@ -1145,14 +1146,9 @@ export const stateSync: QueryHandler = async (args, projectDir) => {
     totalDiskSummaries += summaries;
 
     const phaseMatch = dir.match(/^(\d+[A-Z]?(?:\.\d+)*)/i);
-    if (phaseMatch && plans > 0) {
-      if (summaries < plans) {
-        highestIncompletePhase = dir;
-        highestIncompletePhaseplanCount = plans;
-      } else if (!highestIncompletePhase) {
-        highestIncompletePhase = dir;
-        highestIncompletePhaseplanCount = plans;
-      }
+    if (phaseMatch && plans > 0 && summaries < plans) {
+      highestIncompletePhase = dir;
+      highestIncompletePhaseplanCount = plans;
     }
   }
 
@@ -1205,6 +1201,18 @@ export const stateSync: QueryHandler = async (args, projectDir) => {
 };
 
 // ─── statePrune ────────────────────────────────────────────────────────────
+
+/**
+ * Parse phase number from a Performance Metrics table data row.
+ * Supports `stateRecordMetric` rows (`| Phase 3 P1 | ...`) and legacy `| 3 | ...` rows.
+ */
+function extractPerformanceMetricsRowPhase(line: string): number | null {
+  const phaseNamed = line.match(/^\|\s*Phase\s+(\d+)/i);
+  if (phaseNamed) return parseInt(phaseNamed[1], 10);
+  const legacy = line.match(/^\|\s*(\d+)\s*\|/);
+  if (legacy) return parseInt(legacy[1], 10);
+  return null;
+}
 
 interface PruneSection {
   section: string;
@@ -1288,9 +1296,8 @@ function prunePass(content: string, cutoff: number): { newContent: string; archi
     const keep: string[] = [];
     const archive: string[] = [];
     for (const line of sectionLines) {
-      const tableRowMatch = line.match(/^\|\s*(\d+)\s*\|/);
-      if (tableRowMatch) {
-        const rowPhase = parseInt(tableRowMatch[1], 10);
+      const rowPhase = extractPerformanceMetricsRowPhase(line);
+      if (rowPhase !== null) {
         if (rowPhase <= cutoff) {
           archive.push(line);
         } else {

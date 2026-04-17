@@ -18,7 +18,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { extractFrontmatterLeading } from './frontmatter.js';
-import { comparePhaseNum, planningPaths } from './helpers.js';
+import { comparePhaseNum, planningPaths, resolvePathUnderProject } from './helpers.js';
 import type { QueryHandler } from './utils.js';
 
 // ─── extractOneLinerFromBody ────────────────────────────────────────────────
@@ -71,8 +71,7 @@ function getArchivedPhaseDirs(cwd: string): Array<{ name: string; fullPath: stri
     const phaseDirs = milestoneEntries
       .filter(e => e.isDirectory() && /^v[\d.]+-phases$/.test(e.name))
       .map(e => e.name)
-      .sort()
-      .reverse();
+      .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
 
     for (const archiveName of phaseDirs) {
       const versionMatch = archiveName.match(/^(v[\d.]+)-phases$/);
@@ -104,10 +103,19 @@ export const summaryExtract: QueryHandler = async (args, projectDir) => {
     return { data: { error: 'summary-path required for summary-extract' } };
   }
 
+  if (summaryPath.includes('\0')) {
+    return { data: { error: 'Invalid path', path: summaryPath } };
+  }
+
   const fields =
     fieldsIdx !== -1 && args[fieldsIdx + 1] ? args[fieldsIdx + 1].split(',').map(f => f.trim()) : null;
 
-  const fullPath = join(projectDir, summaryPath);
+  let fullPath: string;
+  try {
+    fullPath = await resolvePathUnderProject(projectDir, summaryPath);
+  } catch {
+    return { data: { error: 'File not found', path: summaryPath } };
+  }
 
   if (!existsSync(fullPath)) {
     return { data: { error: 'File not found', path: summaryPath } };
