@@ -1,0 +1,66 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-04-17T18:17:14.495Z",
+  "phase": "14",
+  "phase_name": "composition-and-retirement",
+  "phase_dir": "14-composition-and-retirement",
+  "plan": 4,
+  "task": 4,
+  "total_tasks": 4,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "Merge Phase 3 tracks A/B/C/D into local main",
+      "status": "done",
+      "commit": "79750df"
+    },
+    {
+      "id": 2,
+      "name": "CodeRabbit follow-ups (check-completion, statePlannedPhase, statePrune, verify.commits test)",
+      "status": "done",
+      "commit": "f103cf4"
+    },
+    {
+      "id": 3,
+      "name": "Verify gsd-sdk query state load parity with gsd-tools.cjs",
+      "status": "done",
+      "commit": "f103cf4"
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 1,
+      "name": "Refresh upstream PR branches #2340–#2343 with latest main (or merge) so CodeRabbit/CI see handoff commits",
+      "status": "not_started"
+    },
+    {
+      "id": 2,
+      "name": "Ensure sdk/src/golden/capture.ts exists locally if running read-only-parity integration tests",
+      "status": "not_started"
+    },
+    {
+      "id": 3,
+      "name": "Reconcile local main with upstream (ahead/behind) before opening or updating upstream PRs",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [],
+  "human_actions_pending": [
+    {
+      "action": "Review and merge PRs on gsd-build/get-shit-done (#2340–#2343) or sync fork branches",
+      "context": "Open PRs; local main has merged track work + CodeRabbit fixes",
+      "blocking": false
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "Handoff stored at default `.planning/` root (no active phase PLAN.md in workspace index)",
+      "rationale": "Milestone v3.0 marked complete in STATE.md; Phase 14 work finished",
+      "phase": "14"
+    }
+  ],
+  "uncommitted_files": [],
+  "next_action": "Run /gsd-resume-work after pulling; or merge origin/main into each PR branch and push",
+  "context_notes": "Session closed on Phase 3 SDK query parity, four-track merge, CodeRabbit remediation, and parity verification for state load."
+}
