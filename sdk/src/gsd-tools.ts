@@ -70,7 +70,7 @@ function formatRegistryRawStdout(matchedCmd: string, data: unknown): string {
       if (r.includes('nothing') || r.includes('nothing_to_commit')) {
         return 'nothing';
       }
-      return 'nothing';
+      return r || 'nothing';
     }
     return JSON.stringify(data, null, 2);
   }
@@ -168,6 +168,10 @@ export class GSDTools {
    * Direct registry dispatch for a known handler key — skips `resolveQueryArgv` on the hot path
    * used by PhaseRunner / InitRunner (`initPhaseOp`, `phasePlanIndex`, etc.).
    * When native query is off (e.g. workstream or tests with `preferNativeQuery: false`), delegates to `exec`.
+   *
+   * When native query is on, `registry.dispatch` failures are wrapped as {@link GSDToolsError} and
+   * **not** retried via the legacy `gsd-tools.cjs` subprocess — callers see the handler error
+   * explicitly. Only commands with no registry match fall through to subprocess routing in {@link exec}.
    */
   private async dispatchNativeJson(
     legacyCommand: string,
@@ -187,7 +191,8 @@ export class GSDTools {
   }
 
   /**
-   * Same as {@link dispatchNativeJson} for handlers whose CLI contract is raw stdout (`execRaw`).
+   * Same as {@link dispatchNativeJson} for handlers whose CLI contract is raw stdout (`execRaw`),
+   * including the same “no silent fallback to CJS on handler failure” behaviour.
    */
   private async dispatchNativeRaw(
     legacyCommand: string,
@@ -211,6 +216,9 @@ export class GSDTools {
   /**
    * Execute a gsd-tools command and return parsed JSON output.
    * Handles the `@file:` prefix pattern for large results.
+   *
+   * With native query enabled, a matching registry handler runs in-process;
+   * if that handler throws, the error is surfaced (no automatic fallback to `gsd-tools.cjs`).
    */
   async exec(command: string, args: string[] = []): Promise<unknown> {
     if (this.shouldUseNativeQuery()) {
