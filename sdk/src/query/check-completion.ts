@@ -6,6 +6,7 @@
  * See `.planning/research/decision-routing-audit.md` §3.7.
  */
 
+import { existsSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { GSDError, ErrorClassification } from '../errors.js';
@@ -82,16 +83,18 @@ async function checkPhaseCompletion(phaseArg: string, projectDir: string): Promi
 
   if (found && pdata.directory) {
     const phaseDirFull = join(projectDir, pdata.directory as string);
-    try {
-      const files = (await readdir(phaseDirFull)).sort((a, b) => a.localeCompare(b));
-      const verFile = files.includes('VERIFICATION.md')
-        ? 'VERIFICATION.md'
-        : files.find(f => f.endsWith('-VERIFICATION.md'));
-      const uatFile = files.includes('UAT.md') ? 'UAT.md' : files.find(f => f.endsWith('-UAT.md'));
-      if (verFile) verificationContent = await readFileSafe(join(phaseDirFull, verFile));
-      if (uatFile) uatContent = await readFileSafe(join(phaseDirFull, uatFile));
-    } catch {
-      // Phase dir missing/unreadable — treat as no files
+    if (existsSync(phaseDirFull)) {
+      try {
+        const files = (await readdir(phaseDirFull)).sort((a, b) => a.localeCompare(b));
+        const verFile = files.includes('VERIFICATION.md')
+          ? 'VERIFICATION.md'
+          : files.find(f => f.endsWith('-VERIFICATION.md'));
+        const uatFile = files.includes('UAT.md') ? 'UAT.md' : files.find(f => f.endsWith('-UAT.md'));
+        if (verFile) verificationContent = await readFileSafe(join(phaseDirFull, verFile));
+        if (uatFile) uatContent = await readFileSafe(join(phaseDirFull, uatFile));
+      } catch {
+        // Phase dir unreadable — treat as no files
+      }
     }
   }
 

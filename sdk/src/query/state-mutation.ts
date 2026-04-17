@@ -402,18 +402,18 @@ export const stateBeginPhase: QueryHandler = async (args, projectDir) => {
   let phaseName = (named.name as string | null) || '';
   let plansStr = named.plans as string | null;
 
-  if (!phaseNumber && args[0] && !String(args[0]).startsWith('--')) {
-    phaseNumber = args[0];
-  }
-  if (!phaseName && args[1] && !String(args[1]).startsWith('--')) {
-    phaseName = args[1];
-  }
-  if (plansStr === null && args[2] && !String(args[2]).startsWith('--')) {
-    plansStr = args[2];
+  const positionalMode = args.length > 0 && !String(args[0]).startsWith('--');
+  if (positionalMode) {
+    if (!phaseNumber) phaseNumber = args[0] ?? '';
+    if (!phaseName) phaseName = (args[1] as string) ?? '';
+    if (plansStr === null && args[2] !== undefined && !String(args[2]).startsWith('--')) {
+      plansStr = args[2];
+    }
   }
 
-  const planNum =
-    plansStr !== null && plansStr !== '' ? parseInt(plansStr, 10) : null;
+  const plansParsed =
+    plansStr !== null && plansStr !== '' ? parseInt(String(plansStr), 10) : NaN;
+  const planNum = Number.isFinite(plansParsed) && !Number.isNaN(plansParsed) ? plansParsed : null;
 
   if (!phaseNumber) {
     throw new GSDError('phase number required', ErrorClassification.Validation);
@@ -833,12 +833,14 @@ export const stateResolveBlocker: QueryHandler = async (args, projectDir) => {
   }
 
   let removedMatchingLine = false;
+  let blockersSectionFound = false;
 
   await readModifyWriteStateMd(projectDir, (content) => {
     const sectionPattern = /(###?\s*(?:Blockers|Blockers\/Concerns|Concerns)\s*\n)([\s\S]*?)(?=\n###?|\n##[^#]|$)/i;
     const match = content.match(sectionPattern);
 
     if (match) {
+      blockersSectionFound = true;
       const sectionBody = match[2];
       const lines = sectionBody.split('\n');
       const filtered = lines.filter(line => {
@@ -865,7 +867,10 @@ export const stateResolveBlocker: QueryHandler = async (args, projectDir) => {
   if (removedMatchingLine) {
     return { data: { resolved: true, blocker: searchText } };
   }
-  return { data: { resolved: false, reason: 'Blockers section not found in STATE.md' } };
+  return { data: { resolved: false, reason: blockersSectionFound
+    ? 'Blocker text not found in STATE.md'
+    : 'Blockers section not found in STATE.md'
+  } };
 };
 
 /**
@@ -912,13 +917,14 @@ export const statePlannedPhase: QueryHandler = async (args, projectDir) => {
   const parsed = parseNamedArgs(args, ['phase', 'name', 'plans']);
   const phaseNumber = parsed.phase as string | null;
   const plansRaw = parsed.plans as string | null;
-  const parsedPlanCount = plansRaw !== null && plansRaw !== '' ? parseInt(plansRaw, 10) : NaN;
-  const planCount =
-    Number.isFinite(parsedPlanCount) && !Number.isNaN(parsedPlanCount) ? parsedPlanCount : null;
+  const parsedPlanCount = plansRaw !== null && plansRaw !== '' ? parseInt(String(plansRaw), 10) : null;
+  const planCount = parsedPlanCount !== null && Number.isNaN(parsedPlanCount) ? null : parsedPlanCount;
 
   if (!phaseNumber || String(phaseNumber).trim() === '') {
     return { data: { error: 'phase required (--phase <n>)' } };
   }
+
+  const phaseLabel = String(phaseNumber).trim();
 
   const statePath = planningPaths(projectDir).state;
   if (!existsSync(statePath)) {
@@ -943,13 +949,13 @@ export const statePlannedPhase: QueryHandler = async (args, projectDir) => {
     result = stateReplaceField(
       content,
       'Last Activity Description',
-      `Phase ${phaseNumber} planning complete — ${planCount ?? '?'} plans ready`,
+      `Phase ${phaseLabel} planning complete — ${planCount ?? '?'} plans ready`,
     );
     if (result) { content = result; updated.push('Last Activity Description'); }
 
     content = updateCurrentPositionFields(content, {
       status: 'Ready to execute',
-      lastActivity: `${today} -- Phase ${phaseNumber} planning complete`,
+      lastActivity: `${today} -- Phase ${phaseLabel} planning complete`,
     });
     return content;
   });
