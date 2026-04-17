@@ -60,12 +60,17 @@ async function checkPhaseCompletion(phaseArg: string, projectDir: string): Promi
   const plans = (pdata.plans as string[] | undefined) ?? [];
   const summaries = (pdata.summaries as string[] | undefined) ?? [];
   const plans_total = plans.length;
-  const plans_with_summaries = summaries.length;
 
   // Derive which plans are missing a summary
   const summaryIds = new Set(
-    summaries.map(s => s.replace('-SUMMARY.md', '').replace('SUMMARY.md', '')),
+    summaries
+      .map(s => s.replace('-SUMMARY.md', '').replace('SUMMARY.md', ''))
+      .filter(Boolean),
   );
+  const plans_with_summaries = plans.filter(p => {
+    const planId = p.replace('-PLAN.md', '').replace('PLAN.md', '');
+    return summaryIds.has(planId);
+  }).length;
   const missing_summaries = plans
     .filter(p => {
       const planId = p.replace('-PLAN.md', '').replace('PLAN.md', '');
@@ -100,7 +105,7 @@ async function checkPhaseCompletion(phaseArg: string, projectDir: string): Promi
 
   const complete =
     plans_total > 0 &&
-    plans_with_summaries === plans_total &&
+    missing_summaries.length === 0 &&
     verification_status !== 'fail';
 
   return {

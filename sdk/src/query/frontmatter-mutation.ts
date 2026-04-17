@@ -170,7 +170,11 @@ export const frontmatterSet: QueryHandler = async (args, projectDir) => {
 
   const fi = args.indexOf('--field');
   const vi = args.indexOf('--value');
-  if (fi !== -1 && vi !== -1) {
+  const hasNamedArgs = fi !== -1 || vi !== -1;
+  if (hasNamedArgs) {
+    if (fi === -1 || vi === -1 || !args[fi + 1] || args[vi + 1] === undefined) {
+      throw new GSDError('file, --field, and --value required together', ErrorClassification.Validation);
+    }
     filePath = args[0];
     field = args[fi + 1];
     value = args[vi + 1];

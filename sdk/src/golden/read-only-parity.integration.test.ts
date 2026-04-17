@@ -47,17 +47,26 @@ describe('audit-open golden parity (excluding scanned_at)', () => {
   });
 });
 
-describe('state.load golden parity (excluding last_updated)', () => {
+describe('state.json golden parity (excluding last_updated)', () => {
   it('SDK rebuilt frontmatter matches gsd-tools.cjs except volatile last_updated', async () => {
     const gsdOutput = await captureGsdToolsOutput('state', ['json'], REPO_ROOT);
     const registry = createRegistry();
-    const sdkResult = await registry.dispatch('state.load', [], REPO_ROOT);
+    const sdkResult = await registry.dispatch('state.json', [], REPO_ROOT);
     const strip = (d: unknown): Record<string, unknown> => {
       const o = { ...(d as Record<string, unknown>) };
       delete o.last_updated;
       return o;
     };
     expect(strip(sdkResult.data)).toEqual(strip(gsdOutput));
+  });
+});
+
+describe('state.load golden parity', () => {
+  it('SDK load payload matches gsd-tools.cjs state load', async () => {
+    const gsdOutput = await captureGsdToolsOutput('state', ['load'], REPO_ROOT);
+    const registry = createRegistry();
+    const sdkResult = await registry.dispatch('state.load', [], REPO_ROOT);
+    expect(sdkResult.data).toEqual(gsdOutput);
   });
 });
 

@@ -831,7 +831,7 @@ export const stateResolveBlocker: QueryHandler = async (args, projectDir) => {
     return { data: { error: 'text required' } };
   }
 
-  let resolved = false;
+  let removedMatchingLine = false;
 
   await readModifyWriteStateMd(projectDir, (content) => {
     const sectionPattern = /(###?\s*(?:Blockers|Blockers\/Concerns|Concerns)\s*\n)([\s\S]*?)(?=\n###?|\n##[^#]|$)/i;
@@ -842,8 +842,14 @@ export const stateResolveBlocker: QueryHandler = async (args, projectDir) => {
       const lines = sectionBody.split('\n');
       const filtered = lines.filter(line => {
         if (!line.startsWith('- ')) return true;
-        return !line.toLowerCase().includes(searchText.toLowerCase());
+        const matches = line.toLowerCase().includes(searchText.toLowerCase());
+        if (matches) removedMatchingLine = true;
+        return !matches;
       });
+
+      if (!removedMatchingLine) {
+        return content;
+      }
 
       let newBody = filtered.join('\n');
       if (!newBody.trim() || !newBody.includes('- ')) {
@@ -851,12 +857,11 @@ export const stateResolveBlocker: QueryHandler = async (args, projectDir) => {
       }
 
       content = content.replace(sectionPattern, (_match, header: string) => `${header}${newBody}`);
-      resolved = true;
     }
     return content;
   });
 
-  if (resolved) {
+  if (removedMatchingLine) {
     return { data: { resolved: true, blocker: searchText } };
   }
   return { data: { resolved: false, reason: 'Blockers section not found in STATE.md' } };

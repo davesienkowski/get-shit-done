@@ -291,8 +291,9 @@ export const configSetModelProfile: QueryHandler = async (args, projectDir) => {
       // Start with empty config
     }
 
-    const prev = config.model_profile;
-    previousProfile = (typeof prev === 'string' && prev ? prev : 'balanced') as string;
+    const prev =
+      typeof config.model_profile === 'string' ? config.model_profile.toLowerCase().trim() : '';
+    previousProfile = VALID_PROFILES.includes(prev) ? prev : 'balanced';
     config.model_profile = normalized;
     await atomicWriteConfig(paths.config, config);
   } finally {

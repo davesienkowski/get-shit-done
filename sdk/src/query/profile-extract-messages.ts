@@ -203,6 +203,7 @@ export async function runExtractMessages(
 
   const tmpDir = mkdtempSync(join(tmpdir(), 'gsd-pipeline-'));
   const outputPath = join(tmpDir, 'extracted-messages.jsonl');
+  appendFileSync(outputPath, '');
 
   let sessionsProcessed = 0;
   let sessionsSkipped = 0;

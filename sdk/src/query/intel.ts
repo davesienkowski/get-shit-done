@@ -372,7 +372,7 @@ export const intelPatchMeta: QueryHandler = async (args, projectDir) => {
  */
 export const intelUpdate: QueryHandler = async (_args, projectDir) => {
   if (!isIntelEnabled(projectDir)) {
-    return { data: { disabled: true, message: 'Intel system disabled. Set intel.enabled=true in config.json to activate.' } };
+    return { data: { disabled: true, message: INTEL_DISABLED_MSG } };
   }
   return {
     data: {

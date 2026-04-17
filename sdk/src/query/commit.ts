@@ -223,8 +223,10 @@ export const checkCommit: QueryHandler = async (_args, projectDir) => {
 // ─── commitToSubrepo ─────────────────────────────────────────────────────
 
 export const commitToSubrepo: QueryHandler = async (args, projectDir) => {
-  const message = args[0];
   const filesIdx = args.indexOf('--files');
+  const endIdx = filesIdx >= 0 ? filesIdx : args.length;
+  const messageArgs = args.slice(0, endIdx).filter(a => !a.startsWith('--'));
+  const message = messageArgs.join(' ') || undefined;
   const files = filesIdx >= 0 ? args.slice(filesIdx + 1).filter(a => !a.startsWith('--')) : [];
 
   if (!message) {

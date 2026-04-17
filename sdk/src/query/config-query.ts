@@ -57,9 +57,11 @@ export const VALID_PROFILES: string[] = Object.keys(MODEL_PROFILES['gsd-planner'
  * Flat map of agent name → model alias for one profile tier (matches `model-profiles.cjs`).
  */
 export function getAgentToModelMapForProfile(normalizedProfile: string): Record<string, string> {
+  const profile = VALID_PROFILES.includes(normalizedProfile) ? normalizedProfile : 'balanced';
   const agentToModelMap: Record<string, string> = {};
   for (const [agent, profileToModelMap] of Object.entries(MODEL_PROFILES)) {
-    agentToModelMap[agent] = profileToModelMap[normalizedProfile];
+    const mapped = profileToModelMap[profile] ?? profileToModelMap.balanced;
+    agentToModelMap[agent] = mapped ?? 'sonnet';
   }
   return agentToModelMap;
 }

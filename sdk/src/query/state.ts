@@ -321,8 +321,8 @@ export const stateSnapshot: QueryHandler = async (_args, projectDir) => {
   const totalPlansInPhase = totalPlansRaw ? parseInt(totalPlansRaw, 10) : null;
   let progressPercent: number | null = null;
   if (progressRaw) {
-    const n = parseInt(progressRaw.replace(/%/g, ''), 10);
-    progressPercent = Number.isNaN(n) ? null : n;
+    const pctMatch = progressRaw.match(/(\d+)%/);
+    progressPercent = pctMatch ? parseInt(pctMatch[1]!, 10) : null;
   }
 
   // Extract decisions table
