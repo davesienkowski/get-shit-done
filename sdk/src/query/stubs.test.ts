@@ -115,10 +115,10 @@ describe('statePlannedPhase', () => {
     expect(data.plan_count).toBe(2);
   });
 
-  it('allows empty argv (no fields updated in bare STATE)', async () => {
+  it('returns error when --phase is missing', async () => {
     const result = await statePlannedPhase([], tmpDir);
     const data = result.data as Record<string, unknown>;
-    expect(data.updated).toEqual([]);
+    expect(data.error).toMatch(/phase required/);
   });
 });
 

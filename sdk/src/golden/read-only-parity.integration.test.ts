@@ -88,16 +88,15 @@ describe('state.get golden parity', () => {
 
 describe('verify.commits golden parity', () => {
   it('SDK output matches gsd-tools.cjs for two SHAs', async () => {
-    let a = '';
-    let b = '';
-    try {
-      a = execSync('git rev-parse HEAD~1', { cwd: REPO_ROOT, encoding: 'utf-8' }).trim();
-      b = execSync('git rev-parse HEAD', { cwd: REPO_ROOT, encoding: 'utf-8' }).trim();
-    } catch {
-      const h = execSync('git rev-parse HEAD', { cwd: REPO_ROOT, encoding: 'utf-8' }).trim();
-      a = h;
-      b = h;
+    const revs = execSync('git rev-list --max-count=2 HEAD', { cwd: REPO_ROOT, encoding: 'utf-8' })
+      .trim()
+      .split('\n')
+      .filter(Boolean);
+    if (revs.length < 2) {
+      throw new Error('verify.commits parity requires at least 2 commits in checkout history');
     }
+    const b = revs[0];
+    const a = revs[1];
     const gsdOutput = await captureGsdToolsOutput('verify', ['commits', a, b], REPO_ROOT);
     const registry = createRegistry();
     const sdkResult = await registry.dispatch('verify.commits', [a, b], REPO_ROOT);

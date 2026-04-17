@@ -912,7 +912,13 @@ export const statePlannedPhase: QueryHandler = async (args, projectDir) => {
   const parsed = parseNamedArgs(args, ['phase', 'name', 'plans']);
   const phaseNumber = parsed.phase as string | null;
   const plansRaw = parsed.plans as string | null;
-  const planCount = plansRaw !== null && plansRaw !== '' ? parseInt(plansRaw, 10) : null;
+  const parsedPlanCount = plansRaw !== null && plansRaw !== '' ? parseInt(plansRaw, 10) : NaN;
+  const planCount =
+    Number.isFinite(parsedPlanCount) && !Number.isNaN(parsedPlanCount) ? parsedPlanCount : null;
+
+  if (!phaseNumber || String(phaseNumber).trim() === '') {
+    return { data: { error: 'phase required (--phase <n>)' } };
+  }
 
   const statePath = planningPaths(projectDir).state;
   if (!existsSync(statePath)) {
@@ -926,7 +932,7 @@ export const statePlannedPhase: QueryHandler = async (args, projectDir) => {
     let result = stateReplaceField(content, 'Status', 'Ready to execute');
     if (result) { content = result; updated.push('Status'); }
 
-    if (planCount !== null && !Number.isNaN(planCount)) {
+    if (planCount !== null) {
       result = stateReplaceField(content, 'Total Plans in Phase', String(planCount));
       if (result) { content = result; updated.push('Total Plans in Phase'); }
     }
@@ -1322,7 +1328,11 @@ function prunePass(content: string, cutoff: number): { newContent: string; archi
  */
 export const statePrune: QueryHandler = async (args, projectDir) => {
   const parsed = parseNamedArgs(args, ['keep-recent'], ['dry-run', 'silent']);
-  const keepRecent = parseInt(String(parsed['keep-recent'] ?? '3'), 10) || 3;
+  const parsedKeepRecent = Number.parseInt(String(parsed['keep-recent'] ?? '3'), 10);
+  if (!Number.isInteger(parsedKeepRecent) || parsedKeepRecent < 0) {
+    return { data: { error: 'keep-recent must be a non-negative integer' } };
+  }
+  const keepRecent = parsedKeepRecent;
   const dryRun = parsed['dry-run'] === true;
 
   const paths = planningPaths(projectDir);
