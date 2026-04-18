@@ -54,9 +54,30 @@ export function stripShippedMilestones(content: string): string {
 }
 
 /**
- * Get milestone version and name from ROADMAP.md.
+ * Read milestone + name from STATE.md frontmatter when ROADMAP does not encode them.
+ */
+async function parseMilestoneFromState(projectDir: string): Promise<{ version: string; name: string } | null> {
+  try {
+    const stateRaw = await readFile(planningPaths(projectDir).state, 'utf-8');
+    const vm = stateRaw.match(/^milestone:\s*(.+)$/m);
+    if (!vm) return null;
+    const version = vm[1].trim().replace(/^["']|["']$/g, '');
+    const nm = stateRaw.match(/^milestone_name:\s*(.+)$/m);
+    const name = nm ? nm[1].trim().replace(/^["']|["']$/g, '') : 'milestone';
+    return { version, name };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get milestone version and name from ROADMAP.md (and optionally STATE.md).
  *
- * Port of getMilestoneInfo from core.cjs lines 1367-1402.
+ * Port of getMilestoneInfo from core.cjs lines 1367-1402, extended for:
+ * - 🟡 in-flight marker (same list shape as 🚧)
+ * - milestone bullets `**vX.Y Title**` before `## Phases` (last = current when listed in semver order)
+ * - STATE.md frontmatter when ROADMAP has no parseable milestone
+ * - **last** bare `vX.Y` fallback (first match was often v1.0 from the shipped list)
  *
  * @param projectDir - Project root directory
  * @returns Object with version and name
@@ -65,26 +86,48 @@ export async function getMilestoneInfo(projectDir: string): Promise<{ version: s
   try {
     const roadmap = await readFile(planningPaths(projectDir).roadmap, 'utf-8');
 
-    // First: check for list-format using in-progress marker
-    const inProgressMatch = roadmap.match(/🚧\s*\*\*v(\d+(?:\.\d+)+)\s+([^*]+)\*\*/);
-    if (inProgressMatch) {
-      return { version: 'v' + inProgressMatch[1], name: inProgressMatch[2].trim() };
+    // List-format: construction / blocked (legacy emoji)
+    const barricadeMatch = roadmap.match(/🚧\s*\*\*v(\d+(?:\.\d+)+)\s+([^*]+)\*\*/);
+    if (barricadeMatch) {
+      return { version: 'v' + barricadeMatch[1], name: barricadeMatch[2].trim() };
     }
 
-    // Second: heading-format — strip shipped milestones
+    // List-format: in flight / active (GSD ROADMAP template uses 🟡 for current milestone)
+    const inFlightMatch = roadmap.match(/🟡\s*\*\*v(\d+(?:\.\d+)+)\s+([^*]+)\*\*/);
+    if (inFlightMatch) {
+      return { version: 'v' + inFlightMatch[1], name: inFlightMatch[2].trim() };
+    }
+
+    // Heading-format — strip shipped <details> blocks first
     const cleaned = stripShippedMilestones(roadmap);
-    const headingMatch = cleaned.match(/## .*v(\d+(?:\.\d+)+)[:\s]+([^\n(]+)/);
+    const headingMatch = cleaned.match(/##\s+.*v(\d+(?:\.\d+)+)[:\s]+([^\n(]+)/);
     if (headingMatch) {
       return { version: 'v' + headingMatch[1], name: headingMatch[2].trim() };
     }
 
-    // Fallback: bare version match
-    const versionMatch = cleaned.match(/v(\d+(?:\.\d+)+)/);
-    return {
-      version: versionMatch ? versionMatch[0] : 'v1.0',
-      name: 'milestone',
-    };
+    // Milestone bullet list (## Milestones … ## Phases): use last **vX.Y Title** — typically the current row
+    const beforePhases = roadmap.split(/^##\s+Phases\b/m)[0] ?? roadmap;
+    const boldMatches = [...beforePhases.matchAll(/\*\*v(\d+(?:\.\d+)+)\s+([^*]+)\*\*/g)];
+    if (boldMatches.length > 0) {
+      const last = boldMatches[boldMatches.length - 1];
+      return { version: 'v' + last[1], name: last[2].trim() };
+    }
+
+    const fromState = await parseMilestoneFromState(projectDir);
+    if (fromState) {
+      return fromState;
+    }
+
+    const allBare = [...cleaned.matchAll(/\bv(\d+(?:\.\d+)+)\b/g)];
+    if (allBare.length > 0) {
+      const lastBare = allBare[allBare.length - 1];
+      return { version: lastBare[0], name: 'milestone' };
+    }
+
+    return { version: 'v1.0', name: 'milestone' };
   } catch {
+    const fromState = await parseMilestoneFromState(projectDir);
+    if (fromState) return fromState;
     return { version: 'v1.0', name: 'milestone' };
   }
 }
