@@ -9,7 +9,7 @@
 import { parseArgs } from 'node:util';
 import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
-import { resolve, join } from 'node:path';
+import { resolve, join, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { GSD } from './index.js';
@@ -265,12 +265,13 @@ function queryFallbackToCjsEnabled(): boolean {
   return true;
 }
 
-async function parseCliQueryJsonOutput(raw: string): Promise<unknown> {
+async function parseCliQueryJsonOutput(raw: string, projectDir: string): Promise<unknown> {
   const trimmed = raw.trim();
   if (trimmed === '') return null;
   let jsonStr = trimmed;
   if (jsonStr.startsWith('@file:')) {
-    const filePath = jsonStr.slice(6).trim();
+    const rel = jsonStr.slice(6).trim();
+    const filePath = isAbsolute(rel) ? rel : join(projectDir, rel);
     jsonStr = await readFile(filePath, 'utf-8');
   }
   return JSON.parse(jsonStr);
@@ -371,6 +372,11 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       const queryCommand = queryArgs[0];
       const { normalizeQueryCommand } = await import('./query/normalize-query-command.js');
       const [normCmd, normArgs] = normalizeQueryCommand(queryCommand, queryArgs.slice(1));
+      if (!normCmd || !String(normCmd).trim()) {
+        console.error('Error: "gsd-sdk query" requires a command');
+        process.exitCode = 10;
+        return;
+      }
       const registry = createRegistry();
       const tokens = [normCmd, ...normArgs];
       const matched = resolveQueryArgv(tokens, registry);
@@ -395,7 +401,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
           args.ws,
         );
         if (stderr.trim()) console.error(stderr.trimEnd());
-        let output: unknown = await parseCliQueryJsonOutput(stdout);
+        let output: unknown = await parseCliQueryJsonOutput(stdout, args.projectDir);
         if (pickField) {
           output = extractField(output, pickField);
         }

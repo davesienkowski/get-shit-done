@@ -32,6 +32,12 @@ function scanDebugSessions(planDir: string): Array<Record<string, unknown>> {
     try {
       content = readFileSync(filePath, 'utf-8');
     } catch {
+      results.push({
+        slug: sanitizeForDisplay(basename(entry.name, '.md')),
+        status: 'unreadable',
+        scan_error: true,
+        detail: 'file read failed',
+      });
       continue;
     }
 
@@ -134,6 +140,12 @@ function scanThreads(planDir: string): Array<Record<string, unknown>> {
     try {
       content = readFileSync(filePath, 'utf-8');
     } catch {
+      results.push({
+        slug: sanitizeForDisplay(basename(entry.name, '.md')),
+        status: 'unreadable',
+        scan_error: true,
+        detail: 'file read failed',
+      });
       continue;
     }
 
@@ -450,6 +462,8 @@ function scanContextQuestions(planDir: string): Array<Record<string, unknown>> {
 
 export interface AuditOpenResult {
   scanned_at: string;
+  /** True when at least one category reported scan_error / unreadable rows (audit may be incomplete). */
+  has_scan_errors: boolean;
   has_open_items: boolean;
   counts: {
     debug_sessions: number;
@@ -536,8 +550,23 @@ export function auditOpenArtifacts(projectDir: string): AuditOpenResult {
     counts.verification_gaps +
     counts.context_questions;
 
+  const itemArrays = [
+    debugSessions,
+    quickTasks,
+    threads,
+    todos,
+    seeds,
+    uatGaps,
+    verificationGaps,
+    contextQuestions,
+  ];
+  const has_scan_errors = itemArrays.some(arr =>
+    arr.some(i => i.scan_error === true),
+  );
+
   return {
     scanned_at: new Date().toISOString(),
+    has_scan_errors,
     has_open_items: counts.total > 0,
     counts,
     items: {
@@ -557,7 +586,7 @@ export function auditOpenArtifacts(projectDir: string): AuditOpenResult {
  * Human-readable report (same text as gsd-tools without `--json`).
  */
 export function formatAuditReport(auditResult: AuditOpenResult): string {
-  const { counts, items, has_open_items } = auditResult;
+  const { counts, items, has_open_items, has_scan_errors } = auditResult;
   const lines: string[] = [];
   const hr = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
 
@@ -565,9 +594,24 @@ export function formatAuditReport(auditResult: AuditOpenResult): string {
   lines.push('  Milestone Close: Open Artifact Audit');
   lines.push(hr);
 
-  if (!has_open_items) {
+  if (has_scan_errors) {
+    lines.push('');
+    lines.push('  ⚠ Some files or directories could not be scanned completely.');
+    lines.push('  Treat this audit as incomplete until read errors are resolved.');
+    lines.push('');
+  }
+
+  if (!has_open_items && !has_scan_errors) {
     lines.push('');
     lines.push('  All artifact types clear. Safe to proceed.');
+    lines.push('');
+    lines.push(hr);
+    return lines.join('\n');
+  }
+
+  if (!has_open_items && has_scan_errors) {
+    lines.push('');
+    lines.push('  No open items counted, but scanning had errors — not safe to assume a clean close.');
     lines.push('');
     lines.push(hr);
     return lines.join('\n');

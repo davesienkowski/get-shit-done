@@ -19,7 +19,12 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, isAbsolute } from 'node:path';
 import { GSDError, ErrorClassification } from '../errors.js';
 import { extractFrontmatter, parseMustHavesBlock } from './frontmatter.js';
-import { normalizePhaseName, phaseTokenMatches, planningPaths } from './helpers.js';
+import {
+  comparePhaseNum,
+  normalizePhaseName,
+  phaseTokenMatches,
+  planningPaths,
+} from './helpers.js';
 import type { QueryHandler } from './utils.js';
 
 // ─── verifyPlanStructure ───────────────────────────────────────────────────
@@ -571,21 +576,19 @@ export const verifySchemaDrift: QueryHandler = async (args, projectDir) => {
     };
   }
 
-  let phaseDir: string | null = null;
-  const entries = readdirSync(phasesDir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (entry.isDirectory() && entry.name.includes(phaseArg)) {
-      phaseDir = join(phasesDir, entry.name);
-      break;
-    }
-  }
+  const normalized = normalizePhaseName(phaseArg);
+  const dirNames = readdirSync(phasesDir, { withFileTypes: true })
+    .filter(e => e.isDirectory())
+    .map(e => e.name)
+    .sort((a, b) => comparePhaseNum(a, b));
 
-  if (!phaseDir) {
+  let phaseDirName = dirNames.find(d => phaseTokenMatches(d, normalized)) ?? null;
+  if (!phaseDirName && /^[\d.]+/.test(phaseArg)) {
     const exact = join(phasesDir, phaseArg);
-    if (existsSync(exact)) phaseDir = exact;
+    if (existsSync(exact)) phaseDirName = phaseArg;
   }
 
-  if (!phaseDir) {
+  if (!phaseDirName) {
     return {
       data: {
         drift_detected: false,
@@ -595,15 +598,24 @@ export const verifySchemaDrift: QueryHandler = async (args, projectDir) => {
     };
   }
 
+  const phaseDir = join(phasesDir, phaseDirName);
+
+  function filesModifiedFromFrontmatter(fm: Record<string, unknown>): string[] {
+    const v = fm.files_modified;
+    if (Array.isArray(v)) return v.map(x => String(x).trim()).filter(Boolean);
+    if (typeof v === 'string') {
+      const t = v.trim();
+      return t ? [t] : [];
+    }
+    return [];
+  }
+
   const allFiles: string[] = [];
-  const planFiles = readdirSync(phaseDir).filter(f => f.endsWith('-PLAN.md'));
+  const planFiles = readdirSync(phaseDir).filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md');
   for (const pf of planFiles) {
     const content = readFileSync(join(phaseDir, pf), 'utf-8');
-    const fmMatch = content.match(/files_modified:\s*\[([^\]]*)\]/);
-    if (fmMatch) {
-      const files = fmMatch[1].split(',').map(f => f.trim()).filter(Boolean);
-      allFiles.push(...files);
-    }
+    const fm = extractFrontmatter(content) as Record<string, unknown>;
+    allFiles.push(...filesModifiedFromFrontmatter(fm));
   }
 
   let executionLog = '';

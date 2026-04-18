@@ -18,10 +18,10 @@
  */
 
 import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync, statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 
-import { planningPaths } from './helpers.js';
+import { planningPaths, resolvePathUnderProject } from './helpers.js';
 import type { QueryHandler } from './utils.js';
 
 // ─── Constants ───────────────────────────────────────────────────────────
@@ -249,8 +249,16 @@ export const intelQuery: QueryHandler = async (args, projectDir) => {
  */
 export const intelExtractExports: QueryHandler = async (args, projectDir) => {
   const raw = args[0];
-  const filePath = raw ? resolve(projectDir, raw) : '';
-  if (!filePath || !existsSync(filePath)) {
+  if (!raw) {
+    return { data: { file: '', exports: [], method: 'none' } };
+  }
+  let filePath: string;
+  try {
+    filePath = await resolvePathUnderProject(projectDir, raw);
+  } catch {
+    return { data: { file: raw, exports: [], method: 'none' } };
+  }
+  if (!existsSync(filePath)) {
     return { data: { file: filePath, exports: [], method: 'none' } };
   }
 
@@ -344,8 +352,18 @@ export const intelExtractExports: QueryHandler = async (args, projectDir) => {
 };
 
 export const intelPatchMeta: QueryHandler = async (args, projectDir) => {
-  const filePath = args[0] ? resolve(projectDir, args[0]) : '';
-  if (!filePath || !existsSync(filePath)) {
+  const raw = args[0];
+  if (!raw) {
+    return { data: { patched: false, error: 'File not found' } };
+  }
+  let filePath: string;
+  try {
+    filePath = await resolvePathUnderProject(projectDir, raw);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { data: { patched: false, error: msg } };
+  }
+  if (!existsSync(filePath)) {
     return { data: { patched: false, error: `File not found: ${filePath}` } };
   }
   try {

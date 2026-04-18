@@ -26,7 +26,15 @@ import { isAbsolute, join, relative, resolve } from 'node:path';
 import { GSDError, ErrorClassification } from '../errors.js';
 import { extractFrontmatter, stripFrontmatter } from './frontmatter.js';
 import { reconstructFrontmatter, spliceFrontmatter } from './frontmatter-mutation.js';
-import { escapeRegex, stateExtractField, planningPaths, normalizeMd } from './helpers.js';
+import {
+  comparePhaseNum,
+  escapeRegex,
+  normalizePhaseName,
+  phaseTokenMatches,
+  planningPaths,
+  normalizeMd,
+  stateExtractField,
+} from './helpers.js';
 import { buildStateFrontmatter, getMilestonePhaseFilter } from './state.js';
 import type { QueryHandler } from './utils.js';
 
@@ -1080,11 +1088,12 @@ export const stateValidate: QueryHandler = async (_args, projectDir) => {
   const phasesDir = paths.phases;
 
   if (currentPhase && existsSync(phasesDir)) {
-    const normalized = currentPhase.replace(/\s+of\s+\d+.*/, '').trim();
+    const normalized = normalizePhaseName(currentPhase.replace(/\s+of\s+\d+.*/, '').trim());
     try {
       const entries = readdirSync(phasesDir, { withFileTypes: true });
-      const padded = normalized.replace(/^0+/, '').padStart(2, '0');
-      const phaseDir = entries.find(e => e.isDirectory() && e.name.startsWith(padded));
+      const phaseDir = entries.find(
+        e => e.isDirectory() && phaseTokenMatches(e.name, normalized),
+      );
       if (phaseDir) {
         const phaseDirPath = join(phasesDir, phaseDir.name);
         const files = readdirSync(phaseDirPath);
@@ -1153,7 +1162,7 @@ export const stateSync: QueryHandler = async (args, projectDir) => {
     entries = readdirSync(phasesDir, { withFileTypes: true })
       .filter(e => e.isDirectory())
       .map(e => e.name)
-      .sort();
+      .sort((a, b) => comparePhaseNum(a, b));
   } catch {
     return { data: { synced: true, changes: [], dry_run: verify } };
   }

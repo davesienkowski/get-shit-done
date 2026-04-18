@@ -41,6 +41,7 @@ describe('audit-open golden parity (excluding scanned_at)', () => {
     const strip = (d: unknown): Record<string, unknown> => {
       const o = { ...(d as Record<string, unknown>) };
       delete o.scanned_at;
+      delete o.has_scan_errors;
       return o;
     };
     expect(strip(sdkResult.data)).toEqual(strip(gsdOutput));

@@ -7,6 +7,7 @@
 
 import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
+import { isAbsolute, join } from 'node:path';
 
 import { resolveGsdToolsPath } from '../gsd-tools.js';
 
@@ -47,8 +48,8 @@ function execGsdTools(
   });
 }
 
-/** Same `@file:` indirection handling as {@link GSDTools} private parseOutput. */
-async function parseGsdToolsJson(raw: string): Promise<unknown> {
+/** Same `@file:` indirection handling as {@link GSDTools} private parseOutput (cwd = projectDir). */
+async function parseGsdToolsJson(raw: string, projectDir: string): Promise<unknown> {
   const trimmed = raw.trim();
   if (trimmed === '') {
     return null;
@@ -56,7 +57,8 @@ async function parseGsdToolsJson(raw: string): Promise<unknown> {
 
   let jsonStr = trimmed;
   if (jsonStr.startsWith('@file:')) {
-    const filePath = jsonStr.slice(6).trim();
+    const rel = jsonStr.slice(6).trim();
+    const filePath = isAbsolute(rel) ? rel : join(projectDir, rel);
     try {
       jsonStr = await readFile(filePath, 'utf-8');
     } catch (err) {
@@ -77,7 +79,7 @@ export async function captureGsdToolsOutput(
   projectDir: string,
 ): Promise<unknown> {
   const { stdout } = await execGsdTools(projectDir, command, args);
-  return parseGsdToolsJson(stdout);
+  return parseGsdToolsJson(stdout, projectDir);
 }
 
 /**

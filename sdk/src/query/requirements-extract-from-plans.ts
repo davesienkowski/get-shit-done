@@ -65,7 +65,8 @@ export const requirementsExtractFromPlans: QueryHandler = async (args, projectDi
   const seen = new Set<string>();
 
   for (const planFile of planFiles) {
-    const planId = planFile.replace('-PLAN.md', '').replace('PLAN.md', '');
+    const planId =
+      planFile === 'PLAN.md' ? 'PLAN' : planFile.replace(/-PLAN\.md$/i, '').replace(/PLAN\.md$/i, '');
     const content = await readFile(join(phaseDir, planFile), 'utf-8');
     const fm = extractFrontmatter(content) as Record<string, unknown>;
     const list = normalizeReqList(fm.requirements);

@@ -35,6 +35,29 @@ describe('checkConfigGates', () => {
     }
   });
 
+  it('treats string "false" as false and honors plan_checker alias', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'gsd-cg-'));
+    try {
+      await mkdir(join(dir, '.planning'), { recursive: true });
+      await writeFile(
+        join(dir, '.planning', 'config.json'),
+        JSON.stringify({
+          workflow: {
+            nyquist_validation: 'false',
+            plan_checker: false,
+          },
+        }),
+        'utf-8',
+      );
+      const { data } = await checkConfigGates([], dir);
+      expect(data.nyquist_validation).toBe(false);
+      expect(data.plan_checker_enabled).toBe(false);
+      expect(data.plan_check).toBe(false);
+    } finally {
+      cleanupTempDir(dir);
+    }
+  });
+
   it('reflects workflow overrides from config.json', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'gsd-cg-'));
     try {

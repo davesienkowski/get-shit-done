@@ -190,6 +190,8 @@ export class GSDTools {
       }, this.timeoutMs);
     });
     try {
+      // Promise.race rejects when the timeout fires but does not cancel the handler promise;
+      // native handlers may still run to completion (unlike subprocess + execFile timeout).
       return await Promise.race([work, timeoutPromise]);
     } finally {
       if (timeoutId !== undefined) {
