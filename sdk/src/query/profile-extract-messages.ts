@@ -20,14 +20,19 @@ export type ExtractMessagesResult = {
   messages_truncated: number;
 };
 
-/** Same filter as CJS `isGenuineUserMessage` in profile-pipeline.cjs. */
-export function isGenuineUserMessage(record: {
+/** JSONL line shape from session exports — shared by filters and stream parser. */
+export type SessionJsonlRecord = {
   type?: string;
   userType?: string;
   isMeta?: boolean;
   isSidechain?: boolean;
   message?: { content?: string };
-}): boolean {
+  cwd?: string;
+  timestamp?: string | number;
+};
+
+/** Same filter as CJS `isGenuineUserMessage` in profile-pipeline.cjs. */
+export function isGenuineUserMessage(record: SessionJsonlRecord): boolean {
   if (record.type !== 'user') return false;
   if (record.userType !== 'external') return false;
   if (record.isMeta === true) return false;
@@ -51,7 +56,7 @@ export function truncateContent(content: string, maxLen = 2000): string {
 /** Line-delimited JSONL reader — same behavior as CJS `streamExtractMessages`. */
 export async function streamExtractMessages(
   filePath: string,
-  filterFn: (r: { type?: string; userType?: string; isMeta?: boolean; isSidechain?: boolean; message?: { content?: string } }) => boolean,
+  filterFn: (r: SessionJsonlRecord) => boolean,
   maxMessages: number,
 ): Promise<
   Array<{
@@ -77,9 +82,9 @@ export async function streamExtractMessages(
 
   for await (const line of rl) {
     if (messages.length >= maxMessages) break;
-    let record: { type?: string; userType?: string; isMeta?: boolean; isSidechain?: boolean; message?: { content?: string }; cwd?: string; timestamp?: string | number };
+    let record: SessionJsonlRecord;
     try {
-      record = JSON.parse(line) as typeof record;
+      record = JSON.parse(line) as SessionJsonlRecord;
     } catch {
       continue;
     }
