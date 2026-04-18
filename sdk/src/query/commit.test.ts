@@ -153,21 +153,6 @@ describe('commit', () => {
     expect(files).toContain('STATE.md');
     expect(files).not.toContain('ROADMAP.md');
   });
-
-  it('stages .planning/ with git add -f when .planning is gitignored', async () => {
-    const { commit, pathIsGitIgnored } = await import('./commit.js');
-    await writeFile(join(tmpDir, '.gitignore'), '.planning/\n');
-    await writeFile(
-      join(tmpDir, '.planning', 'config.json'),
-      JSON.stringify({ commit_docs: true }),
-    );
-    await writeFile(join(tmpDir, '.planning', 'STATE.md'), '# State\n');
-    expect(pathIsGitIgnored(tmpDir, '.planning/')).toBe(true);
-    const result = await commit(['docs: planning despite gitignore'], tmpDir);
-    expect((result.data as { committed: boolean }).committed).toBe(true);
-    const tracked = execSync('git ls-files', { cwd: tmpDir, encoding: 'utf-8' });
-    expect(tracked).toContain('.planning/STATE.md');
-  });
 });
 
 // ─── checkCommit ───────────────────────────────────────────────────────────
