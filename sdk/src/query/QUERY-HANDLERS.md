@@ -15,7 +15,7 @@ This document records contracts for the typed query layer consumed by `gsd-sdk q
 1. **`normalizeQueryCommand()`** (`normalize-query-command.ts`) — maps the first argv tokens to the same **command + subcommand** patterns as `gsd-tools` `runCommand()` where needed (e.g. `state json` → `state.json`, `init execute-phase 9` → `init.execute-phase` with args `['9']`, `scaffold …` → `phase.scaffold`). Re-exported from **`@gsd-build/sdk`** and **`createRegistry`’s module** (`sdk/src/query/index.ts`) so programmatic callers can mirror CLI tokenization without importing a deep path.
 2. **`resolveQueryArgv()`** (`registry.ts`) — **longest-prefix match** on the normalized argv: tries joined keys `a.b.c` then `a b c` for each prefix length, longest first. Example: `state update status X` → handler `state.update` with args `[status, X]`.
 3. **Dotted single token**: one token like `init.new-project` matches the registry; if the first pass finds no handler, a single dotted token is split and matching runs again.
-4. **No CJS passthrough**: if nothing matches a registered handler, the CLI exits with an error. Operations not ported to the query registry must use `node …/gsd-tools.cjs` directly — see `docs/CLI-TOOLS.md`.
+4. **CJS fallback (CLI)**: if nothing matches a registered handler and `GSD_QUERY_FALLBACK` is not `off`/`never`/`false`/`0`, the CLI shells out to `gsd-tools.cjs` with argv derived from the normalized tokens (dotted commands are split into CJS-style segments). stderr receives a short bridge warning. Set `GSD_QUERY_FALLBACK=off` for strict mode (parity tests). CLI-only commands such as `graphify` rely on this path until native handlers exist.
 5. **Output**: JSON written to stdout for successful handler results.
 
 **Registered:** `phase.add-batch` / `phase add-batch` — batch append (see `phaseAddBatch` in `phase-lifecycle.ts`).
@@ -39,7 +39,7 @@ This document records contracts for the typed query layer consumed by `gsd-sdk q
 
 ## Session correlation (`sessionId`)
 
-- Mutation events include `sessionId: ''` until a future phase threads session identifiers through the query dispatch path. Consumers should not rely on `sessionId` for correlation today.
+- `createRegistry(eventStream, sessionId)` threads the optional `sessionId` string into mutation-related events emitted via `eventStream`. `GSDTools` accepts `sessionId` in its constructor and forwards it to `createRegistry`; `GSD` accepts `sessionId` in `GSDOptions` and passes it through `createTools()`. When omitted, `sessionId` is empty.
 
 ## Lockfiles (`state-mutation.ts`)
 

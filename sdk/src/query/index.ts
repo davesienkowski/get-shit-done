@@ -159,13 +159,17 @@ export const QUERY_MUTATION_COMMANDS = new Set<string>([
 /**
  * Build a mutation event based on the command prefix and result.
  *
- * `sessionId` is empty until a future phase wires session correlation into
- * the query layer; see QUERY-HANDLERS.md.
+ * @param correlationSessionId - Optional session correlation id (from {@link createRegistry})
  */
-function buildMutationEvent(cmd: string, args: string[], result: QueryResult): GSDEvent {
+function buildMutationEvent(
+  correlationSessionId: string,
+  cmd: string,
+  args: string[],
+  result: QueryResult,
+): GSDEvent {
   const base = {
     timestamp: new Date().toISOString(),
-    sessionId: '',
+    sessionId: correlationSessionId,
   };
 
   if (cmd.startsWith('template.') || cmd.startsWith('template ')) {
@@ -257,9 +261,14 @@ function buildMutationEvent(cmd: string, args: string[], result: QueryResult): G
  * Create a fully-wired QueryRegistry with all native handlers registered.
  *
  * @param eventStream - Optional event stream for mutation event emission
+ * @param correlationSessionId - Optional session id threaded into mutation-related events
  * @returns A QueryRegistry instance with all handlers registered
  */
-export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
+export function createRegistry(
+  eventStream?: GSDEventStream,
+  correlationSessionId?: string,
+): QueryRegistry {
+  const mutationSessionId = correlationSessionId ?? '';
   const registry = new QueryRegistry();
 
   registry.register('generate-slug', generateSlug);
@@ -540,7 +549,7 @@ export function createRegistry(eventStream?: GSDEventStream): QueryRegistry {
         registry.register(cmd, async (args: string[], projectDir: string) => {
           const result = await original(args, projectDir);
           try {
-            const event = buildMutationEvent(cmd, args, result);
+            const event = buildMutationEvent(mutationSessionId, cmd, args, result);
             eventStream.emitEvent(event);
           } catch {
             // T-11-12: Event emission is fire-and-forget; never block mutation success

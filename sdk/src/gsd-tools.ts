@@ -117,6 +117,8 @@ export class GSDTools {
     workstream?: string;
     /** When set, mutation handlers emit the same events as `gsd-sdk query`. */
     eventStream?: GSDEventStream;
+    /** Correlation id for mutation events when `eventStream` is set. */
+    sessionId?: string;
     /**
      * When true (default), route known commands through the SDK query registry.
      * Set false in tests that substitute a mock `gsdToolsPath` script.
@@ -129,7 +131,7 @@ export class GSDTools {
     this.timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.workstream = opts.workstream;
     this.preferNativeQuery = opts.preferNativeQuery ?? true;
-    this.registry = createRegistry(opts.eventStream);
+    this.registry = createRegistry(opts.eventStream, opts.sessionId);
   }
 
   private shouldUseNativeQuery(): boolean {

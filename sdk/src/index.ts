@@ -40,6 +40,7 @@ import { PromptFactory } from './phase-prompt.js';
 export class GSD {
   private readonly projectDir: string;
   private readonly gsdToolsPath: string;
+  private readonly sessionId?: string;
   private readonly defaultModel?: string;
   private readonly defaultMaxBudgetUsd: number;
   private readonly defaultMaxTurns: number;
@@ -51,6 +52,7 @@ export class GSD {
     this.projectDir = resolve(options.projectDir);
     this.gsdToolsPath =
       options.gsdToolsPath ?? resolveGsdToolsPath(this.projectDir);
+    this.sessionId = options.sessionId;
     this.defaultModel = options.model;
     this.defaultMaxBudgetUsd = options.maxBudgetUsd ?? 5.0;
     this.defaultMaxTurns = options.maxTurns ?? 50;
@@ -121,6 +123,7 @@ export class GSD {
       gsdToolsPath: this.gsdToolsPath,
       workstream: this.workstream,
       eventStream: this.eventStream,
+      sessionId: this.sessionId,
     });
   }
 
@@ -319,7 +322,7 @@ export { WSTransport } from './ws-transport.js';
 export type { WSTransportOptions } from './ws-transport.js';
 
 // Query registry argv normalization (matches `gsd-sdk query` and `GSDTools` hot path)
-export { normalizeQueryCommand } from './query/index.js';
+export { createRegistry, normalizeQueryCommand } from './query/index.js';
 
 // Workstream utilities
 export { validateWorkstreamName, relPlanningPath } from './workstream-utils.js';
