@@ -47,6 +47,23 @@ export function execGit(cwd: string, args: string[]): { exitCode: number; stdout
   };
 }
 
+/**
+ * True if git would ignore this path (e.g. `.planning/` listed in `.gitignore`).
+ */
+export function pathIsGitIgnored(cwd: string, relPath: string): boolean {
+  const r = execGit(cwd, ['check-ignore', '-q', relPath]);
+  return r.exitCode === 0;
+}
+
+/**
+ * Stage a path for commit, using `git add -f` when the path is ignored so
+ * `commit_docs: true` still works with repos that gitignore `.planning/`.
+ */
+function gitAddPath(cwd: string, relPath: string): void {
+  const force = pathIsGitIgnored(cwd, relPath);
+  execGit(cwd, force ? ['add', '-f', relPath] : ['add', relPath]);
+}
+
 // ─── sanitizeCommitMessage ────────────────────────────────────────────────
 
 /**
@@ -130,10 +147,10 @@ export const commit: QueryHandler = async (args, projectDir) => {
   // Sanitize message
   const sanitized = message ? sanitizeCommitMessage(message) : message;
 
-  // Stage files
+  // Stage files (force-add when ignored so .planning/ can be tracked despite .gitignore)
   const filesToStage = filePaths.length > 0 ? filePaths : ['.planning/'];
   for (const file of filesToStage) {
-    execGit(projectDir, ['add', file]);
+    gitAddPath(projectDir, file);
   }
 
   // Check if anything is staged
