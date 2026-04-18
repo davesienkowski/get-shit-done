@@ -15,11 +15,10 @@ import {
   type Dirent,
 } from 'node:fs';
 import { join, relative } from 'node:path';
-import { homedir } from 'node:os';
 
 import { loadConfig } from '../config.js';
 import { MODEL_PROFILES, resolveModel } from './config-query.js';
-import { toPosixPath } from './helpers.js';
+import { getGsdAgentsDir, toPosixPath } from './helpers.js';
 import type { QueryHandler } from './utils.js';
 
 const GSD_MARKER = '<!-- generated-by: gsd-doc-writer -->';
@@ -206,8 +205,7 @@ export function detectMonorepoWorkspaces(cwd: string): string[] {
  * Port of `checkAgentsInstalled` from core.cjs (same logic as init.ts).
  */
 function checkAgentsInstalled(): { agents_installed: boolean; missing_agents: string[] } {
-  const agentsDir = process.env.GSD_AGENTS_DIR
-    || join(homedir(), '.claude', 'get-shit-done', 'agents');
+  const agentsDir = getGsdAgentsDir();
   const expectedAgents = Object.keys(MODEL_PROFILES);
 
   if (!existsSync(agentsDir)) {
