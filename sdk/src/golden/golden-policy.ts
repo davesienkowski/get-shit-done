@@ -43,6 +43,14 @@ const NO_CJS_SUBPROCESS_REASON: Record<string, string> = {
     'SDK-only decision-routing query (audit §3.8). Covered in sdk/src/query/check-verification-status.test.ts.',
   'check.ship-ready':
     'SDK-only decision-routing query (audit §3.9). Covered in sdk/src/query/check-ship-ready.test.ts.',
+  'phase.list-plans':
+    'SDK-only listing helper for agents (no `gsd-tools.cjs` mirror). Covered in sdk/src/query/phase-list-queries.test.ts.',
+  'phase.list-artifacts':
+    'SDK-only artifact enumeration (no CJS mirror). Covered in sdk/src/query/phase-list-queries.test.ts.',
+  'plan.task-structure':
+    'SDK-only structured plan parse (no CJS mirror). Covered in sdk/src/query/plan-task-structure.test.ts.',
+  'requirements.extract-from-plans':
+    'SDK-only requirements aggregation (no CJS mirror). Covered in sdk/src/query/requirements-extract-from-plans.test.ts.',
 };
 
 const READ_HANDLER_ONLY_REASON = (cmd: string) =>

@@ -49,6 +49,15 @@ This document records contracts for the typed query layer consumed by `gsd-sdk q
 
 - `searchJsonEntries` in `intel.ts` caps recursion depth (`MAX_JSON_SEARCH_DEPTH`) to avoid stack overflow on pathological nested JSON.
 
+## Phase / plan listing (SDK-only)
+
+No `gsd-tools.cjs` mirror — agents use these instead of shell `ls`/`find`/`grep`:
+
+- `**phase.list-plans**` `<phase>` [`**--with-schema**` `<yamlKey>`] — PLAN files in the phase dir; optional filter when a frontmatter key is present (`phase-list-queries.ts`).
+- `**phase.list-artifacts**` `<phase>` `**--type**` `context|summary|verification|research` — matching `*-CONTEXT.md`, `*-SUMMARY.md`, etc.
+- `**plan.task-structure**` `<path-to-PLAN.md>` — wave, `depends_on`, task/checkpoint counts via `parsePlan()`.
+- `**requirements.extract-from-plans**` `<phase>` — deduped `requirements:` frontmatter across plans.
+
 ## State extensions (Phase 3)
 
 Handlers for `**state.signal-waiting`**, `**state.signal-resume**`, `**state.validate**`, `**state.sync**` (supports `--verify` dry-run), and `**state.prune**` live in `state-mutation.ts`, with dotted and `state …` space aliases in `index.ts`.
