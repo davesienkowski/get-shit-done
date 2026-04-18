@@ -1,0 +1,7 @@
+{
+  "model_profile": "balanced",
+  "commit_docs": true,
+  "intel": {
+    "enabled": true
+  }
+}

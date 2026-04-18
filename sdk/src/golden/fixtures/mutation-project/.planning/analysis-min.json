@@ -1,0 +1,11 @@
+{
+  "profile_version": 1,
+  "coding_style": "pragmatic",
+  "dimensions": {
+    "communication_style": {
+      "confidence": "HIGH",
+      "claude_instruction": "Golden fixture instruction for parity tests.",
+      "evidence": []
+    }
+  }
+}
