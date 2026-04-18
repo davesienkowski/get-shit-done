@@ -22,8 +22,8 @@ Paste this document (or `@sdk/HANDOVER-PARITY-DOCS.md`) at the start of a new ch
 
 ## What already exists (do not duplicate blindly)
 
-- `sdk/src/query/QUERY-HANDLERS.md` — Registry conventions, partial “not registered” list (**graphify**, **from-gsd2**), CLI name differences (**summary-extract** vs **summary.extract**, **scaffold** vs **phase.scaffold**), **intel.update** stub, **skill-manifest --write** / mutation events, **docs-init** golden note (agent install fields), **stateExtractField** rule.
-- `sdk/src/golden/golden.integration.test.ts` — Source of truth for **which commands** are golden-tested and **how** (full equality vs subset vs normalized `existing_docs` vs omitted fields).
+- `sdk/src/query/QUERY-HANDLERS.md` — Registry conventions, partial “not registered” list (**graphify**, **from-gsd2**), CLI name differences (**summary-extract** vs **summary.extract**, **scaffold** vs **phase.scaffold**), **intel.update** (CJS JSON parity; refresh via agent), **skill-manifest --write** / mutation events, **docs-init** golden note (agent install fields), **stateExtractField** rule.
+- `sdk/src/golden/golden.integration.test.ts` — Source of truth for **which commands** are golden-tested and **how** (full equality vs subset vs normalized `existing_docs` vs omitted fields; `init.quick` strips clock-derived keys via `init-golden-normalize.ts`).
 - `sdk/src/golden/capture.ts` — `captureGsdToolsOutput()` spawns `get-shit-done/bin/gsd-tools.cjs`.
 - `docs/CLI-TOOLS.md` — User-facing CLI reference; should **link** to the parity exceptions + matrix (or host a short summary with pointer to `sdk/`).
 
@@ -39,9 +39,9 @@ Cover at least:
 | Category                      | Examples to document                                                                                                                  |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | **Full JSON parity**          | Commands where tests use `toEqual` on `sdkResult.data` vs CJS stdout JSON.                                                            |
-| **Structural / field subset** | Tests that compare only selected keys (e.g. `find-phase`, `roadmap.analyze`, `init.*` stable fields).                                 |
+| **Structural / field subset** | Tests that compare only selected keys (e.g. `frontmatter.get`, `find-phase` — SDK subset vs CJS). Full parity for `roadmap.analyze`, `init.*` (except `init.quick` volatile keys), etc. — see `QUERY-HANDLERS.md` matrix. |
 | **Normalized comparison**     | e.g. `docs-init`: `existing_docs` sorted by path; `agents_installed` / `missing_agents` omitted between subprocess vs in-process. |
-| **Intentional stubs**         | `intel.update` — spawn hint, not full refresh.                                                                                    |
+| **CLI parity without in-process refresh** | `intel.update` — JSON matches CJS `intel.cjs` (spawn hint or disabled); refresh is agent-driven.                                                                                    |
 | **Conditional behavior**      | `skill-manifest`: writes only with `--write`; not in `QUERY_MUTATION_COMMANDS`.                                                   |
 | **Environment / time**        | `current-timestamp`: structure and format, not same instant.                                                                      |
 | **Not in golden suite**       | Commands registered but not (yet) covered — list as **coverage gap** or **out of scope for golden** with rationale.                   |

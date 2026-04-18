@@ -18,7 +18,7 @@ import { join, relative } from 'node:path';
 
 import { loadConfig } from '../config.js';
 import { MODEL_PROFILES, resolveModel } from './config-query.js';
-import { getGsdAgentsDir, toPosixPath } from './helpers.js';
+import { detectRuntime, resolveAgentsDir, toPosixPath } from './helpers.js';
 import type { QueryHandler } from './utils.js';
 
 const GSD_MARKER = '<!-- generated-by: gsd-doc-writer -->';
@@ -204,8 +204,9 @@ export function detectMonorepoWorkspaces(cwd: string): string[] {
 /**
  * Port of `checkAgentsInstalled` from core.cjs (same logic as init.ts).
  */
-function checkAgentsInstalled(): { agents_installed: boolean; missing_agents: string[] } {
-  const agentsDir = getGsdAgentsDir();
+function checkAgentsInstalled(config?: { runtime?: unknown }): { agents_installed: boolean; missing_agents: string[] } {
+  const runtime = detectRuntime(config);
+  const agentsDir = resolveAgentsDir(runtime);
   const expectedAgents = Object.keys(MODEL_PROFILES);
 
   if (!existsSync(agentsDir)) {
@@ -237,7 +238,7 @@ export const docsInit: QueryHandler = async (_args, projectDir) => {
   const docWriterData = docModelResult.data as Record<string, unknown>;
   const doc_writer_model = (docWriterData?.model as string) || 'sonnet';
 
-  const agentStatus = checkAgentsInstalled();
+  const agentStatus = checkAgentsInstalled(config);
 
   const data: Record<string, unknown> = {
     doc_writer_model,

@@ -77,7 +77,7 @@ function formatRegistryRawStdout(matchedCmd: string, data: unknown): string {
 
   if (matchedCmd === 'config-set') {
     const d = data as Record<string, unknown>;
-    if (d.set === true && d.key !== undefined) {
+    if ((d.updated === true || d.set === true) && d.key !== undefined) {
       const v = d.value;
       if (v === null || v === undefined) {
         return `${d.key}=`;

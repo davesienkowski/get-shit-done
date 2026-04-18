@@ -366,7 +366,10 @@ export const intelPatchMeta: QueryHandler = async (args, projectDir) => {
 // ─── intelUpdate ───────────────────────────────────────────────────────────
 
 /**
- * Stub for triggering an intel refresh (actual work is done by gsd-intel-updater).
+ * `gsd-tools intel update` entry point: returns the same JSON as `intel.cjs` `intelUpdate`.
+ * Does not run the full graph refresh in-process — that work is done by the
+ * **gsd-intel-updater** agent after spawn. When `.planning/intel/` is disabled in config,
+ * returns `{ disabled: true, message }` so SDK output matches the CJS CLI.
  *
  * Port of `intelUpdate` from `intel.cjs` lines 314–321.
  */

@@ -55,7 +55,7 @@ const NO_CJS_SUBPROCESS_REASON: Record<string, string> = {
 
 const READ_HANDLER_ONLY_REASON = (cmd: string) =>
   `No ` +
-  '`toEqual` subprocess row yet for this read-only command — handler parity is covered in sdk/src/query/*.test.ts / stubs.test.ts; add `captureGsdToolsOutput` + `registry.dispatch` in sdk/src/golden/ when JSON shapes are aligned (see QUERY-HANDLERS.md § Golden registry coverage matrix). Command: `' +
+  '`toEqual` subprocess row yet for this read-only command — handler parity is covered in sdk/src/query/*.test.ts / decomposed-handlers.test.ts; add `captureGsdToolsOutput` + `registry.dispatch` in sdk/src/golden/ when JSON shapes are aligned (see QUERY-HANDLERS.md § Golden registry coverage matrix). Command: `' +
   cmd +
   '`.';
 

@@ -23,7 +23,7 @@ Paste this document (or `@sdk/HANDOVER-QUERY-LAYER.md`) at the start of a new se
 
 ### 1. Parity documentation (`QUERY-HANDLERS.md`)
 
-- **”Golden parity: coverage and exceptions”** — How `golden.integration.test.ts` compares SDK vs `gsd-tools.cjs` (full `toEqual`, subset, normalized `docs-init`, stubs, time-dependent fields, etc.).
+- **”Golden parity: coverage and exceptions”** — How `golden.integration.test.ts` compares SDK vs `gsd-tools.cjs` (full `toEqual`, subset, normalized `docs-init`, `intel.update` CJS parity, time-dependent fields, etc.).
 - **”CJS command surface vs SDK registry”** — Naming aliases, CLI-only rows, SDK-only rows, and a **top-level `gsd-tools` command → SDK** matrix.
 - `docs/CLI-TOOLS.md` — Short “Parity & registry” pointer into those sections.
 - `HANDOVER-GOLDEN-PARITY.md` — One paragraph linking to the same sections.

@@ -35,7 +35,7 @@ This document records contracts for the typed query layer consumed by `gsd-sdk q
 
 ## Intel: `intel.update`
 
-- `**intel.update`** / `**intel update**` is an intentional **stub**, matching CJS `intel.cjs`: when intel is enabled it returns `{ action: 'spawn_agent', message: '...' }`; when disabled, `{ disabled: true, message: '...' }`. It does **not** run a full intel refresh (that is agent-driven). Golden tests assert parity with `gsd-tools.cjs` for this stub.
+- `**intel.update`** / `**intel update**` matches CJS `intel.cjs` `intelUpdate` **JSON** (not an in-process graph refresh): when intel is enabled it returns `{ action: 'spawn_agent', message: '...' }`; when disabled, `{ disabled: true, message: '...' }`. The **gsd-intel-updater** agent performs the actual refresh after spawn. Golden tests use full `toEqual` vs `gsd-tools.cjs` on this repo’s intel config.
 
 ## Session correlation (`sessionId`)
 
@@ -86,7 +86,7 @@ This section summarizes **how** each covered command is compared so readers do n
 
 ### Golden registry coverage matrix (human summary)
 
-- **Covered by subprocess golden** — canonical names appear in `GOLDEN_PARITY_INTEGRATION_COVERED`; see the tables below and the two integration files for assertion style (`toEqual` vs stable-field subset).
+- **Covered by subprocess golden** — canonical names appear in `GOLDEN_PARITY_INTEGRATION_COVERED`; see the tables below and the two integration files for assertion style (mostly full `toEqual`; remaining subset cases: `frontmatter.get`, `find-phase`).
 - **Not in covered set** — either listed in `QUERY_MUTATION_COMMANDS` (durable writes; handler tests in `sdk/src/query/*.test.ts` and mutation-focused tests) or a read-only handler whose full CJS JSON match is deferred (see auto-generated exception text in `golden-policy.ts`).
 
 ### Full JSON equality (`toEqual` on result data)
@@ -98,10 +98,16 @@ These tests expect `sdkResult.data` to match the parsed CJS stdout JSON (possibl
 | ----------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `generate-slug`               | Includes fixture + multi-word cases.                                                                  |
 | `config-get`                  | Sample: top-level key `model_profile`.                                                                |
+| `config-set`                  | Temp `.planning/` tree; reset between CJS capture and SDK dispatch; `toEqual` on `{ updated, key, value, previousValue? }`. |
 | `state.validate`              | Full object parity.                                                                                   |
 | `state.sync`                  | With `--verify` (dry-run); full object parity.                                                        |
 | `detect-custom-files`         | Temp `--config-dir` fixture; full object parity.                                                      |
-| `intel.update`                | When intel is **disabled** in the project, stub output matches CJS (`intel.cjs`); not a full refresh. |
+| `roadmap.analyze` / `progress` | Full object parity (`progress` uses `progress json` CJS path).                                       |
+| `frontmatter.validate`       | Plan schema fixture under `.planning/phases/11-state-mutations/`.                                     |
+| `verify.plan-structure` / `validate.consistency` / `verify.phase-completeness` | Full object parity on representative repo paths.                          |
+| `init.execute-phase` / `init.plan-phase` / `init.resume` / `init.verify-work` | Full `toEqual` vs CJS.                                              |
+| `init.quick`                  | Full parity **after** stripping `quick_id`, `timestamp`, `branch_name`, `task_dir` (`init-golden-normalize.ts`). |
+| `intel.update`                | Full `toEqual` vs CJS for this project (disabled vs spawn-hint payload per `intel.cjs`).               |
 
 From `read-only-parity.integration.test.ts` (full `toEqual` on this repo):
 
@@ -149,38 +155,22 @@ From `read-only-parity.integration.test.ts` (full `toEqual` on this repo):
 
 ### Structural, subset, or shape-only parity
 
-Assertions deliberately compare only stable or structural fields (not full `toEqual`):
+Assertions deliberately compare only selected fields (not full `toEqual`):
 
 
-| SDK dispatch (representative)                                                            | What is compared                                                                                                                          |
-| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `frontmatter.get`                                                                        | Scalar fields `phase`, `plan`, `type`; same top-level key set as CJS.                                                                     |
-| `find-phase`                                                                             | `found`, `directory`, `phase_number`, `phase_name`, `plans` (SDK is a documented subset of CJS).                                          |
-| `roadmap.analyze`                                                                        | Phase count, phase numbers sequence, `phase_count`.                                                                                       |
-| `progress`                                                                               | Default/json path: `milestone_version`, length of `phases`.                                                                               |
-| `frontmatter.validate`                                                                   | `valid`, `schema`, sorted `present`; structural fields `missing` required.                                                                |
-| `verify.plan-structure`                                                                  | `valid`, `errors`, `warnings`, `task_count` (+ agreement on `valid` / `task_count`).                                                      |
-| `validate.consistency`                                                                   | `passed`, `errors`, `warnings`, `warning_count` (+ agreement on `passed`).                                                                |
-| `verify.phase-completeness`                                                              | `complete`, `phase`, `plan_count`, `summary_count` (+ agreement on counts).                                                               |
-| `init.execute-phase`, `init.plan-phase`, `init.quick`, `init.resume`, `init.verify-work` | Stable planning fields only (excludes timestamps, volatile paths where noted in test).                                                    |
-| `template.select`                                                                        | Both expose a string `template`; CJS is driven by **file path**, SDK by **phase number** — different args, structural check only.         |
-| `config-set`                                                                             | Isolated temp `.planning/config.json`; asserts returned `key`/`value` and file content (does not diff against a parallel CJS invocation). |
+| SDK dispatch (representative) | What is compared |
+| ----------------------------- | ---------------- |
+| `frontmatter.get`             | Scalar fields `phase`, `plan`, `type`; same top-level key set as CJS. |
+| `find-phase`                  | `found`, `directory`, `phase_number`, `phase_name`, `plans` (SDK payload is a **subset** of CJS — extra CJS fields ignored). |
 
+`template.select` is **not** in `golden.integration.test.ts`: CJS `template select <plan-path>` scores PLAN **content** for summary templates; SDK `template.select <phase>` uses phase-directory heuristics — different algorithms. Covered in `sdk/src/query/template.test.ts`.
 
 ### Time- and environment-dependent
 
 
 | Command             | Rule                                                                                                                                                                 |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `current-timestamp` | `**full`**: same shape and valid ISO strings; not the same instant. `**date**` / `**filename**`: format rules; date may match when the test does not cross midnight. |
-
-
-### Intentional stubs
-
-
-| Command        | Behavior                                                                                                     |
-| -------------- | ------------------------------------------------------------------------------------------------------------ |
-| `intel.update` | Matches CJS stub: spawn hint when enabled, disabled payload when not; does **not** run a full intel refresh. |
+| `current-timestamp` | `**full`**: same shape and valid ISO strings; not the same instant. `**date**`: same calendar day when the test does not cross midnight. `**filename**`: full `toEqual` (back-to-back capture vs SDK). |
 
 
 ### Conditional writes (not in `QUERY_MUTATION_COMMANDS`)
@@ -300,7 +290,7 @@ Disposition: **Registered** = handled in `createRegistry()` under the listed SDK
 | `extract-messages`                                                                                                                      | `extract-messages`, `extract.messages`                                    | Registered              | Golden: `output_file` strip + JSONL bytes (see **Normalized** table).      |
 | `profile-sample`, `profile-questionnaire`, `write-profile`, `generate-dev-preferences`, `generate-claude-profile`, `generate-claude-md` | same kebab-case names                                                     | Registered              |                                                                           |
 | `workstream`                                                                                                                            | `workstream.get`, `workstream.list`, …                                    | Registered              |                                                                           |
-| `intel`                                                                                                                                 | `intel.status`, `intel.diff`, `intel.update`, …                           | Registered              | `**intel.update**`: stub (see above).                                     |
+| `intel`                                                                                                                                 | `intel.status`, `intel.diff`, `intel.update`, …                           | Registered              | `**intel.update**`: JSON parity with CJS spawn hint / disabled payload (see **Intel: intel.update**).                                     |
 | `graphify`                                                                                                                              | —                                                                         | CLI-only                | See **CLI-only** table.                                                   |
 | `docs-init`                                                                                                                             | `docs-init`                                                               | Registered              | Golden: normalized compare (see above).                                   |
 | `learnings`                                                                                                                             | `learnings.list`, `learnings.query`, …                                    | Registered              |                                                                           |

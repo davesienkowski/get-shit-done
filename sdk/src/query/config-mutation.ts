@@ -10,7 +10,7 @@
  * import { configSet, configNewProject } from './config-mutation.js';
  *
  * await configSet(['model_profile', 'quality'], '/project');
- * // { data: { set: true, key: 'model_profile', value: 'quality' } }
+ * // { data: { updated: true, key: 'model_profile', value: 'quality', previousValue: 'balanced' } }
  *
  * await configNewProject([], '/project');
  * // { data: { created: true, path: '.planning/config.json' } }
@@ -177,6 +177,18 @@ export function parseConfigValue(value: string): unknown {
  * @param dotPath - Dot-notation key path (e.g., 'workflow.auto_advance')
  * @param value - Value to set
  */
+function getValueAtPath(obj: Record<string, unknown>, dotPath: string): unknown {
+  const keys = dotPath.split('.');
+  let current: unknown = obj;
+  for (const key of keys) {
+    if (current === undefined || current === null || typeof current !== 'object') {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[key];
+  }
+  return current;
+}
+
 function setConfigValue(obj: Record<string, unknown>, dotPath: string, value: unknown): void {
   const keys = dotPath.split('.');
   let current: Record<string, unknown> = obj;
@@ -200,7 +212,7 @@ function setConfigValue(obj: Record<string, unknown>, dotPath: string, value: un
  *
  * @param args - args[0]=key, args[1]=value
  * @param projectDir - Project root directory
- * @returns QueryResult with { set: true, key, value }
+ * @returns QueryResult matching gsd-tools `config-set` JSON: `{ updated, key, value, previousValue }`
  * @throws GSDError with Validation if key is invalid or args missing
  */
 export const configSet: QueryHandler = async (args, projectDir) => {
@@ -233,6 +245,7 @@ export const configSet: QueryHandler = async (args, projectDir) => {
   // D6: Lock protection for read-modify-write (match CJS config.cjs:296)
   const paths = planningPaths(projectDir);
   const lockPath = await acquireStateLock(paths.config);
+  let previousValue: unknown;
   try {
     let config: Record<string, unknown> = {};
     try {
@@ -242,13 +255,23 @@ export const configSet: QueryHandler = async (args, projectDir) => {
       // Start with empty config if file doesn't exist or is malformed
     }
 
+    previousValue = getValueAtPath(config, keyPath);
     setConfigValue(config, keyPath, parsedValue);
     await atomicWriteConfig(paths.config, config);
   } finally {
     await releaseStateLock(lockPath);
   }
 
-  return { data: { set: true, key: keyPath, value: parsedValue } };
+  // Match CJS JSON: `JSON.stringify` omits keys whose value is `undefined`
+  const data: Record<string, unknown> = {
+    updated: true,
+    key: keyPath,
+    value: parsedValue,
+  };
+  if (previousValue !== undefined) {
+    data.previousValue = previousValue;
+  }
+  return { data };
 };
 
 // ─── configSetModelProfile ────────────────────────────────────────────────

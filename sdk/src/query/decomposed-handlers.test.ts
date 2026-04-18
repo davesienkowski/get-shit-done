@@ -1,8 +1,8 @@
 /**
- * Unit tests for handlers decomposed from the former stubs.ts.
+ * Cross-module handler tests for code decomposed from the legacy `stubs.ts` module.
  *
- * Tests are organized by domain module — each import references the
- * handler's new home after the stubs.ts → domain file decomposition.
+ * Each suite imports real handlers from their domain modules and exercises behavior
+ * against temp fixtures (no standalone stubs).
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
