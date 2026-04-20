@@ -271,7 +271,8 @@ async function parseCliQueryJsonOutput(raw: string, projectDir: string): Promise
   let jsonStr = trimmed;
   if (jsonStr.startsWith('@file:')) {
     const rel = jsonStr.slice(6).trim();
-    const filePath = isAbsolute(rel) ? rel : join(projectDir, rel);
+    const { resolvePathUnderProject } = await import('./query/helpers.js');
+    const filePath = await resolvePathUnderProject(projectDir, rel);
     jsonStr = await readFile(filePath, 'utf-8');
   }
   return JSON.parse(jsonStr);

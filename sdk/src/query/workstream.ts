@@ -350,7 +350,6 @@ export const workstreamComplete: QueryHandler = async (args, projectDir) => {
  * (Not the same as roadmap `progress` / `progressBar`.)
  */
 export const workstreamProgress: QueryHandler = async (_args, projectDir) => {
-  const root = planningRoot(projectDir);
   const wsRoot = workstreamsDir(projectDir);
 
   if (!existsSync(wsRoot)) {

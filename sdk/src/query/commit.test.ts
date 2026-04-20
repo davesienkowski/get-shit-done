@@ -134,7 +134,7 @@ describe('commit', () => {
     // Now commit with specific nonexistent file (--files separates message from paths, matching CJS argv)
     const result = await commit(['test msg', '--files', 'nonexistent-file.txt'], tmpDir);
     expect((result.data as { committed: boolean }).committed).toBe(false);
-    expect((result.data as { reason: string }).reason).toContain('nothing');
+    expect((result.data as { reason: string }).reason).toContain('nonexistent-file.txt');
   });
 
   it('commits specific files when provided', async () => {

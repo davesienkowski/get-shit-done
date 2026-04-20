@@ -112,7 +112,18 @@ function parseFrontmatterYamlLines(yaml: string): Record<string, unknown> {
       }
     } else if (line.trim().startsWith('- ')) {
       // Array item
-      const itemValue = line.trim().slice(2).replace(/^["']|["']$/g, '');
+      const afterDash = line.trim().slice(2).trim();
+      let itemValue: unknown = afterDash.replace(/^["']|["']$/g, '');
+      let isObjItem = false;
+
+      // Extract key: value within the array item if present
+      const kvMatch = afterDash.match(/^([a-zA-Z0-9_-]+):\s*(.*)/);
+      if (kvMatch) {
+        isObjItem = true;
+        const k = kvMatch[1];
+        const v = kvMatch[2].trim().replace(/^["']|["']$/g, '');
+        itemValue = { [k]: v };
+      }
 
       // If current context is an empty object, convert to array
       if (typeof current.obj === 'object' && !Array.isArray(current.obj) && Object.keys(current.obj).length === 0) {
@@ -129,6 +140,11 @@ function parseFrontmatterYamlLines(yaml: string): Record<string, unknown> {
         }
       } else if (Array.isArray(current.obj)) {
         current.obj.push(itemValue);
+      }
+
+      // Push object context onto stack so subsequent indented properties map to this object
+      if (isObjItem && Array.isArray(current.obj)) {
+        stack.push({ obj: itemValue as Record<string, unknown>, key: null, indent });
       }
     }
   }

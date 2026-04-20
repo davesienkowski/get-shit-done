@@ -154,7 +154,7 @@ export async function extractCurrentMilestone(content: string, projectDir: strin
 
   // Fallback: derive from ROADMAP in-progress marker
   if (!version) {
-    const inProgressMatch = content.match(/🚧\s*\*\*v(\d+(?:\.\d+)+)\s/);
+    const inProgressMatch = content.match(/(?:🚧|🟡)\s*\*\*v(\d+(?:\.\d+)+)\s/);
     if (inProgressMatch) {
       version = 'v' + inProgressMatch[1];
     }
@@ -179,14 +179,13 @@ export async function extractCurrentMilestone(content: string, projectDir: strin
   const headingLevelMatch = sectionMatch[1].match(/^(#{1,3})\s/);
   const headingLevel = headingLevelMatch ? headingLevelMatch[1].length : 2;
   const restContent = content.slice(sectionStart + sectionMatch[0].length);
-
   // Extract current version so same-version sub-headings are not treated as boundaries.
   // Capture full semver (major.minor.patch) so v2.0.1 is not collapsed to "2.0".
   const currentVersionMatch = version ? version.match(/v(\d+(?:\.\d+)+)/i) : null;
   const currentVersionStr = currentVersionMatch ? currentVersionMatch[1] : '';
 
   const nextMilestoneRegex = new RegExp(
-    `^#{1,${headingLevel}}\\s+(?:.*v(\\d+(?:\\.\\d+)+)[^\\n]*|.*(?:✅|📋|🚧))`,
+    `^#{1,${headingLevel}}\\s+(?:.*v(\\d+(?:\\.\\d+)+)[^\\n]*|.*(?:✅|📋|🚧|🟡))`,
     'gm'
   );
 
