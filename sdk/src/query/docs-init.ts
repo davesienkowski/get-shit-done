@@ -238,7 +238,7 @@ export const docsInit: QueryHandler = async (_args, projectDir) => {
   const docWriterData = docModelResult.data as Record<string, unknown>;
   const doc_writer_model = (docWriterData?.model as string) || 'sonnet';
 
-  const agentStatus = checkAgentsInstalled(config);
+  const agentStatus = checkAgentsInstalled(config as { runtime?: unknown });
 
   const data: Record<string, unknown> = {
     doc_writer_model,
